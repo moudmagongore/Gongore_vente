@@ -1,0 +1,96 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "boutiques",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "active", "order": "ASCENDING"},
+        {"fieldPath": "nom", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "ventes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
+        {"fieldPath": "date", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "ventes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "vendeurId", "order": "ASCENDING"},
+        {"fieldPath": "date", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "ventes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
+        {"fieldPath": "vendeurId", "order": "ASCENDING"},
+        {"fieldPath": "date", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "produits",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
+        {"fieldPath": "nom", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "produits",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
+        {"fieldPath": "active", "order": "ASCENDING"},
+        {"fieldPath": "nom", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "produits",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
+        {"fieldPath": "categorieId", "order": "ASCENDING"},
+        {"fieldPath": "nom", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "categories",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
+        {"fieldPath": "nom", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "mouvementsStock",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
+        {"fieldPath": "date", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "mouvementsStock",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "produitId", "order": "ASCENDING"},
+        {"fieldPath": "date", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
+        {"fieldPath": "nom", "order": "ASCENDING"}
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

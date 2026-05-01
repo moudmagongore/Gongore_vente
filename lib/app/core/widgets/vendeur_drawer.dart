@@ -1,0 +1,183 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
+import '../../routes/app_routes.dart';
+import '../../theme/app_colors.dart';
+import '../services/user_controller.dart';
+
+class VendeurDrawer extends StatelessWidget {
+  final String currentRoute;
+  const VendeurDrawer({super.key, required this.currentRoute});
+
+  @override
+  Widget build(BuildContext context) {
+    final user = UserController.to.user;
+
+    return Drawer(
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _Header(name: user?.nom ?? '', email: user?.email ?? ''),
+            const SizedBox(height: 8),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  _Item(
+                    icon: Icons.home_rounded,
+                    label: 'Accueil',
+                    route: AppRoutes.vendeurHome,
+                    selected: currentRoute == AppRoutes.vendeurHome,
+                  ),
+                  _Item(
+                    icon: Icons.point_of_sale_rounded,
+                    label: 'Caisse',
+                    route: AppRoutes.vendeurPos,
+                    selected: currentRoute == AppRoutes.vendeurPos,
+                  ),
+                  _Item(
+                    icon: Icons.receipt_long_rounded,
+                    label: 'Mes ventes',
+                    route: AppRoutes.vendeurVentes,
+                    selected: currentRoute == AppRoutes.vendeurVentes,
+                  ),
+                  const Divider(),
+                  _Item(
+                    icon: Icons.settings_rounded,
+                    label: 'Paramètres',
+                    route: AppRoutes.parametres,
+                    selected: currentRoute == AppRoutes.parametres,
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.logout_rounded, color: Colors.red),
+              title: const Text(
+                'Déconnexion',
+                style: TextStyle(color: Colors.red),
+              ),
+              onTap: () async {
+                await UserController.to.signOut();
+                Get.offAllNamed(AppRoutes.login);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Header extends StatelessWidget {
+  final String name;
+  final String email;
+  const _Header({required this.name, required this.email});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.secondary, AppColors.primary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: Colors.white,
+            child: Text(
+              name.isEmpty ? '?' : name[0].toUpperCase(),
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: AppColors.secondary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            email,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.85),
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Text(
+              'VENDEUR',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Item extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String route;
+  final bool selected;
+
+  const _Item({
+    required this.icon,
+    required this.label,
+    required this.route,
+    required this.selected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon, color: selected ? AppColors.secondary : null),
+      title: Text(
+        label,
+        style: TextStyle(
+          color: selected ? AppColors.secondary : null,
+          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+        ),
+      ),
+      selected: selected,
+      selectedTileColor: AppColors.secondary.withValues(alpha: 0.08),
+      onTap: () {
+        Navigator.of(context).pop();
+        if (selected) return;
+        Get.offNamed(route);
+      },
+    );
+  }
+}

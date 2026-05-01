@@ -1,0 +1,228 @@
+rules_version = '2';
+
+// =========================================================================
+// Règles de sécurité Firestore — Gongoré Vente (multi-tenant)
+//
+// Hiérarchie :
+//   • superAdmin  → accès total (créé manuellement dans Firestore)
+//   • admin       → admin d'une boutique (boutiqueId requis)
+//   • vendeur     → vendeur d'une boutique (boutiqueId requis)
+//
+// À publier dans la console Firebase :
+//   Firestore Database → Rules → coller → Publish
+// =========================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ================== Helpers ==================
+
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isActive() {
+      return isAuthed()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc().active == true;
+    }
+
+    function isSuperAdmin() {
+      return isActive() && userDoc().role == 'superAdmin';
+    }
+
+    function isAdmin() {
+      return isActive() && userDoc().role == 'admin';
+    }
+
+    function isVendeur() {
+      return isActive() && userDoc().role == 'vendeur';
+    }
+
+    function userBoutiqueId() {
+      return userDoc().boutiqueId;
+    }
+
+    function ownsBoutique(bid) {
+      return (isAdmin() || isVendeur()) && userBoutiqueId() == bid;
+    }
+
+    // Le doc créé porte le bon boutiqueId
+    function createBoutiqueIdMatches() {
+      return request.resource.data.boutiqueId == userBoutiqueId();
+    }
+
+    // Le doc lu/modifié porte le bon boutiqueId
+    function resourceBoutiqueIdMatches() {
+      return resource.data.boutiqueId == userBoutiqueId();
+    }
+
+    // Empêche de modifier le boutiqueId à l'update
+    function boutiqueIdNotChanged() {
+      return request.resource.data.boutiqueId == resource.data.boutiqueId;
+    }
+
+    // ================== Users ==================
+    match /users/{userId} {
+      // Lecture :
+      //   • superAdmin : tous
+      //   • soi-même : son propre doc
+      //   • admin de boutique : les users de sa boutique
+      allow read: if isSuperAdmin()
+                  || (isAuthed() && request.auth.uid == userId)
+                  || (isAdmin() && resource.data.boutiqueId == userBoutiqueId());
+
+      // Création :
+      //   • superAdmin : tous (admins ou vendeurs)
+      //   • admin de boutique : uniquement vendeurs de SA boutique
+      //   • personne ne peut créer un superAdmin via l'API
+      allow create: if (isSuperAdmin()
+                        && request.resource.data.role != 'superAdmin')
+                    || (isAdmin()
+                        && request.resource.data.role == 'vendeur'
+                        && createBoutiqueIdMatches());
+
+      // Update :
+      //   • superAdmin : tout sauf promouvoir vers superAdmin
+      //   • admin : uniquement vendeurs de sa boutique, sans changer rôle/boutique
+      //   • soi-même : limité (nom, téléphone) — non couvert ici, simple deny
+      allow update: if (isSuperAdmin()
+                        && request.resource.data.role != 'superAdmin')
+                    || (isAdmin()
+                        && resource.data.role == 'vendeur'
+                        && resource.data.boutiqueId == userBoutiqueId()
+                        && request.resource.data.role == 'vendeur'
+                        && boutiqueIdNotChanged());
+
+      // Delete :
+      //   • superAdmin : tous
+      //   • admin : ses vendeurs
+      allow delete: if isSuperAdmin()
+                    || (isAdmin()
+                        && resource.data.role == 'vendeur'
+                        && resource.data.boutiqueId == userBoutiqueId());
+    }
+
+    // ================== Boutiques ==================
+    match /boutiques/{bid} {
+      // Lecture : super-admin tout, admin/vendeur uniquement sa boutique
+      allow read: if isSuperAdmin() || (isAuthed() && ownsBoutique(bid));
+
+      // Création/suppression : super-admin uniquement
+      allow create: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+
+      // Update : super-admin tout, admin sa boutique
+      allow update: if isSuperAdmin() || (isAdmin() && ownsBoutique(bid));
+    }
+
+    // ================== Catégories (par boutique) ==================
+    match /categories/{cid} {
+      allow read: if isSuperAdmin()
+                  || (isAuthed() && resource.data.boutiqueId == userBoutiqueId());
+
+      allow create: if isSuperAdmin()
+                    || (isAdmin() && createBoutiqueIdMatches());
+
+      allow update: if isSuperAdmin()
+                    || (isAdmin()
+                        && resourceBoutiqueIdMatches()
+                        && boutiqueIdNotChanged());
+
+      allow delete: if isSuperAdmin()
+                    || (isAdmin() && resourceBoutiqueIdMatches());
+    }
+
+    // ================== Produits (par boutique) ==================
+    match /produits/{pid} {
+      allow read: if isSuperAdmin()
+                  || (isAuthed() && resource.data.boutiqueId == userBoutiqueId());
+
+      allow create: if isSuperAdmin()
+                    || (isAdmin() && createBoutiqueIdMatches());
+
+      allow update: if isSuperAdmin()
+                    || (isAdmin()
+                        && resourceBoutiqueIdMatches()
+                        && boutiqueIdNotChanged());
+
+      allow delete: if isSuperAdmin()
+                    || (isAdmin() && resourceBoutiqueIdMatches());
+    }
+
+    // ================== Stocks (par boutique) ==================
+    // Document ID = "{boutiqueId}_{produitId}"
+    match /stocks/{sid} {
+      allow read: if isSuperAdmin()
+                  || (isAuthed() && resource.data.boutiqueId == userBoutiqueId());
+
+      // Création/update du stock : tous les rôles authentifiés liés à la boutique
+      // (admin gère, vendeur valide une vente qui décrémente).
+      allow create: if isSuperAdmin()
+                    || (isAuthed() && createBoutiqueIdMatches());
+
+      allow update: if isSuperAdmin()
+                    || (isAuthed()
+                        && resourceBoutiqueIdMatches()
+                        && boutiqueIdNotChanged());
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // ================== Mouvements de stock ==================
+    match /mouvementsStock/{mid} {
+      allow read: if isSuperAdmin()
+                  || (isAuthed() && resource.data.boutiqueId == userBoutiqueId());
+
+      // Création par tout user de la boutique (vente, entrée, sortie, transfert).
+      allow create: if isSuperAdmin()
+                    || (isAuthed() && createBoutiqueIdMatches());
+
+      // Pas d'update / delete sur les mouvements (audit trail) sauf super-admin.
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // ================== Ventes ==================
+    match /ventes/{vid} {
+      allow read: if isSuperAdmin()
+                  || (isAuthed() && resource.data.boutiqueId == userBoutiqueId());
+
+      // Création par tout user de la boutique (admin OU vendeur).
+      allow create: if isSuperAdmin()
+                    || (isAuthed() && createBoutiqueIdMatches());
+
+      // Update (annulation) : seul super-admin OU admin de la boutique.
+      allow update: if isSuperAdmin()
+                    || (isAdmin()
+                        && resourceBoutiqueIdMatches()
+                        && boutiqueIdNotChanged());
+
+      // Delete réservé super-admin.
+      allow delete: if isSuperAdmin();
+    }
+
+    // ================== Clients ==================
+    match /clients/{cid} {
+      allow read: if isSuperAdmin()
+                  || (isAuthed() && resource.data.boutiqueId == userBoutiqueId());
+
+      allow create: if isSuperAdmin()
+                    || (isAuthed() && createBoutiqueIdMatches());
+
+      allow update: if isSuperAdmin()
+                    || (isAuthed()
+                        && resourceBoutiqueIdMatches()
+                        && boutiqueIdNotChanged());
+
+      allow delete: if isSuperAdmin()
+                    || (isAdmin() && resourceBoutiqueIdMatches());
+    }
+
+    // ================== Tout le reste : refusé ==================
+    // Sécurité par défaut : deny all sur les chemins non couverts ci-dessus.
+  }
+}
