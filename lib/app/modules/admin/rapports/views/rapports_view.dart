@@ -159,24 +159,86 @@ class _PeriodeBar extends StatelessWidget {
   final RapportsController c;
   const _PeriodeBar({required this.c});
 
+  static const _items = [
+    (PeriodePreset.jour, 'Jour'),
+    (PeriodePreset.semaine, 'Semaine'),
+    (PeriodePreset.mois, 'Mois'),
+    (PeriodePreset.trimestre, 'Trimestre'),
+    (PeriodePreset.personnalise, 'Perso'),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    return Obx(
-      () => SegmentedButton<PeriodePreset>(
-        segments: const [
-          ButtonSegment(value: PeriodePreset.jour, label: Text('Jour')),
-          ButtonSegment(value: PeriodePreset.semaine, label: Text('Semaine')),
-          ButtonSegment(value: PeriodePreset.mois, label: Text('Mois')),
-          ButtonSegment(
-              value: PeriodePreset.trimestre, label: Text('Trimestre')),
-          ButtonSegment(
-              value: PeriodePreset.personnalise,
-              label: Text('Perso')),
-        ],
-        selected: {c.preset.value},
-        onSelectionChanged: (s) => c.selectPreset(s.first),
-        showSelectedIcon: false,
-        style: const ButtonStyle(visualDensity: VisualDensity.compact),
+    return SizedBox(
+      height: 38,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Obx(() {
+          final current = c.preset.value;
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < _items.length; i++) ...[
+                if (i > 0) const SizedBox(width: 8),
+                _PillTab(
+                  label: _items[i].$2,
+                  selected: current == _items[i].$1,
+                  onTap: () => c.selectPreset(_items[i].$1),
+                ),
+              ],
+            ],
+          );
+        }),
+      ),
+    );
+  }
+}
+
+class _PillTab extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _PillTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final unselectedText =
+        isDark ? Colors.grey.shade300 : AppColors.lightText;
+    final unselectedBorder = Theme.of(context).dividerColor;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          alignment: Alignment.center,
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primary : Colors.transparent,
+            border: Border.all(
+              color: selected ? AppColors.primary : unselectedBorder,
+              width: 1,
+            ),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? Colors.white : unselectedText,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.1,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -379,7 +441,7 @@ class _FinancierSection extends StatelessWidget {
                     color: AppColors.success),
                 _Row('Panier moyen',
                     Fmt.money(c.caMoyenne, currency: 'GNF')),
-                _Row('CA annulé',
+                _Row('Chiffre d\'affaires annulé',
                     Fmt.money(c.caAnnule, currency: 'GNF'),
                     color: c.caAnnule > 0 ? Colors.red : null),
               ],

@@ -35,5 +35,4 @@ abstract class AppRoutes {
 
   // Commun
   static const profil = '/profil';
-  static const parametres = '/parametres';
 }

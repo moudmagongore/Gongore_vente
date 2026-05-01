@@ -92,12 +92,12 @@ class PosView extends GetView<PosController> {
                     return _Empty(hasSearch: controller.search.value.isNotEmpty);
                   }
                   return GridView.builder(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 110),
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 110),
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
-                      mainAxisSpacing: 10,
-                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 16,
+                      crossAxisSpacing: 16,
                       childAspectRatio: 0.78,
                     ),
                     itemCount: products.length,
@@ -127,7 +127,7 @@ class _SearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: TextField(
         decoration: const InputDecoration(
           hintText: 'Rechercher (nom, code-barre)...',
@@ -148,27 +148,30 @@ class _CategoriesBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Obx(() {
       if (controller.categories.isEmpty) return const SizedBox.shrink();
-      return SizedBox(
-        height: 42,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          children: [
-            _CatChip(
-              label: 'Tout',
-              selected: controller.filterCategorieId.value == null,
-              onTap: () => controller.filterCategorieId.value = null,
-            ),
-            const SizedBox(width: 6),
-            ...controller.categories.map((c) => Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: _CatChip(
-                    label: c.nom,
-                    selected: controller.filterCategorieId.value == c.id,
-                    onTap: () => controller.filterCategorieId.value = c.id,
-                  ),
-                )),
-          ],
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: SizedBox(
+          height: 38,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            children: [
+              _CatChip(
+                label: 'Tout',
+                selected: controller.filterCategorieId.value == null,
+                onTap: () => controller.filterCategorieId.value = null,
+              ),
+              const SizedBox(width: 8),
+              ...controller.categories.map((c) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _CatChip(
+                      label: c.nom,
+                      selected: controller.filterCategorieId.value == c.id,
+                      onTap: () => controller.filterCategorieId.value = c.id,
+                    ),
+                  )),
+            ],
+          ),
         ),
       );
     });
@@ -184,24 +187,37 @@ class _CatChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppColors.primary
-              : AppColors.primary.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? Colors.white : AppColors.primary,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final unselectedText =
+        isDark ? Colors.grey.shade300 : AppColors.lightText;
+    final unselectedBorder = Theme.of(context).dividerColor;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          alignment: Alignment.center,
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primary : Colors.transparent,
+            border: Border.all(
+              color: selected ? AppColors.primary : unselectedBorder,
+              width: 1,
+            ),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? Colors.white : unselectedText,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.1,
+            ),
           ),
         ),
       ),

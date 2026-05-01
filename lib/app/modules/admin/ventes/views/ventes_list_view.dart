@@ -30,8 +30,11 @@ class VentesListView extends GetView<VentesController> {
           : const VendeurDrawer(currentRoute: AppRoutes.vendeurVentes),
       body: Column(
         children: [
+          const SizedBox(height: 12),
           _PeriodeBar(controller: controller),
+          const SizedBox(height: 14),
           _StatsBar(controller: controller),
+          const SizedBox(height: 6),
           Expanded(
             child: Obx(() {
               if (controller.isLoading.value) {
@@ -80,6 +83,7 @@ class VentesListView extends GetView<VentesController> {
   void _showFilterSheet(BuildContext context) {
     Get.bottomSheet(
       SafeArea(
+        bottom: false,
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -192,24 +196,84 @@ class _PeriodeBar extends StatelessWidget {
   final VentesController controller;
   const _PeriodeBar({required this.controller});
 
+  static const _items = [
+    (PeriodeFiltre.aujourdhui, 'Aujourd\'hui'),
+    (PeriodeFiltre.semaine, 'Semaine'),
+    (PeriodeFiltre.mois, 'Mois'),
+    (PeriodeFiltre.tout, 'Tout'),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Obx(
-        () => SegmentedButton<PeriodeFiltre>(
-          segments: const [
-            ButtonSegment(
-                value: PeriodeFiltre.aujourdhui, label: Text('Aujourd\'hui')),
-            ButtonSegment(value: PeriodeFiltre.semaine, label: Text('Semaine')),
-            ButtonSegment(value: PeriodeFiltre.mois, label: Text('Mois')),
-            ButtonSegment(value: PeriodeFiltre.tout, label: Text('Tout')),
-          ],
-          selected: {controller.periode.value},
-          onSelectionChanged: (s) => controller.periode.value = s.first,
-          showSelectedIcon: false,
-          style: ButtonStyle(
-            visualDensity: VisualDensity.compact,
+    return SizedBox(
+      height: 38,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Obx(() {
+          final current = controller.periode.value;
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < _items.length; i++) ...[
+                if (i > 0) const SizedBox(width: 8),
+                _PillTab(
+                  label: _items[i].$2,
+                  selected: current == _items[i].$1,
+                  onTap: () => controller.periode.value = _items[i].$1,
+                ),
+              ],
+            ],
+          );
+        }),
+      ),
+    );
+  }
+}
+
+class _PillTab extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _PillTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final unselectedText =
+        isDark ? Colors.grey.shade300 : AppColors.lightText;
+    final unselectedBorder = Theme.of(context).dividerColor;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          alignment: Alignment.center,
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primary : Colors.transparent,
+            border: Border.all(
+              color: selected ? AppColors.primary : unselectedBorder,
+              width: 1,
+            ),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? Colors.white : unselectedText,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.1,
+            ),
           ),
         ),
       ),
@@ -224,28 +288,31 @@ class _StatsBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Obx(
-        () => Row(
-          children: [
-            Expanded(
-              child: _StatCard(
-                color: AppColors.success,
-                icon: Icons.attach_money_rounded,
-                value: Fmt.number(controller.caTotal),
-                label: 'Chiffre d\'affaires',
+        () => IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _StatCard(
+                  color: AppColors.success,
+                  icon: Icons.attach_money_rounded,
+                  value: Fmt.number(controller.caTotal),
+                  label: 'Chiffre d\'affaires',
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _StatCard(
-                color: AppColors.primary,
-                icon: Icons.receipt_long_rounded,
-                value: controller.nbVentesValidees.toString(),
-                label: 'Ventes',
+              const SizedBox(width: 12),
+              Expanded(
+                child: _StatCard(
+                  color: AppColors.primary,
+                  icon: Icons.receipt_long_rounded,
+                  value: controller.nbVentesValidees.toString(),
+                  label: 'Ventes',
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -268,14 +335,22 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border, width: 1),
       ),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 28),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -285,19 +360,24 @@ class _StatCard extends StatelessWidget {
                 Text(
                   value,
                   style: TextStyle(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                     color: color,
-                    fontSize: 16,
+                    fontSize: 18,
+                    letterSpacing: -0.3,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+                const SizedBox(height: 2),
                 Text(
                   label,
                   style: TextStyle(
                     fontSize: 11,
+                    fontWeight: FontWeight.w500,
                     color: Colors.grey.shade700,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),

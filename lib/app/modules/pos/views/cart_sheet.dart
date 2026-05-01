@@ -29,39 +29,70 @@ class CartSheet extends GetView<PosController> {
             children: [
               // Handle
               Container(
-                margin: const EdgeInsets.only(top: 8),
-                width: 40,
+                margin: const EdgeInsets.only(top: 10),
+                width: 44,
                 height: 4,
                 decoration: BoxDecoration(
                   color: Colors.grey.shade400,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const SizedBox(height: 4),
               // Header
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
+                padding: const EdgeInsets.fromLTRB(20, 14, 12, 12),
                 child: Row(
                   children: [
-                    const Text(
-                      'Panier',
-                      style: TextStyle(
-                          fontSize: 20, fontWeight: FontWeight.w700),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.shopping_cart_rounded,
+                        color: AppColors.primary,
+                        size: 22,
+                      ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Mon panier',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Obx(() => Text(
+                                controller.cart.isEmpty
+                                    ? 'Aucun article'
+                                    : '${controller.cart.length} produit'
+                                        '${controller.cart.length > 1 ? 's' : ''}'
+                                        ' · ${controller.nbArticles} article'
+                                        '${controller.nbArticles > 1 ? 's' : ''}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              )),
+                        ],
+                      ),
+                    ),
                     Obx(() => controller.cart.isNotEmpty
-                        ? TextButton.icon(
+                        ? IconButton(
+                            tooltip: 'Vider le panier',
                             onPressed: () =>
                                 _confirmClear(context, controller),
                             icon: const Icon(Icons.delete_outline,
                                 color: Colors.red),
-                            label: const Text(
-                              'Vider',
-                              style: TextStyle(color: Colors.red),
-                            ),
                           )
                         : const SizedBox.shrink()),
                     IconButton(
+                      tooltip: 'Fermer',
                       onPressed: () => Get.back(),
                       icon: const Icon(Icons.close_rounded),
                     ),
@@ -73,24 +104,13 @@ class CartSheet extends GetView<PosController> {
               Expanded(
                 child: Obx(() {
                   if (controller.cart.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.shopping_cart_outlined,
-                              size: 80, color: Colors.grey.shade400),
-                          const SizedBox(height: 16),
-                          Text('Panier vide',
-                              style: TextStyle(color: Colors.grey.shade600)),
-                        ],
-                      ),
-                    );
+                    return _EmptyCart();
                   }
                   return ListView.separated(
                     controller: scrollController,
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                     itemCount: controller.cart.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (_, i) => _LineTile(index: i),
                   );
                 }),
@@ -129,6 +149,55 @@ class CartSheet extends GetView<PosController> {
   }
 }
 
+class _EmptyCart extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.shopping_cart_outlined,
+                size: 44,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              'Votre panier est vide',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Sélectionnez un produit pour commencer une vente.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12.5,
+                color: Colors.grey.shade600,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _LineTile extends StatelessWidget {
   final int index;
   const _LineTile({required this.index});
@@ -139,113 +208,93 @@ class _LineTile extends StatelessWidget {
     return Obx(() {
       if (index >= c.cart.length) return const SizedBox.shrink();
       final line = c.cart[index];
-      return Card(
-        margin: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          line.produit.nom,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+      return Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardTheme.color,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border, width: 1),
+        ),
+        padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+        child: Column(
+          children: [
+            // Ligne 1 : nom + sous-total + close
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        line.produit.nom,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${Fmt.money(line.prixUnitaire, currency: c.devise)} x ${line.quantite}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey.shade600,
-                          ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${Fmt.money(line.prixUnitaire, currency: c.devise)} '
+                        'l\'unité',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: Colors.grey.shade600,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 18),
-                    onPressed: () => c.removeLine(index),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  // -
-                  _QtyBtn(
-                    icon: Icons.remove_rounded,
-                    onTap: () => c.decrementLine(index),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${line.quantite}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _QtyBtn(
-                    icon: Icons.add_rounded,
-                    onTap: () => c.incrementLine(index),
-                  ),
-                  const Spacer(),
-                  // Remise
-                  TextButton.icon(
-                    onPressed: () => _showRemiseSheet(context, c, index, line),
-                    icon: Icon(
-                      Icons.local_offer_outlined,
-                      size: 16,
-                      color: line.remise > 0
-                          ? AppColors.success
-                          : Colors.grey.shade600,
-                    ),
-                    label: Text(
-                      line.remise > 0
-                          ? '-${Fmt.money(line.remise, currency: c.devise)}'
-                          : 'Remise',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: line.remise > 0
-                            ? AppColors.success
-                            : Colors.grey.shade600,
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      Fmt.money(line.sousTotal, currency: c.devise),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        color: AppColors.primary,
+                        letterSpacing: -0.2,
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const Divider(height: 14),
-              Row(
-                children: [
-                  Text(
-                    'Sous-total',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade700,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    Fmt.money(line.sousTotal, currency: c.devise),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                    if (line.remise > 0)
+                      Text(
+                        '-${Fmt.money(line.remise, currency: c.devise)}',
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          color: AppColors.success,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                  ],
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(Icons.close_rounded,
+                      size: 18, color: Colors.grey.shade500),
+                  onPressed: () => c.removeLine(index),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // Ligne 2 : stepper groupé + remise
+            Row(
+              children: [
+                _QtyStepper(
+                  quantite: line.quantite,
+                  onMinus: () => c.decrementLine(index),
+                  onPlus: () => c.incrementLine(index),
+                ),
+                const Spacer(),
+                _RemiseChip(
+                  active: line.remise > 0,
+                  onTap: () => _showRemiseSheet(context, c, index, line),
+                ),
+              ],
+            ),
+          ],
         ),
       );
     });
@@ -263,6 +312,7 @@ class _LineTile extends StatelessWidget {
 
     Get.bottomSheet(
       SafeArea(
+        bottom: false,
         child: Container(
           color: Theme.of(context).cardTheme.color,
           padding: EdgeInsets.fromLTRB(
@@ -355,23 +405,120 @@ class _LineTile extends StatelessWidget {
   }
 }
 
-class _QtyBtn extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  const _QtyBtn({required this.icon, required this.onTap});
+/// Stepper compact -|N|+ groupé dans une pilule pour les lignes du panier.
+class _QtyStepper extends StatelessWidget {
+  final int quantite;
+  final VoidCallback onMinus;
+  final VoidCallback onPlus;
+  const _QtyStepper({
+    required this.quantite,
+    required this.onMinus,
+    required this.onPlus,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.12),
-          shape: BoxShape.circle,
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _StepIconBtn(icon: Icons.remove_rounded, onTap: onMinus),
+          Container(
+            width: 36,
+            alignment: Alignment.center,
+            child: Text(
+              '$quantite',
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 15,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+          _StepIconBtn(icon: Icons.add_rounded, onTap: onPlus),
+        ],
+      ),
+    );
+  }
+}
+
+class _StepIconBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _StepIconBtn({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      shape: const CircleBorder(),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Icon(icon, size: 18, color: AppColors.primary),
         ),
-        child: Icon(icon, size: 18, color: AppColors.primary),
+      ),
+    );
+  }
+}
+
+/// Chip pour ajouter/afficher une remise sur une ligne du panier.
+class _RemiseChip extends StatelessWidget {
+  final bool active;
+  final VoidCallback onTap;
+  const _RemiseChip({required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = active ? AppColors.success : Colors.grey.shade600;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: active
+                ? AppColors.success.withValues(alpha: 0.10)
+                : Colors.transparent,
+            border: Border.all(
+              color: active
+                  ? AppColors.success.withValues(alpha: 0.4)
+                  : Theme.of(context).dividerColor,
+              width: 1,
+            ),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                active
+                    ? Icons.local_offer_rounded
+                    : Icons.local_offer_outlined,
+                size: 14,
+                color: color,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                active ? 'Remise appliquée' : 'Ajouter remise',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -384,73 +531,98 @@ class _CheckoutSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Mode paiement
-          const Text(
+          Text(
             'Mode de paiement',
             style: TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.lightTextMuted,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
+              color: Colors.grey.shade600,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           SizedBox(
             height: 38,
-            child: Obx(
-              () => ListView(
-                scrollDirection: Axis.horizontal,
-                children: ModePaiement.values
-                    .map(
-                      (m) => Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ChoiceChip(
-                          label: Text(m.label),
-                          selected: controller.modePaiement.value == m,
-                          onSelected: (_) => controller.modePaiement.value = m,
-                        ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Obx(() {
+                final current = controller.modePaiement.value;
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var i = 0; i < ModePaiement.values.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 8),
+                      _PaiementPill(
+                        label: ModePaiement.values[i].label,
+                        selected: current == ModePaiement.values[i],
+                        onTap: () => controller.modePaiement.value =
+                            ModePaiement.values[i],
                       ),
-                    )
-                    .toList(),
-              ),
+                    ],
+                  ],
+                );
+              }),
             ),
           ),
-          const SizedBox(height: 14),
-          // Remise globale
+          const SizedBox(height: 16),
           _RemiseGlobaleField(controller: controller),
           const SizedBox(height: 14),
-          // Totaux
-          Obx(() => Column(
-                children: [
-                  _LineTotal(
-                    label: 'Sous-total',
-                    value: Fmt.money(controller.sousTotal,
-                        currency: controller.devise),
+          // Totaux dans une carte bordurée
+          Obx(() => Container(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                decoration: BoxDecoration(
+                  color:
+                      AppColors.primary.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    width: 1,
                   ),
-                  if (controller.remiseGlobale.value > 0)
+                ),
+                child: Column(
+                  children: [
                     _LineTotal(
-                      label: 'Remise globale',
-                      value: '-${Fmt.money(controller.remiseGlobale.value, currency: controller.devise)}',
-                      color: AppColors.success,
+                      label: 'Sous-total',
+                      value: Fmt.money(controller.sousTotal,
+                          currency: controller.devise),
                     ),
-                  const Divider(),
-                  _LineTotal(
-                    label: 'TOTAL',
-                    value: Fmt.money(controller.total,
-                        currency: controller.devise),
-                    big: true,
-                  ),
-                ],
+                    if (controller.remiseGlobale.value > 0) ...[
+                      const SizedBox(height: 4),
+                      _LineTotal(
+                        label: 'Remise globale',
+                        value:
+                            '-${Fmt.money(controller.remiseGlobale.value, currency: controller.devise)}',
+                        color: AppColors.success,
+                      ),
+                    ],
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Divider(
+                        height: 1,
+                        color: AppColors.primary.withValues(alpha: 0.18),
+                      ),
+                    ),
+                    _LineTotal(
+                      label: 'TOTAL',
+                      value: Fmt.money(controller.total,
+                          currency: controller.devise),
+                      big: true,
+                    ),
+                  ],
+                ),
               )),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           Obx(
             () => ElevatedButton.icon(
-              onPressed: controller.isSaving.value || controller.cart.isEmpty
-                  ? null
-                  : controller.validerVente,
+              onPressed:
+                  controller.isSaving.value || controller.cart.isEmpty
+                      ? null
+                      : controller.validerVente,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.success,
                 minimumSize: const Size.fromHeight(56),
@@ -477,6 +649,56 @@ class _CheckoutSection extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PaiementPill extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _PaiementPill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final unselectedText =
+        isDark ? Colors.grey.shade300 : AppColors.lightText;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primary : Colors.transparent,
+            border: Border.all(
+              color: selected
+                  ? AppColors.primary
+                  : Theme.of(context).dividerColor,
+              width: 1,
+            ),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? Colors.white : unselectedText,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.1,
+            ),
+          ),
+        ),
       ),
     );
   }

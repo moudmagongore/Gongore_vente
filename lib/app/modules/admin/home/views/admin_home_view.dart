@@ -51,7 +51,8 @@ class AdminHomeView extends StatelessWidget {
               const SizedBox(height: 10),
               _KpisMois(c: c),
               const SizedBox(height: 20),
-              const _SectionTitle('Évolution du CA — 7 derniers jours'),
+              const _SectionTitle(
+                  'Évolution du chiffre d\'affaires — 7 derniers jours'),
               const SizedBox(height: 10),
               _ChartCard(child: _LineChartCa(c: c)),
               const SizedBox(height: 20),
@@ -186,6 +187,7 @@ class _GreetingCard extends StatelessWidget {
 // KPIs
 // ===========================================================================
 
+/// Carte KPI principale, plus aérée (utilisée par paire dans une rangée).
 class _KpiCard extends StatelessWidget {
   final IconData icon;
   final Color color;
@@ -204,45 +206,106 @@ class _KpiCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: AppColors.border, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 18),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: 18),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-                fontSize: 16, fontWeight: FontWeight.w700, color: color),
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: color,
+              letterSpacing: -0.5,
+            ),
           ),
-          const SizedBox(height: 2),
-          Text(label,
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
-          if (hint != null)
-            Text(hint!,
-                style: TextStyle(fontSize: 9, color: Colors.grey.shade500)),
+          if (hint != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              hint!,
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+/// Ligne de métriques secondaires sous les KPIs : pas de cards, une simple
+/// rangée discrète sous forme « valeur · valeur · valeur ».
+class _SecondaryStats extends StatelessWidget {
+  final List<({IconData icon, String value, String label, Color color})> items;
+  const _SecondaryStats({required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Wrap(
+        spacing: 14,
+        runSpacing: 6,
+        children: items
+            .map(
+              (it) => Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(it.icon, size: 14, color: it.color),
+                  const SizedBox(width: 4),
+                  Text(
+                    it.value,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: it.color,
+                    ),
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    it.label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            )
+            .toList(),
       ),
     );
   }
@@ -254,45 +317,51 @@ class _KpisJour extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _KpiCard(
-            icon: Icons.attach_money_rounded,
-            color: AppColors.success,
-            value: Fmt.number(c.caJour),
-            label: 'CA',
-            hint: 'GNF',
+    return Obx(
+      () => Column(
+        children: [
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _KpiCard(
+                    icon: Icons.attach_money_rounded,
+                    color: AppColors.success,
+                    value: Fmt.number(c.caJour),
+                    label: 'Chiffre d\'affaires',
+                    hint: 'GNF',
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _KpiCard(
+                    icon: Icons.receipt_long_rounded,
+                    color: AppColors.primary,
+                    value: c.nbVentesJour.toString(),
+                    label: 'Ventes',
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _KpiCard(
-            icon: Icons.receipt_long_rounded,
-            color: AppColors.primary,
-            value: c.nbVentesJour.toString(),
-            label: 'Ventes',
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _KpiCard(
-            icon: Icons.shopping_basket_rounded,
-            color: AppColors.accent,
-            value: c.nbArticlesJour.toString(),
-            label: 'Articles',
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _KpiCard(
-            icon: Icons.cancel_outlined,
-            color: Colors.red,
-            value: c.nbAnnulationsJour.toString(),
-            label: 'Annulées',
-          ),
-        ),
-      ],
+          const SizedBox(height: 12),
+          _SecondaryStats(items: [
+            (
+              icon: Icons.shopping_basket_rounded,
+              value: c.nbArticlesJour.toString(),
+              label: 'articles',
+              color: AppColors.accent,
+            ),
+            (
+              icon: Icons.cancel_outlined,
+              value: c.nbAnnulationsJour.toString(),
+              label: 'annulées',
+              color: Colors.red,
+            ),
+          ]),
+        ],
+      ),
     );
   }
 }
@@ -303,46 +372,52 @@ class _KpisMois extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _KpiCard(
-            icon: Icons.trending_up_rounded,
-            color: AppColors.success,
-            value: Fmt.number(c.caMois),
-            label: 'CA mois',
-            hint: 'GNF',
+    return Obx(
+      () => Column(
+        children: [
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _KpiCard(
+                    icon: Icons.trending_up_rounded,
+                    color: AppColors.success,
+                    value: Fmt.number(c.caMois),
+                    label: 'Chiffre d\'affaires mensuel',
+                    hint: 'GNF',
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _KpiCard(
+                    icon: Icons.savings_rounded,
+                    color: AppColors.secondary,
+                    value: Fmt.number(c.beneficeMois),
+                    label: 'Bénéfice',
+                    hint: 'estimé',
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _KpiCard(
-            icon: Icons.savings_rounded,
-            color: AppColors.secondary,
-            value: Fmt.number(c.beneficeMois),
-            label: 'Bénéfice',
-            hint: 'estimé',
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _KpiCard(
-            icon: Icons.receipt_long_rounded,
-            color: AppColors.primary,
-            value: c.nbVentesMois.toString(),
-            label: 'Ventes',
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _KpiCard(
-            icon: Icons.equalizer_rounded,
-            color: AppColors.accent,
-            value: Fmt.number(c.caMoyenneVente),
-            label: 'Panier moy.',
-          ),
-        ),
-      ],
+          const SizedBox(height: 12),
+          _SecondaryStats(items: [
+            (
+              icon: Icons.receipt_long_rounded,
+              value: c.nbVentesMois.toString(),
+              label: 'ventes',
+              color: AppColors.primary,
+            ),
+            (
+              icon: Icons.equalizer_rounded,
+              value: Fmt.number(c.caMoyenneVente),
+              label: 'panier moyen',
+              color: AppColors.accent,
+            ),
+          ]),
+        ],
+      ),
     );
   }
 }
@@ -357,14 +432,15 @@ class _LineChartCa extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pts = c.serie7Jours;
-    final maxY = c.max7Jours * 1.2;
+    return Obx(() {
+      final pts = c.serie7Jours;
+      final maxY = c.max7Jours * 1.2;
 
-    if (pts.every((p) => p.total == 0)) {
-      return _NoData(message: 'Aucune vente sur les 7 derniers jours');
-    }
+      if (pts.every((p) => p.total == 0)) {
+        return _NoData(message: 'Aucune vente sur les 7 derniers jours');
+      }
 
-    final spots = pts
+      final spots = pts
         .asMap()
         .entries
         .map((e) => FlSpot(e.key.toDouble(), e.value.total))
@@ -447,6 +523,7 @@ class _LineChartCa extends StatelessWidget {
         ),
       ),
     );
+    });
   }
 }
 
@@ -456,11 +533,12 @@ class _BarChartTopProduits extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tops = c.topProduits;
-    if (tops.isEmpty) return _NoData(message: 'Aucune vente sur le mois');
+    return Obx(() {
+      final tops = c.topProduits;
+      if (tops.isEmpty) return _NoData(message: 'Aucune vente sur le mois');
 
-    final maxQ = c.topProduitsMaxQuantite.toDouble();
-    return Column(
+      final maxQ = c.topProduitsMaxQuantite.toDouble();
+      return Column(
       children: tops.asMap().entries.map((e) {
         final i = e.key;
         final t = e.value;
@@ -524,6 +602,7 @@ class _BarChartTopProduits extends StatelessWidget {
         );
       }).toList(),
     );
+    });
   }
 
   Color _rankColor(int i) {
@@ -548,18 +627,19 @@ class _PiePaiements extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final data = c.caParModePaiement;
-    if (data.isEmpty) return _NoData(message: 'Aucune vente sur le mois');
+    return Obx(() {
+      final data = c.caParModePaiement;
+      if (data.isEmpty) return _NoData(message: 'Aucune vente sur le mois');
 
-    final total = data.values.fold<double>(0, (acc, v) => acc + v);
-    final colors = {
-      ModePaiement.especes: AppColors.success,
-      ModePaiement.orangeMoney: AppColors.warning,
-      ModePaiement.mobileMoney: AppColors.primary,
-      ModePaiement.paycard: AppColors.secondary,
-    };
+      final total = data.values.fold<double>(0, (acc, v) => acc + v);
+      final colors = {
+        ModePaiement.especes: AppColors.success,
+        ModePaiement.orangeMoney: AppColors.warning,
+        ModePaiement.mobileMoney: AppColors.primary,
+        ModePaiement.paycard: AppColors.secondary,
+      };
 
-    return Column(
+      return Column(
       children: [
         SizedBox(
           height: 180,
@@ -619,6 +699,7 @@ class _PiePaiements extends StatelessWidget {
         ),
       ],
     );
+    });
   }
 }
 
@@ -652,40 +733,43 @@ class _ListBoutiques extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final list = c.caParBoutique;
-    if (list.isEmpty) return _NoData(message: 'Aucune donnée');
-    return Card(
-      child: Column(
-        children: list
-            .asMap()
-            .entries
-            .map((e) => Column(
-                  children: [
-                    ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor:
-                            AppColors.primary.withValues(alpha: 0.12),
-                        child: const Icon(Icons.store_rounded,
-                            color: AppColors.primary),
-                      ),
-                      title: Text(e.value.boutique.nom),
-                      subtitle: Text('${e.value.nb} vente(s)',
-                          style: const TextStyle(fontSize: 11)),
-                      trailing: Text(
-                        Fmt.money(e.value.ca, currency: e.value.boutique.devise),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
+    return Obx(() {
+      final list = c.caParBoutique;
+      if (list.isEmpty) return _NoData(message: 'Aucune donnée');
+      return Card(
+        child: Column(
+          children: list
+              .asMap()
+              .entries
+              .map((e) => Column(
+                    children: [
+                      ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor:
+                              AppColors.primary.withValues(alpha: 0.12),
+                          child: const Icon(Icons.store_rounded,
+                              color: AppColors.primary),
+                        ),
+                        title: Text(e.value.boutique.nom),
+                        subtitle: Text('${e.value.nb} vente(s)',
+                            style: const TextStyle(fontSize: 11)),
+                        trailing: Text(
+                          Fmt.money(e.value.ca,
+                              currency: e.value.boutique.devise),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
                         ),
                       ),
-                    ),
-                    if (e.key < list.length - 1)
-                      Divider(height: 1, color: Colors.grey.shade200),
-                  ],
-                ))
-            .toList(),
-      ),
-    );
+                      if (e.key < list.length - 1)
+                        Divider(height: 1, color: Colors.grey.shade200),
+                    ],
+                  ))
+              .toList(),
+        ),
+      );
+    });
   }
 }
 
@@ -695,47 +779,49 @@ class _ListVendeurs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final list = c.topVendeurs;
-    if (list.isEmpty) return _NoData(message: 'Aucune donnée');
-    return Card(
-      child: Column(
-        children: list
-            .asMap()
-            .entries
-            .map((e) => Column(
-                  children: [
-                    ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor:
-                            AppColors.secondary.withValues(alpha: 0.15),
-                        child: Text(
-                          e.value.user.nom.isEmpty
-                              ? '?'
-                              : e.value.user.nom[0].toUpperCase(),
+    return Obx(() {
+      final list = c.topVendeurs;
+      if (list.isEmpty) return _NoData(message: 'Aucune donnée');
+      return Card(
+        child: Column(
+          children: list
+              .asMap()
+              .entries
+              .map((e) => Column(
+                    children: [
+                      ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor:
+                              AppColors.secondary.withValues(alpha: 0.15),
+                          child: Text(
+                            e.value.user.nom.isEmpty
+                                ? '?'
+                                : e.value.user.nom[0].toUpperCase(),
+                            style: const TextStyle(
+                              color: AppColors.secondary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        title: Text(e.value.user.nom),
+                        subtitle: Text('${e.value.nb} vente(s)',
+                            style: const TextStyle(fontSize: 11)),
+                        trailing: Text(
+                          Fmt.number(e.value.ca),
                           style: const TextStyle(
-                            color: AppColors.secondary,
                             fontWeight: FontWeight.w700,
+                            color: AppColors.secondary,
                           ),
                         ),
                       ),
-                      title: Text(e.value.user.nom),
-                      subtitle: Text('${e.value.nb} vente(s)',
-                          style: const TextStyle(fontSize: 11)),
-                      trailing: Text(
-                        Fmt.number(e.value.ca),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.secondary,
-                        ),
-                      ),
-                    ),
-                    if (e.key < list.length - 1)
-                      Divider(height: 1, color: Colors.grey.shade200),
-                  ],
-                ))
-            .toList(),
-      ),
-    );
+                      if (e.key < list.length - 1)
+                        Divider(height: 1, color: Colors.grey.shade200),
+                    ],
+                  ))
+              .toList(),
+        ),
+      );
+    });
   }
 }
 
@@ -800,13 +886,7 @@ class _Quick extends StatelessWidget {
         decoration: BoxDecoration(
           color: Theme.of(context).cardTheme.color,
           borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: Border.all(color: AppColors.border, width: 1),
         ),
         padding: const EdgeInsets.all(8),
         child: Column(

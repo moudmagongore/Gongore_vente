@@ -183,36 +183,39 @@ class _StatsBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(
-      () => Row(
-        children: [
-          Expanded(
-            child: _StatCard(
-              icon: Icons.receipt_long_rounded,
-              value: controller.nbVentesJour.toString(),
-              label: 'Ventes du jour',
-              color: AppColors.primary,
+      () => IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: _StatCard(
+                icon: Icons.receipt_long_rounded,
+                value: controller.nbVentesJour.toString(),
+                label: 'Ventes du jour',
+                color: AppColors.primary,
+              ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _StatCard(
-              icon: Icons.attach_money_rounded,
-              value: Fmt.number(controller.caJour),
-              label: 'CA du jour',
-              color: AppColors.success,
-              suffix: controller.devise,
+            const SizedBox(width: 10),
+            Expanded(
+              child: _StatCard(
+                icon: Icons.attach_money_rounded,
+                value: Fmt.number(controller.caJour),
+                label: 'Chiffre d\'affaires du jour',
+                color: AppColors.success,
+                suffix: controller.devise,
+              ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _StatCard(
-              icon: Icons.shopping_basket_rounded,
-              value: controller.nbArticlesVendus.toString(),
-              label: 'Articles',
-              color: AppColors.accent,
+            const SizedBox(width: 10),
+            Expanded(
+              child: _StatCard(
+                icon: Icons.shopping_basket_rounded,
+                value: controller.nbArticlesVendus.toString(),
+                label: 'Articles',
+                color: AppColors.accent,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -236,17 +239,11 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: AppColors.border, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,34 +252,36 @@ class _StatCard extends StatelessWidget {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 18),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
               color: color,
+              letterSpacing: -0.3,
             ),
           ),
-          if (suffix != null)
-            Text(
-              suffix!,
-              style: TextStyle(
-                fontSize: 9,
-                color: Colors.grey.shade600,
-              ),
-            ),
           const SizedBox(height: 2),
+          Text(
+            suffix ?? '',
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey.shade500,
+            ),
+          ),
+          const Spacer(),
           Text(
             label,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
               color: Colors.grey.shade700,
             ),
           ),
@@ -315,13 +314,7 @@ class _ActionTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: Theme.of(context).cardTheme.color,
           borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: Border.all(color: AppColors.border, width: 1),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

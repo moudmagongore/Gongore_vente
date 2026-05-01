@@ -1,7 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../core/widgets/coming_soon_view.dart';
 import '../modules/admin/boutiques/bindings/boutique_form_binding.dart';
 import '../modules/admin/boutiques/bindings/boutiques_binding.dart';
 import '../modules/admin/boutiques/views/boutique_form_view.dart';
@@ -158,16 +156,6 @@ class AppPages {
       binding: RapportsBinding(),
       middlewares: [AdminGuard()],
     ),
-    GetPage(
-      name: AppRoutes.parametres,
-      page: () => const ComingSoonView(
-        title: 'Paramètres',
-        currentRoute: AppRoutes.parametres,
-        icon: Icons.settings_rounded,
-      ),
-      middlewares: [AuthGuard()],
-    ),
-
     // ========== Vendeur (tout user connecté) ==========
     GetPage(
       name: AppRoutes.vendeurHome,

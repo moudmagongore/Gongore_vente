@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
 import '../services/user_controller.dart';
+import 'sign_out_dialog.dart';
 
 class VendeurDrawer extends StatelessWidget {
   final String currentRoute;
@@ -14,13 +15,14 @@ class VendeurDrawer extends StatelessWidget {
     final user = UserController.to.user;
 
     return Drawer(
-      child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _Header(name: user?.nom ?? '', email: user?.email ?? ''),
-            const SizedBox(height: 8),
-            Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _Header(name: user?.nom ?? '', email: user?.email ?? ''),
+          const SizedBox(height: 8),
+          Expanded(
+            child: SafeArea(
+              top: false,
               child: ListView(
                 padding: EdgeInsets.zero,
                 children: [
@@ -42,31 +44,24 @@ class VendeurDrawer extends StatelessWidget {
                     route: AppRoutes.vendeurVentes,
                     selected: currentRoute == AppRoutes.vendeurVentes,
                   ),
-                  const Divider(),
-                  _Item(
-                    icon: Icons.settings_rounded,
-                    label: 'Paramètres',
-                    route: AppRoutes.parametres,
-                    selected: currentRoute == AppRoutes.parametres,
-                  ),
                 ],
               ),
             ),
-            const Divider(height: 1),
-            ListTile(
-              leading: const Icon(Icons.logout_rounded, color: Colors.red),
+          ),
+          const Divider(height: 1),
+          Builder(
+            builder: (ctx) => ListTile(
+              leading:
+                  const Icon(Icons.logout_rounded, color: Colors.red),
               title: const Text(
                 'Déconnexion',
                 style: TextStyle(color: Colors.red),
               ),
-              onTap: () async {
-                await UserController.to.signOut();
-                Get.offAllNamed(AppRoutes.login);
-              },
+              onTap: () => confirmSignOut(ctx),
             ),
-            const SizedBox(height: 8),
-          ],
-        ),
+          ),
+          SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
+        ],
       ),
     );
   }
@@ -79,8 +74,9 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final topInset = MediaQuery.of(context).padding.top;
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+      padding: EdgeInsets.fromLTRB(20, 20 + topInset, 20, 18),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [AppColors.secondary, AppColors.primary],

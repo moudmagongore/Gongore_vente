@@ -160,7 +160,7 @@ class ReportPdfService {
               },
               headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
               data: [
-                ['Mode', 'Montant', '% du CA'],
+                ['Mode', 'Montant', '% du chiffre d\'affaires'],
                 ...data.caParPaiement.entries.map((e) {
                   final pct = data.caTotal == 0
                       ? 0
@@ -199,7 +199,7 @@ class ReportPdfService {
               },
               headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
               data: [
-                ['#', 'Produit', 'Quantité', 'CA'],
+                ['#', 'Produit', 'Quantité', 'Chiffre d\'affaires'],
                 ...data.topProduits.take(20).toList().asMap().entries.map(
                       (e) => [
                         '${e.key + 1}',

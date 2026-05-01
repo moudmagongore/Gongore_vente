@@ -34,7 +34,9 @@ class ProduitsListView extends GetView<ProduitsController> {
       drawer: const AdminDrawer(currentRoute: AppRoutes.adminProduits),
       body: Column(
         children: [
+          const SizedBox(height: 12),
           _Filters(controller: controller),
+          const SizedBox(height: 8),
           Expanded(
             child: Obx(() {
               if (controller.isLoading.value) {
@@ -70,7 +72,7 @@ class _Filters extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Obx(
         () => SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -274,35 +276,48 @@ class _ProduitTile extends StatelessWidget {
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        Text(
-                          Fmt.money(produit.prixVente, currency: devise),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
-                            fontSize: 14,
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  Fmt.money(produit.prixVente,
+                                      currency: devise),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                    fontSize: 14,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (produit.prixAchat > 0) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.success
+                                        .withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '+${Fmt.money(produit.marge, currency: devise)}',
+                                    style: const TextStyle(
+                                      color: AppColors.success,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
-                        if (produit.prixAchat > 0) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color:
-                                  AppColors.success.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              '+${Fmt.money(produit.marge, currency: devise)}',
-                              style: const TextStyle(
-                                color: AppColors.success,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                        const Spacer(),
+                        const SizedBox(width: 8),
                         Obx(() => _StockBadge(
                               quantite: controller.stockOf(produit),
                               seuil: produit.seuilAlerte,
