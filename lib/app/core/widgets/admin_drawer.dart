@@ -52,6 +52,18 @@ class AdminDrawer extends StatelessWidget {
                     selected: currentRoute == AppRoutes.adminUsers,
                   ),
                   _Item(
+                    icon: Icons.contacts_rounded,
+                    label: 'Clients',
+                    route: AppRoutes.adminClients,
+                    selected: currentRoute == AppRoutes.adminClients,
+                  ),
+                  _Item(
+                    icon: Icons.payments_rounded,
+                    label: 'Règlements',
+                    route: AppRoutes.adminReglements,
+                    selected: currentRoute == AppRoutes.adminReglements,
+                  ),
+                  _Item(
                     icon: Icons.category_rounded,
                     label: 'Catégories',
                     route: AppRoutes.adminCategories,
@@ -68,12 +80,6 @@ class AdminDrawer extends StatelessWidget {
                     label: 'Stock',
                     route: AppRoutes.adminStock,
                     selected: currentRoute == AppRoutes.adminStock,
-                  ),
-                  _Item(
-                    icon: Icons.point_of_sale_rounded,
-                    label: 'Caisse',
-                    route: AppRoutes.adminPos,
-                    selected: currentRoute == AppRoutes.adminPos,
                   ),
                   _Item(
                     icon: Icons.receipt_long_rounded,

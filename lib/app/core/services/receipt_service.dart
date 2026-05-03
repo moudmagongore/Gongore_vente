@@ -15,6 +15,7 @@ class ReceiptService {
     required VenteModel vente,
     required BoutiqueModel boutique,
     UserModel? vendeur,
+    String? clientLabel,
   }) async {
     final pdf = pw.Document();
     final devise = boutique.devise;
@@ -60,8 +61,9 @@ class ReceiptService {
 
             // ====== Méta ======
             _kvRow('Date', Fmt.dateTime(vente.date)),
+            _kvRow('Client', clientLabel ?? vente.clientLabelOuLibre),
             _kvRow('Vendeur', vendeur?.nom ?? '—'),
-            _kvRow('N° vente', vente.id.substring(0, 8).toUpperCase()),
+            _kvRow('N° vente', vente.numeroAffichage),
             _kvRow('Paiement', vente.modePaiement.label),
             if (vente.statut == VenteStatut.annulee)
               _kvRow('Statut', 'ANNULÉE',
@@ -185,6 +187,41 @@ class ReceiptService {
                 ),
               ],
             ),
+            pw.SizedBox(height: 4),
+            pw.Container(height: 0.5, color: PdfColors.grey400),
+            pw.SizedBox(height: 4),
+            _kvRow('Montant payé (cash)',
+                Fmt.money(vente.montantPaye, currency: devise)),
+            if (vente.avanceUtilisee > 0)
+              _kvRow('Avance utilisée',
+                  Fmt.money(vente.avanceUtilisee, currency: devise)),
+            if (vente.resteAPayer > 0)
+              _kvRow(
+                'Reste à payer (crédit)',
+                Fmt.money(vente.resteAPayer, currency: devise),
+                bold: true,
+              )
+            else if (vente.resteAPayer < 0)
+              _kvRow(
+                'Trop-perçu',
+                Fmt.money(vente.resteAPayer.abs(), currency: devise),
+              ),
+            if (vente.note?.isNotEmpty ?? false) ...[
+              pw.SizedBox(height: 6),
+              pw.Container(height: 0.5, color: PdfColors.grey400),
+              pw.SizedBox(height: 4),
+              pw.Align(
+                alignment: pw.Alignment.centerLeft,
+                child: pw.Text(
+                  'Note : ${vente.note}',
+                  style: pw.TextStyle(
+                    fontSize: 8,
+                    fontStyle: pw.FontStyle.italic,
+                    color: PdfColors.grey800,
+                  ),
+                ),
+              ),
+            ],
             pw.SizedBox(height: 12),
             pw.Container(height: 1, color: PdfColors.black),
             pw.SizedBox(height: 8),
@@ -218,16 +255,18 @@ class ReceiptService {
     required VenteModel vente,
     required BoutiqueModel boutique,
     UserModel? vendeur,
+    String? clientLabel,
   }) async {
     final bytes = await build(
       vente: vente,
       boutique: boutique,
       vendeur: vendeur,
+      clientLabel: clientLabel,
     );
     await Printing.layoutPdf(
       onLayout: (_) async => bytes,
       name:
-          'Recu_${boutique.nom}_${vente.id.substring(0, 8).toUpperCase()}.pdf',
+          'Recu_${boutique.nom}_${vente.numeroAffichage}.pdf',
     );
   }
 }

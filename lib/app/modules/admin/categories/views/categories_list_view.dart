@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/services/user_controller.dart';
 import '../../../../core/widgets/admin_drawer.dart';
+import '../../../../core/widgets/vendeur_drawer.dart';
 import '../../../../data/models/categorie_model.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../../theme/app_colors.dart';
@@ -12,6 +14,7 @@ class CategoriesListView extends GetView<CategoriesController> {
 
   @override
   Widget build(BuildContext context) {
+    final canEdit = UserController.to.isAnyAdmin;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Catégories'),
@@ -30,7 +33,9 @@ class CategoriesListView extends GetView<CategoriesController> {
           ),
         ),
       ),
-      drawer: const AdminDrawer(currentRoute: AppRoutes.adminCategories),
+      drawer: canEdit
+          ? const AdminDrawer(currentRoute: AppRoutes.adminCategories)
+          : const VendeurDrawer(currentRoute: AppRoutes.adminCategories),
       body: Obx(() {
         if (controller.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
@@ -43,22 +48,26 @@ class CategoriesListView extends GetView<CategoriesController> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
           itemCount: list.length,
           separatorBuilder: (_, _) => const SizedBox(height: 10),
-          itemBuilder: (_, i) => _CategorieTile(categorie: list[i]),
+          itemBuilder: (_, i) =>
+              _CategorieTile(categorie: list[i], canEdit: canEdit),
         );
       }),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Get.toNamed(AppRoutes.adminCategorieForm),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Nouvelle catégorie'),
-      ),
+      floatingActionButton: canEdit
+          ? FloatingActionButton.extended(
+              onPressed: () => Get.toNamed(AppRoutes.adminCategorieForm),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Nouvelle catégorie'),
+            )
+          : null,
     );
   }
 }
 
 class _CategorieTile extends StatelessWidget {
   final CategorieModel categorie;
+  final bool canEdit;
 
-  const _CategorieTile({required this.categorie});
+  const _CategorieTile({required this.categorie, required this.canEdit});
 
   @override
   Widget build(BuildContext context) {
@@ -66,10 +75,12 @@ class _CategorieTile extends StatelessWidget {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: () => Get.toNamed(
-          AppRoutes.adminCategorieForm,
-          arguments: categorie,
-        ),
+        onTap: canEdit
+            ? () => Get.toNamed(
+                  AppRoutes.adminCategorieForm,
+                  arguments: categorie,
+                )
+            : null,
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
@@ -121,17 +132,19 @@ class _CategorieTile extends StatelessWidget {
                   ],
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.edit_outlined),
-                onPressed: () => Get.toNamed(
-                  AppRoutes.adminCategorieForm,
-                  arguments: categorie,
+              if (canEdit) ...[
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () => Get.toNamed(
+                    AppRoutes.adminCategorieForm,
+                    arguments: categorie,
+                  ),
                 ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.red),
-                onPressed: () => controller.confirmDelete(categorie),
-              ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  onPressed: () => controller.confirmDelete(categorie),
+                ),
+              ],
             ],
           ),
         ),

@@ -13,6 +13,7 @@ class VenteRepository {
   CollectionReference<Map<String, dynamic>> get _stocks => _fs.stocks;
   CollectionReference<Map<String, dynamic>> get _mouvements =>
       _fs.mouvementsStock;
+  CollectionReference<Map<String, dynamic>> get _clients => _fs.clients;
 
   // ========== Lecture ==========
 
@@ -89,6 +90,18 @@ class VenteRepository {
         );
       }
 
+      // Compteur séquentiel pour le numéro de vente
+      final counterRef = _fs.counters.doc(vente.boutiqueId);
+      final counterSnap = await tx.get(counterRef);
+      final year = vente.date.year;
+      final field = 'ventes$year';
+      final currentCount = counterSnap.exists
+          ? ((counterSnap.data() ?? {})[field] as num?)?.toInt() ?? 0
+          : 0;
+      final nextCount = currentCount + 1;
+      final venteNumero =
+          'V-$year-${nextCount.toString().padLeft(5, '0')}';
+
       // ===== Étape 2 : agrégation des quantités demandées par produit =====
       // (au cas où le panier contient plusieurs lignes pour le même produit)
       final demandes = <String, int>{};
@@ -136,9 +149,19 @@ class VenteRepository {
         }
       }
 
-      // 4b. Création du document vente
+      // 4b. Création du document vente avec numéro séquentiel injecté
       final venteRef = _ventes.doc();
-      tx.set(venteRef, vente.toMap());
+      tx.set(venteRef, {
+        ...vente.toMap(),
+        'numero': venteNumero,
+      });
+
+      // Persiste le compteur (création ou update)
+      if (counterSnap.exists) {
+        tx.update(counterRef, {field: nextCount});
+      } else {
+        tx.set(counterRef, {field: nextCount});
+      }
 
       // 4c. Création d'un mouvement par ligne (pour traçabilité par article)
       for (final article in vente.articles) {
@@ -150,6 +173,24 @@ class VenteRepository {
           'date': FieldValue.serverTimestamp(),
           'userId': vente.vendeurId,
           'venteId': venteRef.id,
+        });
+      }
+
+      // 4d. Si client lié → ajuste son solde.
+      //
+      // Delta = total - montantPaye, couvre 2 effets en un :
+      //   • +reste à payer (nouvelle dette) si non intégralement couvert
+      //   • +avance utilisée (consomme l'avance, ramène le solde négatif
+      //     vers 0)
+      // Comme: delta = (total - montantPaye - avanceUtilisee) + avanceUtilisee
+      //              = total - montantPaye
+      final delta = vente.total - vente.montantPaye;
+      if (vente.clientId != null &&
+          vente.clientId!.isNotEmpty &&
+          delta != 0) {
+        tx.update(_clients.doc(vente.clientId), {
+          'solde': FieldValue.increment(delta),
+          'updatedAt': FieldValue.serverTimestamp(),
         });
       }
 
@@ -238,6 +279,23 @@ class VenteRepository {
           'userId': userId,
           'motif': 'Annulation vente : $motif',
           'venteId': venteId,
+        });
+      }
+
+      // Annule l'effet net de la vente sur le solde du client.
+      //   • Retire la dette restante (reste à payer)
+      //   • Restitue l'avance qui avait été consommée
+      //   = solde -= (resteAPayer + avanceUtilisee)
+      //   = solde -= (total - montantPaye)
+      // Cette formule donne le bon résultat même si des règlements ont
+      // imputé sur la vente entre-temps (montantPaye a été augmenté).
+      final delta = vente.total - vente.montantPaye;
+      if (vente.clientId != null &&
+          vente.clientId!.isNotEmpty &&
+          delta != 0) {
+        tx.update(_clients.doc(vente.clientId), {
+          'solde': FieldValue.increment(-delta),
+          'updatedAt': FieldValue.serverTimestamp(),
         });
       }
     });

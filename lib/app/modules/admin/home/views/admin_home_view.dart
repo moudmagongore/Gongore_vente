@@ -837,10 +837,10 @@ class _QuickActions extends StatelessWidget {
       childAspectRatio: 0.95,
       children: const [
         _Quick(
-          icon: Icons.point_of_sale_rounded,
-          label: 'Caisse',
+          icon: Icons.add_shopping_cart_rounded,
+          label: 'Nouvelle vente',
           color: AppColors.success,
-          route: AppRoutes.adminPos,
+          route: AppRoutes.venteForm,
         ),
         _Quick(
           icon: Icons.store_rounded,

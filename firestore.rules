@@ -71,10 +71,12 @@ service cloud.firestore {
       // Lecture :
       //   • superAdmin : tous
       //   • soi-même : son propre doc
-      //   • admin de boutique : les users de sa boutique
+      //   • tout user actif de la boutique : les users de sa boutique
+      //     (nécessaire pour afficher noms vendeurs/admins dans listes
+      //     ventes, règlements, etc.)
       allow read: if isSuperAdmin()
                   || (isAuthed() && request.auth.uid == userId)
-                  || (isAdmin() && resource.data.boutiqueId == userBoutiqueId());
+                  || (isActive() && resource.data.boutiqueId == userBoutiqueId());
 
       // Création :
       //   • superAdmin : tous (admins ou vendeurs)
@@ -170,7 +172,10 @@ service cloud.firestore {
                         && resourceBoutiqueIdMatches()
                         && boutiqueIdNotChanged());
 
-      allow delete: if isSuperAdmin();
+      // Suppression : super-admin, ou admin de la boutique (cascade lors
+      // de la suppression d'un produit jamais vendu).
+      allow delete: if isSuperAdmin()
+                    || (isAdmin() && resourceBoutiqueIdMatches());
     }
 
     // ================== Mouvements de stock ==================
@@ -195,11 +200,29 @@ service cloud.firestore {
       allow create: if isSuperAdmin()
                     || (isAuthed() && createBoutiqueIdMatches());
 
-      // Update (annulation) : seul super-admin OU admin de la boutique.
+      // Update :
+      //   • super-admin : tout
+      //   • admin de la boutique : tout (notamment annulation)
+      //   • tout user actif de la boutique :
+      //       - le champ `montantPaye` (imputation FIFO d'un règlement)
+      //       - l'annulation : passer `statut` à 'annulee' + `motifAnnulation`
+      //         (le vendeur peut corriger une erreur de saisie ; le stock
+      //         est restitué dans la même transaction).
       allow update: if isSuperAdmin()
                     || (isAdmin()
                         && resourceBoutiqueIdMatches()
-                        && boutiqueIdNotChanged());
+                        && boutiqueIdNotChanged())
+                    || (isActive()
+                        && resourceBoutiqueIdMatches()
+                        && request.resource.data.diff(resource.data)
+                            .affectedKeys().hasOnly(['montantPaye']))
+                    || (isActive()
+                        && resourceBoutiqueIdMatches()
+                        && resource.data.statut == 'validee'
+                        && request.resource.data.statut == 'annulee'
+                        && request.resource.data.diff(resource.data)
+                            .affectedKeys()
+                            .hasOnly(['statut', 'motifAnnulation']));
 
       // Delete réservé super-admin.
       allow delete: if isSuperAdmin();
@@ -220,6 +243,38 @@ service cloud.firestore {
 
       allow delete: if isSuperAdmin()
                     || (isAdmin() && resourceBoutiqueIdMatches());
+    }
+
+    // ================== Règlements (encaissements) ==================
+    // Tout user de la boutique peut lire/créer un règlement (vendeur en caisse,
+    // admin pour gestion). La création décrémente le solde du client lié
+    // dans la même transaction.
+    match /reglements/{rid} {
+      allow read: if isSuperAdmin()
+                  || (isAuthed() && resource.data.boutiqueId == userBoutiqueId());
+
+      allow create: if isSuperAdmin()
+                    || (isAuthed() && createBoutiqueIdMatches());
+
+      // Pas d'update (immuable). Suppression réservée admin/super-admin
+      // (la méthode deleteAndRestore restitue le montant au solde).
+      allow update: if isSuperAdmin();
+
+      allow delete: if isSuperAdmin()
+                    || (isAdmin() && resourceBoutiqueIdMatches());
+    }
+
+    // ================== Compteurs (numéros de vente séquentiels) ==================
+    // Document ID = boutiqueId. Champs `ventes{ANNEE}` incrémentés à chaque
+    // création de vente dans la même transaction.
+    match /counters/{cid} {
+      // Lecture/écriture par tout user lié à cette boutique.
+      // L'ID du document EST le boutiqueId, donc on compare au boutiqueId user.
+      allow read, create, update: if isSuperAdmin()
+                                  || (isAuthed() && cid == userBoutiqueId());
+
+      // Pas de delete possible (audit trail).
+      allow delete: if isSuperAdmin();
     }
 
     // ================== Tout le reste : refusé ==================

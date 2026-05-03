@@ -30,6 +30,7 @@ class VenteDetailView extends GetView<VenteDetailController> {
                     vente: v,
                     boutique: boutique,
                     vendeur: controller.vendeur.value,
+                    clientLabel: controller.clientLabel,
                   );
                 } catch (e) {
                   Get.snackbar(
@@ -161,7 +162,14 @@ class _DetailBody extends StatelessWidget {
                       value: controller.boutique.value?.nom ?? '…',
                     )),
                 Obx(() => _InfoLine(
-                      icon: Icons.person_outline,
+                      icon: controller.client.value != null
+                          ? Icons.person_pin_rounded
+                          : Icons.person_outline_rounded,
+                      label: 'Client',
+                      value: controller.clientLabel,
+                    )),
+                Obx(() => _InfoLine(
+                      icon: Icons.badge_outlined,
                       label: 'Vendeur',
                       value: controller.vendeur.value?.nom ?? '…',
                     )),
@@ -174,8 +182,15 @@ class _DetailBody extends StatelessWidget {
                   icon: Icons.shopping_basket_outlined,
                   label: 'Articles',
                   value: '${vente.nbArticles} unité(s)',
-                  isLast: true,
+                  isLast: !(vente.note?.isNotEmpty ?? false),
                 ),
+                if (vente.note?.isNotEmpty ?? false)
+                  _InfoLine(
+                    icon: Icons.notes_rounded,
+                    label: 'Note',
+                    value: vente.note!,
+                    isLast: true,
+                  ),
               ],
             ),
           ),
@@ -231,6 +246,35 @@ class _DetailBody extends StatelessWidget {
                   value: Fmt.money(vente.total, currency: controller.devise),
                   big: true,
                 ),
+                const SizedBox(height: 8),
+                Divider(height: 1, color: Colors.grey.shade200),
+                const SizedBox(height: 8),
+                _TotalLine(
+                  label: 'Montant payé (cash)',
+                  value: Fmt.money(vente.montantPaye,
+                      currency: controller.devise),
+                ),
+                if (vente.avanceUtilisee > 0)
+                  _TotalLine(
+                    label: 'Avance utilisée',
+                    value: Fmt.money(vente.avanceUtilisee,
+                        currency: controller.devise),
+                    color: AppColors.secondary,
+                  ),
+                if (vente.resteAPayer > 0)
+                  _TotalLine(
+                    label: 'Reste à payer',
+                    value:
+                        '${Fmt.money(vente.resteAPayer, currency: controller.devise)} (crédit)',
+                    color: AppColors.warning,
+                  )
+                else if (vente.resteAPayer < 0)
+                  _TotalLine(
+                    label: 'Trop-perçu',
+                    value: Fmt.money(vente.resteAPayer.abs(),
+                        currency: controller.devise),
+                    color: AppColors.success,
+                  ),
               ],
             ),
           ),

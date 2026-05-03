@@ -8,8 +8,16 @@ import '../modules/admin/categories/bindings/categorie_form_binding.dart';
 import '../modules/admin/categories/bindings/categories_binding.dart';
 import '../modules/admin/categories/views/categorie_form_view.dart';
 import '../modules/admin/categories/views/categories_list_view.dart';
+import '../modules/admin/clients/bindings/client_detail_binding.dart';
+import '../modules/admin/clients/bindings/client_form_binding.dart';
+import '../modules/admin/clients/bindings/clients_binding.dart';
+import '../modules/admin/clients/views/client_detail_view.dart';
+import '../modules/admin/clients/views/client_form_view.dart';
+import '../modules/admin/clients/views/clients_list_view.dart';
 import '../modules/admin/home/views/admin_home_view.dart';
 import '../modules/admin/produits/bindings/produit_form_binding.dart';
+import '../modules/admin/reglements/bindings/reglements_binding.dart';
+import '../modules/admin/reglements/views/reglements_list_view.dart';
 import '../modules/admin/produits/bindings/produits_binding.dart';
 import '../modules/admin/produits/views/produit_form_view.dart';
 import '../modules/admin/produits/views/produits_list_view.dart';
@@ -22,11 +30,11 @@ import '../modules/admin/stock/views/historique_mouvements_view.dart';
 import '../modules/admin/stock/views/mouvement_form_view.dart';
 import '../modules/admin/stock/views/stock_list_view.dart';
 import '../modules/admin/ventes/bindings/vente_detail_binding.dart';
+import '../modules/admin/ventes/bindings/vente_form_binding.dart';
 import '../modules/admin/ventes/bindings/ventes_binding.dart';
 import '../modules/admin/ventes/views/vente_detail_view.dart';
+import '../modules/admin/ventes/views/vente_form_view.dart';
 import '../modules/admin/ventes/views/ventes_list_view.dart';
-import '../modules/pos/bindings/pos_binding.dart';
-import '../modules/pos/views/pos_view.dart';
 import '../modules/admin/users/bindings/user_form_binding.dart';
 import '../modules/admin/users/bindings/users_binding.dart';
 import '../modules/admin/users/views/user_form_view.dart';
@@ -94,7 +102,9 @@ class AppPages {
       name: AppRoutes.adminCategories,
       page: () => const CategoriesListView(),
       binding: CategoriesBinding(),
-      middlewares: [AdminGuard()],
+      // AuthGuard : vendeur peut voir la liste en lecture seule.
+      // Les actions d'édition/suppression sont gardées côté UI.
+      middlewares: [AuthGuard()],
     ),
     GetPage(
       name: AppRoutes.adminCategorieForm,
@@ -103,10 +113,36 @@ class AppPages {
       middlewares: [AdminGuard()],
     ),
     GetPage(
+      name: AppRoutes.adminClients,
+      page: () => const ClientsListView(),
+      binding: ClientsBinding(),
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.adminClientForm,
+      page: () => const ClientFormView(),
+      binding: ClientFormBinding(),
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.adminClientDetail,
+      page: () => const ClientDetailView(),
+      binding: ClientDetailBinding(),
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.adminReglements,
+      page: () => const ReglementsListView(),
+      binding: ReglementsBinding(),
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
       name: AppRoutes.adminProduits,
       page: () => const ProduitsListView(),
       binding: ProduitsBinding(),
-      middlewares: [AdminGuard()],
+      // AuthGuard : vendeur peut voir la liste en lecture seule.
+      // Les actions d'édition/suppression sont gardées côté UI.
+      middlewares: [AuthGuard()],
     ),
     GetPage(
       name: AppRoutes.adminProduitForm,
@@ -136,13 +172,13 @@ class AppPages {
       name: AppRoutes.adminVentes,
       page: () => const VentesListView(),
       binding: VentesBinding(),
-      middlewares: [AdminGuard()],
+      middlewares: [AuthGuard()],
     ),
     GetPage(
-      name: AppRoutes.adminPos,
-      page: () => const PosView(),
-      binding: PosBinding(),
-      middlewares: [AdminGuard()],
+      name: AppRoutes.venteForm,
+      page: () => const VenteFormView(),
+      binding: VenteFormBinding(),
+      middlewares: [AuthGuard()],
     ),
     GetPage(
       name: AppRoutes.venteDetail,
@@ -161,12 +197,6 @@ class AppPages {
       name: AppRoutes.vendeurHome,
       page: () => const VendeurHomeView(),
       binding: VendeurHomeBinding(),
-      middlewares: [AuthGuard()],
-    ),
-    GetPage(
-      name: AppRoutes.vendeurPos,
-      page: () => const PosView(),
-      binding: PosBinding(),
       middlewares: [AuthGuard()],
     ),
     GetPage(

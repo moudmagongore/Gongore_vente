@@ -17,6 +17,7 @@ class CategoriesController extends GetxController {
   final RxString search = ''.obs;
 
   bool get isSuperAdmin => UserController.to.isSuperAdmin;
+  bool get isAnyAdmin => UserController.to.isAnyAdmin;
 
   @override
   void onInit() {
@@ -47,12 +48,27 @@ class CategoriesController extends GetxController {
   int get total => _all.length;
 
   Future<void> confirmDelete(CategorieModel c) async {
+    final used =
+        await _repo.hasUsage(c.id, boutiqueId: c.boutiqueId ?? '');
+    if (used) {
+      Get.snackbar(
+        'Suppression impossible',
+        'Cette catégorie est utilisée par au moins un produit. '
+        'Réaffectez ou supprimez d\'abord les produits concernés.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.shade50,
+        colorText: Colors.red.shade900,
+        duration: const Duration(seconds: 4),
+      );
+      return;
+    }
+
     final ok = await Get.dialog<bool>(
       AlertDialog(
         title: const Text('Supprimer la catégorie ?'),
         content: Text(
           'La catégorie « ${c.nom} » sera supprimée.\n\n'
-          'Les produits liés perdront leur catégorie mais ne seront pas supprimés.',
+          'Aucun produit n\'est rattaché à cette catégorie.',
         ),
         actions: [
           TextButton(

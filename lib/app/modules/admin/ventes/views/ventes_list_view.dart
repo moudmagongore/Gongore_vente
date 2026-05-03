@@ -7,6 +7,7 @@ import '../../../../core/widgets/vendeur_drawer.dart';
 import '../../../../data/models/vente_model.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../../theme/app_colors.dart';
+import '../../reglements/widgets/reglement_sheet.dart';
 import '../controllers/ventes_controller.dart';
 
 class VentesListView extends GetView<VentesController> {
@@ -18,12 +19,40 @@ class VentesListView extends GetView<VentesController> {
       appBar: AppBar(
         title: const Text('Ventes'),
         actions: [
+          Obx(() => IconButton(
+                tooltip: controller.onlyAvecCredit.value
+                    ? 'Désactiver le filtre crédit'
+                    : 'Voir uniquement les crédits en cours',
+                icon: Icon(
+                  controller.onlyAvecCredit.value
+                      ? Icons.warning_amber_rounded
+                      : Icons.warning_amber_outlined,
+                  color: controller.onlyAvecCredit.value
+                      ? AppColors.warning
+                      : null,
+                ),
+                onPressed: () => controller.onlyAvecCredit.toggle(),
+              )),
           IconButton(
             tooltip: 'Filtres',
             icon: const Icon(Icons.filter_list_rounded),
             onPressed: () => _showFilterSheet(context),
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            child: TextField(
+              decoration: const InputDecoration(
+                hintText: 'Rechercher (n° vente, client, vendeur)...',
+                prefixIcon: Icon(Icons.search_rounded),
+                isDense: true,
+              ),
+              onChanged: (v) => controller.search.value = v,
+            ),
+          ),
+        ),
       ),
       drawer: controller.isAnyAdmin
           ? const AdminDrawer(currentRoute: AppRoutes.adminVentes)
@@ -71,10 +100,8 @@ class VentesListView extends GetView<VentesController> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Get.toNamed(
-          controller.isAnyAdmin ? AppRoutes.adminPos : AppRoutes.vendeurPos,
-        ),
-        icon: const Icon(Icons.point_of_sale_rounded),
+        onPressed: () => Get.toNamed(AppRoutes.venteForm),
+        icon: const Icon(Icons.add_rounded),
         label: const Text('Nouvelle vente'),
       ),
     );
@@ -91,10 +118,11 @@ class VentesListView extends GetView<VentesController> {
             borderRadius:
                 const BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               const Text(
                 'Filtres',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
@@ -123,6 +151,10 @@ class VentesListView extends GetView<VentesController> {
                   ),
                 ),
                 const SizedBox(height: 12),
+              ],
+              // Vendeur : visible pour super-admin et admin de boutique.
+              // Caché au vendeur (déjà filtré sur ses propres ventes).
+              if (controller.isAnyAdmin) ...[
                 const Text('Vendeur', style: TextStyle(fontSize: 12)),
                 const SizedBox(height: 6),
                 Obx(
@@ -146,6 +178,57 @@ class VentesListView extends GetView<VentesController> {
                 ),
                 const SizedBox(height: 12),
               ],
+              const Text('Produit', style: TextStyle(fontSize: 12)),
+              const SizedBox(height: 6),
+              Obx(
+                () => DropdownButtonFormField<String?>(
+                  initialValue: controller.filterProduitId.value,
+                  decoration: const InputDecoration(isDense: true),
+                  isExpanded: true,
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('Tous les produits'),
+                    ),
+                    ...controller.produits.map(
+                      (p) => DropdownMenuItem(
+                        value: p.id,
+                        child: Text(p.nom,
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ),
+                    ),
+                  ],
+                  onChanged: (v) => controller.filterProduitId.value = v,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text('Client', style: TextStyle(fontSize: 12)),
+              const SizedBox(height: 6),
+              Obx(
+                () => DropdownButtonFormField<String?>(
+                  initialValue: controller.filterClientId.value,
+                  decoration: const InputDecoration(isDense: true),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('Tous les clients'),
+                    ),
+                    DropdownMenuItem<String?>(
+                      value: controller.diversSentinel,
+                      child: const Text('Client divers'),
+                    ),
+                    ...controller.clients.map(
+                      (c) => DropdownMenuItem(
+                        value: c.id,
+                        child: Text(c.nom,
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ),
+                    ),
+                  ],
+                  onChanged: (v) => controller.filterClientId.value = v,
+                ),
+              ),
+              const SizedBox(height: 12),
               const Text('Mode de paiement', style: TextStyle(fontSize: 12)),
               const SizedBox(height: 6),
               Obx(
@@ -172,6 +255,15 @@ class VentesListView extends GetView<VentesController> {
               const SizedBox(height: 12),
               Obx(
                 () => CheckboxListTile(
+                  value: controller.onlyAvecCredit.value,
+                  onChanged: (v) =>
+                      controller.onlyAvecCredit.value = v ?? false,
+                  title: const Text('Seulement les crédits en cours'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              Obx(
+                () => CheckboxListTile(
                   value: controller.inclureAnnulees.value,
                   onChanged: (v) =>
                       controller.inclureAnnulees.value = v ?? false,
@@ -185,6 +277,7 @@ class VentesListView extends GetView<VentesController> {
                 child: const Text('Appliquer'),
               ),
             ],
+            ),
           ),
         ),
       ),
@@ -223,11 +316,49 @@ class _PeriodeBar extends StatelessWidget {
                   onTap: () => controller.periode.value = _items[i].$1,
                 ),
               ],
+              const SizedBox(width: 8),
+              _PillTab(
+                label: current == PeriodeFiltre.personnalise
+                    ? _customLabel(controller)
+                    : 'Personnalisé',
+                selected: current == PeriodeFiltre.personnalise,
+                onTap: () => _pickCustomRange(context, controller),
+              ),
             ],
           );
         }),
       ),
     );
+  }
+
+  static String _customLabel(VentesController c) {
+    final d = c.customDebut.value;
+    final f = c.customFin.value;
+    if (d == null || f == null) return 'Personnalisé';
+    return '${Fmt.dateShort(d)} → ${Fmt.dateShort(f)}';
+  }
+
+  Future<void> _pickCustomRange(
+    BuildContext context,
+    VentesController c,
+  ) async {
+    final now = DateTime.now();
+    final initial = (c.customDebut.value != null && c.customFin.value != null)
+        ? DateTimeRange(start: c.customDebut.value!, end: c.customFin.value!)
+        : DateTimeRange(
+            start: DateTime(now.year, now.month, 1),
+            end: now,
+          );
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year - 5),
+      lastDate: DateTime(now.year + 1),
+      initialDateRange: initial,
+    );
+    if (picked == null) return;
+    c.customDebut.value = picked.start;
+    c.customFin.value = picked.end;
+    c.periode.value = PeriodeFiltre.personnalise;
   }
 }
 
@@ -396,9 +527,17 @@ class _VenteTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = Get.find<VentesController>();
     final annulee = vente.statut == VenteStatut.annulee;
-    final color = annulee ? Colors.grey : AppColors.success;
+    final hasCredit = !annulee && vente.resteAPayer > 0;
+    final iconColor = annulee
+        ? Colors.grey
+        : (hasCredit ? AppColors.warning : AppColors.success);
 
-    return Card(
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border, width: 1),
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: () => Get.toNamed(
@@ -406,21 +545,21 @@ class _VenteTile extends StatelessWidget {
           arguments: vente.id,
         ),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.fromLTRB(12, 12, 4, 12),
           child: Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
+                  color: iconColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   annulee
                       ? Icons.cancel_outlined
                       : Icons.receipt_long_rounded,
-                  color: color,
+                  color: iconColor,
                 ),
               ),
               const SizedBox(width: 12),
@@ -431,56 +570,34 @@ class _VenteTile extends StatelessWidget {
                     Row(
                       children: [
                         Text(
-                          Fmt.dateTime(vente.date),
+                          vente.numeroAffichage,
                           style: const TextStyle(
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w800,
                             fontSize: 13,
+                            color: AppColors.primary,
                           ),
                         ),
                         const SizedBox(width: 6),
                         if (annulee)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: Colors.red.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              'ANNULÉE',
-                              style: TextStyle(
-                                color: Colors.red,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
+                          _Badge(label: 'ANNULÉE', color: Colors.red)
+                        else if (hasCredit)
+                          _Badge(label: 'CRÉDIT', color: AppColors.warning),
                       ],
                     ),
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        Icon(Icons.store_outlined,
+                        Icon(Icons.person_pin_rounded,
                             size: 12, color: Colors.grey.shade500),
                         const SizedBox(width: 3),
                         Expanded(
                           child: Text(
-                            c.boutiqueNom(vente.boutiqueId),
+                            c.clientNomVente(vente),
                             style: TextStyle(
-                                fontSize: 11, color: Colors.grey.shade700),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Icon(Icons.person_outline,
-                            size: 12, color: Colors.grey.shade500),
-                        const SizedBox(width: 3),
-                        Expanded(
-                          child: Text(
-                            c.vendeurNom(vente.vendeurId),
-                            style: TextStyle(
-                                fontSize: 11, color: Colors.grey.shade700),
+                              fontSize: 12,
+                              color: Colors.grey.shade800,
+                              fontWeight: FontWeight.w600,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -489,24 +606,131 @@ class _VenteTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${vente.nbArticles} article(s) • ${vente.modePaiement.label}',
+                      '${Fmt.dateTime(vente.date)} · ${vente.nbArticles} art. · ${vente.modePaiement.label}',
                       style: TextStyle(
                           fontSize: 11, color: Colors.grey.shade600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
-              Text(
-                Fmt.money(vente.total, currency: c.deviseDe(vente.boutiqueId)),
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                  color: annulee ? Colors.grey : AppColors.primary,
-                  decoration: annulee ? TextDecoration.lineThrough : null,
-                ),
+              const SizedBox(width: 4),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    Fmt.money(vente.total,
+                        currency: c.deviseDe(vente.boutiqueId)),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                      color: annulee ? Colors.grey : AppColors.primary,
+                      decoration: annulee
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  if (hasCredit)
+                    Text(
+                      'Reste ${Fmt.number(vente.resteAPayer)}',
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.warning,
+                      ),
+                    ),
+                ],
+              ),
+              PopupMenuButton<String>(
+                tooltip: 'Plus',
+                icon: Icon(Icons.more_vert_rounded,
+                    color: Colors.grey.shade600, size: 20),
+                onSelected: (v) {
+                  switch (v) {
+                    case 'detail':
+                      Get.toNamed(AppRoutes.venteDetail,
+                          arguments: vente.id);
+                      break;
+                    case 'reimprimer':
+                      c.reimprimerRecu(vente);
+                      break;
+                    case 'regler':
+                      final client = c.clientDeVente(vente);
+                      if (client == null) {
+                        Get.snackbar(
+                          'Impossible',
+                          'Le règlement nécessite un client identifié.',
+                          snackPosition: SnackPosition.BOTTOM,
+                        );
+                      } else {
+                        ReglementSheet.open(context, client);
+                      }
+                      break;
+                  }
+                },
+                itemBuilder: (_) => [
+                  const PopupMenuItem(
+                    value: 'detail',
+                    child: ListTile(
+                      leading: Icon(Icons.open_in_new_rounded),
+                      title: Text('Voir le détail'),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                    ),
+                  ),
+                  if (hasCredit && c.clientDeVente(vente) != null)
+                    const PopupMenuItem(
+                      value: 'regler',
+                      child: ListTile(
+                        leading: Icon(Icons.payments_rounded,
+                            color: AppColors.success),
+                        title: Text('Régler le crédit',
+                            style: TextStyle(color: AppColors.success)),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
+                    ),
+                  const PopupMenuItem(
+                    value: 'reimprimer',
+                    child: ListTile(
+                      leading: Icon(Icons.print_outlined),
+                      title: Text('Imprimer le reçu'),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Badge extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _Badge({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 9,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );

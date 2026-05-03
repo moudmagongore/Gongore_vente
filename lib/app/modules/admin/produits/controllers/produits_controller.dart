@@ -29,6 +29,7 @@ class ProduitsController extends GetxController {
   final RxBool onlyActive = false.obs;
 
   bool get isSuperAdmin => UserController.to.isSuperAdmin;
+  bool get isAnyAdmin => UserController.to.isAnyAdmin;
 
   @override
   void onInit() {
@@ -101,12 +102,21 @@ class ProduitsController extends GetxController {
   }
 
   Future<void> confirmDelete(ProduitModel p) async {
+    final used = await _repo.hasUsage(p.id, boutiqueId: p.boutiqueId);
+    if (used) {
+      _snackError(
+        'Suppression impossible : ce produit a un historique de stock '
+        'ou de ventes. Désactivez-le plutôt pour conserver les données.',
+      );
+      return;
+    }
+
     final ok = await Get.dialog<bool>(
       AlertDialog(
         title: const Text('Supprimer le produit ?'),
         content: Text(
           'Le produit « ${p.nom} » sera supprimé définitivement.\n\n'
-          'Astuce : préférez le désactiver pour conserver l\'historique des ventes.',
+          'Aucun mouvement de stock ni vente n\'est lié à ce produit.',
         ),
         actions: [
           TextButton(
@@ -124,7 +134,7 @@ class ProduitsController extends GetxController {
     if (ok != true) return;
 
     try {
-      await _repo.delete(p.id);
+      await _repo.delete(p.id, boutiqueId: p.boutiqueId);
       Get.snackbar('Supprimé', p.nom, snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
       _snackError('Suppression impossible : $e');

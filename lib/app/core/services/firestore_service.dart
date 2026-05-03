@@ -35,4 +35,10 @@ class FirestoreService extends GetxService {
 
   CollectionReference<Map<String, dynamic>> get clients =>
       _db.collection(FirestoreKeys.clients);
+
+  CollectionReference<Map<String, dynamic>> get reglements =>
+      _db.collection(FirestoreKeys.reglements);
+
+  CollectionReference<Map<String, dynamic>> get counters =>
+      _db.collection(FirestoreKeys.counters);
 }

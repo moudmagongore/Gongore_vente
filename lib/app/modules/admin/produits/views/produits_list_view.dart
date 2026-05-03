@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/services/user_controller.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../core/widgets/admin_drawer.dart';
+import '../../../../core/widgets/vendeur_drawer.dart';
 import '../../../../data/models/produit_model.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../../theme/app_colors.dart';
@@ -13,6 +15,7 @@ class ProduitsListView extends GetView<ProduitsController> {
 
   @override
   Widget build(BuildContext context) {
+    final canEdit = UserController.to.isAnyAdmin;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Produits'),
@@ -31,7 +34,9 @@ class ProduitsListView extends GetView<ProduitsController> {
           ),
         ),
       ),
-      drawer: const AdminDrawer(currentRoute: AppRoutes.adminProduits),
+      drawer: canEdit
+          ? const AdminDrawer(currentRoute: AppRoutes.adminProduits)
+          : const VendeurDrawer(currentRoute: AppRoutes.adminProduits),
       body: Column(
         children: [
           const SizedBox(height: 12),
@@ -50,17 +55,20 @@ class ProduitsListView extends GetView<ProduitsController> {
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
                 itemCount: list.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 10),
-                itemBuilder: (_, i) => _ProduitTile(produit: list[i]),
+                itemBuilder: (_, i) =>
+                    _ProduitTile(produit: list[i], canEdit: canEdit),
               );
             }),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Get.toNamed(AppRoutes.adminProduitForm),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Nouveau produit'),
-      ),
+      floatingActionButton: canEdit
+          ? FloatingActionButton.extended(
+              onPressed: () => Get.toNamed(AppRoutes.adminProduitForm),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Nouveau produit'),
+            )
+          : null,
     );
   }
 }
@@ -164,7 +172,8 @@ class _DropdownChip extends StatelessWidget {
 
 class _ProduitTile extends StatelessWidget {
   final ProduitModel produit;
-  const _ProduitTile({required this.produit});
+  final bool canEdit;
+  const _ProduitTile({required this.produit, required this.canEdit});
 
   @override
   Widget build(BuildContext context) {
@@ -175,10 +184,12 @@ class _ProduitTile extends StatelessWidget {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: () => Get.toNamed(
-          AppRoutes.adminProduitForm,
-          arguments: produit,
-        ),
+        onTap: canEdit
+            ? () => Get.toNamed(
+                  AppRoutes.adminProduitForm,
+                  arguments: produit,
+                )
+            : null,
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
@@ -327,56 +338,58 @@ class _ProduitTile extends StatelessWidget {
                   ],
                 ),
               ),
-              PopupMenuButton<String>(
-                onSelected: (v) {
-                  switch (v) {
-                    case 'edit':
-                      Get.toNamed(AppRoutes.adminProduitForm,
-                          arguments: produit);
-                      break;
-                    case 'toggle':
-                      controller.toggleActive(produit);
-                      break;
-                    case 'delete':
-                      controller.confirmDelete(produit);
-                      break;
-                  }
-                },
-                itemBuilder: (_) => [
-                  const PopupMenuItem(
-                    value: 'edit',
-                    child: ListTile(
-                      leading: Icon(Icons.edit_outlined),
-                      title: Text('Modifier'),
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
+              if (canEdit)
+                PopupMenuButton<String>(
+                  onSelected: (v) {
+                    switch (v) {
+                      case 'edit':
+                        Get.toNamed(AppRoutes.adminProduitForm,
+                            arguments: produit);
+                        break;
+                      case 'toggle':
+                        controller.toggleActive(produit);
+                        break;
+                      case 'delete':
+                        controller.confirmDelete(produit);
+                        break;
+                    }
+                  },
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: ListTile(
+                        leading: Icon(Icons.edit_outlined),
+                        title: Text('Modifier'),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
                     ),
-                  ),
-                  PopupMenuItem(
-                    value: 'toggle',
-                    child: ListTile(
-                      leading: Icon(produit.active
-                          ? Icons.toggle_off_outlined
-                          : Icons.toggle_on_outlined),
-                      title: Text(produit.active ? 'Désactiver' : 'Activer'),
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
+                    PopupMenuItem(
+                      value: 'toggle',
+                      child: ListTile(
+                        leading: Icon(produit.active
+                            ? Icons.toggle_off_outlined
+                            : Icons.toggle_on_outlined),
+                        title:
+                            Text(produit.active ? 'Désactiver' : 'Activer'),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
                     ),
-                  ),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: ListTile(
-                      leading:
-                          Icon(Icons.delete_outline, color: Colors.red),
-                      title: Text('Supprimer',
-                          style: TextStyle(color: Colors.red)),
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
+                    const PopupMenuDivider(),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: ListTile(
+                        leading:
+                            Icon(Icons.delete_outline, color: Colors.red),
+                        title: Text('Supprimer',
+                            style: TextStyle(color: Colors.red)),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
             ],
           ),
         ),

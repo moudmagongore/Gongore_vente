@@ -95,13 +95,39 @@ class VenteArticle {
 
 class VenteModel {
   final String id;
+
+  /// Numéro lisible séquentiel par boutique, format `V-YYYY-NNNNN`.
+  /// Généré atomiquement à la création. `null` pour les ventes anciennes
+  /// (rétro-compat) → on retombe sur les 8 premiers caractères de l'id.
+  final String? numero;
+
   final String boutiqueId;
   final String vendeurId;
+
+  /// Si défini : référence à un client de la collection /clients.
+  /// `null` = client divers (passage), avec `clientNomLibre` éventuellement
+  /// renseigné pour identification.
   final String? clientId;
+
+  /// Nom libre du client lorsqu'il n'est pas dans la base.
+  /// Ignoré si [clientId] est renseigné.
+  final String? clientNomLibre;
+
   final List<VenteArticle> articles;
   final double sousTotal;
   final double remise;
   final double total;
+
+  /// Montant effectivement encaissé en cash/MM/etc. lors de la vente.
+  /// Pour les ventes existantes en base sans ce champ (rétro-compat), on
+  /// retombe sur `total` (vente intégralement payée).
+  final double montantPaye;
+
+  /// Avance du client utilisée pour cette vente (puisée sur son solde
+  /// négatif existant). Combinée avec `montantPaye`, couvre tout ou partie
+  /// du `total`. Le reste constitue un nouveau crédit. Default 0.
+  final double avanceUtilisee;
+
   final ModePaiement modePaiement;
   final VenteStatut statut;
   final DateTime date;
@@ -115,10 +141,14 @@ class VenteModel {
     required this.articles,
     required this.sousTotal,
     required this.total,
+    required this.montantPaye,
     required this.modePaiement,
     required this.date,
+    this.numero,
     this.clientId,
+    this.clientNomLibre,
     this.remise = 0,
+    this.avanceUtilisee = 0,
     this.statut = VenteStatut.validee,
     this.note,
     this.motifAnnulation,
@@ -126,17 +156,23 @@ class VenteModel {
 
   factory VenteModel.fromMap(Map<String, dynamic> map, String id) {
     final raw = (map['articles'] as List?) ?? const [];
+    final total = (map['total'] as num?)?.toDouble() ?? 0;
     return VenteModel(
       id: id,
+      numero: map['numero'] as String?,
       boutiqueId: (map['boutiqueId'] ?? '') as String,
       vendeurId: (map['vendeurId'] ?? '') as String,
       clientId: map['clientId'] as String?,
+      clientNomLibre: map['clientNomLibre'] as String?,
       articles: raw
           .map((e) => VenteArticle.fromMap(Map<String, dynamic>.from(e as Map)))
           .toList(),
       sousTotal: (map['sousTotal'] as num?)?.toDouble() ?? 0,
       remise: (map['remise'] as num?)?.toDouble() ?? 0,
-      total: (map['total'] as num?)?.toDouble() ?? 0,
+      total: total,
+      // Rétro-compat : ancien doc → considéré comme intégralement payé.
+      montantPaye: (map['montantPaye'] as num?)?.toDouble() ?? total,
+      avanceUtilisee: (map['avanceUtilisee'] as num?)?.toDouble() ?? 0,
       modePaiement: ModePaiement.fromString(map['modePaiement'] as String?),
       statut: VenteStatut.fromString(map['statut'] as String?),
       date: (map['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
@@ -152,13 +188,17 @@ class VenteModel {
   }
 
   Map<String, dynamic> toMap() => {
+        'numero': numero,
         'boutiqueId': boutiqueId,
         'vendeurId': vendeurId,
         'clientId': clientId,
+        'clientNomLibre': clientNomLibre,
         'articles': articles.map((a) => a.toMap()).toList(),
         'sousTotal': sousTotal,
         'remise': remise,
         'total': total,
+        'montantPaye': montantPaye,
+        'avanceUtilisee': avanceUtilisee,
         'modePaiement': modePaiement.name,
         'statut': statut.name,
         'date': Timestamp.fromDate(date),
@@ -166,6 +206,30 @@ class VenteModel {
         'motifAnnulation': motifAnnulation,
       };
 
-  int get nbArticles =>
-      articles.fold(0, (acc, a) => acc + a.quantite);
+  /// Numéro affichable : utilise `numero` si présent, sinon les 8 premiers
+  /// caractères de l'ID Firestore (rétro-compat ventes anciennes).
+  String get numeroAffichage {
+    if (numero != null && numero!.isNotEmpty) return numero!;
+    if (id.isEmpty) return '—';
+    return id.length >= 8 ? id.substring(0, 8).toUpperCase() : id;
+  }
+
+  /// Reste dû par le client après cette vente (positif = crédit en cours).
+  /// Négatif si le client a payé plus que le total (avance / remboursement).
+  /// Inclut l'avance utilisée : reste = total - cash payé - avance utilisée.
+  double get resteAPayer => total - montantPaye - avanceUtilisee;
+
+  bool get estPartiellementPayee => resteAPayer > 0;
+
+  int get nbArticles => articles.fold(0, (acc, a) => acc + a.quantite);
+
+  /// Renvoie un libellé pour identifier le client dans les listes / le reçu.
+  /// Si `clientId` est défini, ce libellé sera complété ailleurs avec le nom
+  /// récupéré du repo. Sinon utilise `clientNomLibre` ou « Client divers ».
+  String get clientLabelOuLibre {
+    if (clientNomLibre != null && clientNomLibre!.isNotEmpty) {
+      return clientNomLibre!;
+    }
+    return 'Client divers';
+  }
 }

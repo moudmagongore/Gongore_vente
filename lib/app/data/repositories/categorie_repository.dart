@@ -7,6 +7,22 @@ class CategorieRepository {
   final FirestoreService _fs = FirestoreService.to;
 
   CollectionReference<Map<String, dynamic>> get _col => _fs.categories;
+  CollectionReference<Map<String, dynamic>> get _produits => _fs.produits;
+
+  /// Renvoie true si au moins un produit utilise cette catégorie.
+  ///
+  /// Le filtre `boutiqueId` est obligatoire pour aligner la query sur les
+  /// rules Firestore (`resource.data.boutiqueId == userBoutiqueId()`),
+  /// sinon la query est refusée d'office (PERMISSION_DENIED).
+  Future<bool> hasUsage(String categorieId, {required String boutiqueId}) async {
+    if (categorieId.isEmpty || boutiqueId.isEmpty) return false;
+    final p = await _produits
+        .where('boutiqueId', isEqualTo: boutiqueId)
+        .where('categorieId', isEqualTo: categorieId)
+        .limit(1)
+        .get();
+    return p.docs.isNotEmpty;
+  }
 
   Stream<List<CategorieModel>> watchAll({String? boutiqueId}) {
     Query<Map<String, dynamic>> query = _col;

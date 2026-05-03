@@ -7,6 +7,28 @@ class ProduitRepository {
   final FirestoreService _fs = FirestoreService.to;
 
   CollectionReference<Map<String, dynamic>> get _col => _fs.produits;
+  CollectionReference<Map<String, dynamic>> get _mouvements =>
+      _fs.mouvementsStock;
+  CollectionReference<Map<String, dynamic>> get _stocks => _fs.stocks;
+
+  /// Renvoie true si le produit a déjà été **vendu** au moins une fois.
+  /// Les mouvements de stock initial (entrée, ajustement) ne comptent pas :
+  /// un produit créé puis jamais vendu reste supprimable, et la cascade
+  /// nettoie son stock résiduel ([delete]).
+  ///
+  /// Le filtre `boutiqueId` est obligatoire pour aligner la query sur les
+  /// rules Firestore (`resource.data.boutiqueId == userBoutiqueId()`),
+  /// sinon la query est refusée d'office (PERMISSION_DENIED).
+  Future<bool> hasUsage(String produitId, {required String boutiqueId}) async {
+    if (produitId.isEmpty || boutiqueId.isEmpty) return false;
+    final m = await _mouvements
+        .where('boutiqueId', isEqualTo: boutiqueId)
+        .where('produitId', isEqualTo: produitId)
+        .where('type', isEqualTo: 'vente')
+        .limit(1)
+        .get();
+    return m.docs.isNotEmpty;
+  }
 
   /// Stream temps réel des produits, filtrable par boutique et catégorie.
   Stream<List<ProduitModel>> watchAll({
@@ -66,7 +88,24 @@ class ProduitRepository {
     });
   }
 
-  Future<void> delete(String id) {
-    return _col.doc(id).delete();
+  /// Supprime le produit et **nettoie en cascade** ses stocks orphelins.
+  /// À n'appeler qu'après [hasUsage] négatif (sinon vous perdez la traçabilité
+  /// des ventes).
+  ///
+  /// Le filtre `boutiqueId` est obligatoire pour aligner la query stocks sur
+  /// les rules Firestore (`resource.data.boutiqueId == userBoutiqueId()`),
+  /// sinon la query est refusée d'office (PERMISSION_DENIED).
+  Future<void> delete(String id, {required String boutiqueId}) async {
+    if (id.isEmpty || boutiqueId.isEmpty) return;
+    final stockSnap = await _stocks
+        .where('boutiqueId', isEqualTo: boutiqueId)
+        .where('produitId', isEqualTo: id)
+        .get();
+    final batch = _fs.db.batch();
+    for (final doc in stockSnap.docs) {
+      batch.delete(doc.reference);
+    }
+    batch.delete(_col.doc(id));
+    await batch.commit();
   }
 }

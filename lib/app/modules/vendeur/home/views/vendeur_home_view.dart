@@ -5,6 +5,7 @@ import '../../../../core/utils/format_helpers.dart';
 import '../../../../core/widgets/vendeur_drawer.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../../theme/app_colors.dart';
+import '../../../admin/reglements/widgets/encaissement_global_sheet.dart';
 import '../controllers/vendeur_home_controller.dart';
 
 class VendeurHomeView extends GetView<VendeurHomeController> {
@@ -47,18 +48,18 @@ class VendeurHomeView extends GetView<VendeurHomeController> {
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
               childAspectRatio: 1.05,
-              children: const [
-                _ActionTile(
-                  icon: Icons.point_of_sale_rounded,
+              children: [
+                const _ActionTile(
+                  icon: Icons.add_shopping_cart_rounded,
                   label: 'Nouvelle vente',
                   color: AppColors.success,
-                  route: AppRoutes.vendeurPos,
+                  route: AppRoutes.venteForm,
                 ),
                 _ActionTile(
-                  icon: Icons.receipt_long_rounded,
-                  label: 'Mes ventes',
-                  color: AppColors.primary,
-                  route: AppRoutes.vendeurVentes,
+                  icon: Icons.payments_rounded,
+                  label: 'Nouveau règlement',
+                  color: AppColors.secondary,
+                  onTap: () => EncaissementGlobalSheet.open(context),
                 ),
               ],
             ),
@@ -70,7 +71,7 @@ class VendeurHomeView extends GetView<VendeurHomeController> {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Get.toNamed(AppRoutes.vendeurPos),
+        onPressed: () => Get.toNamed(AppRoutes.venteForm),
         icon: const Icon(Icons.add_shopping_cart_rounded),
         label: const Text('Vendre'),
         backgroundColor: AppColors.success,
@@ -295,19 +296,22 @@ class _ActionTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
-  final String route;
+  final String? route;
+  final VoidCallback? onTap;
 
   const _ActionTile({
     required this.icon,
     required this.label,
     required this.color,
-    required this.route,
-  });
+    this.route,
+    this.onTap,
+  }) : assert(route != null || onTap != null,
+            'route ou onTap doit être fourni');
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () => Get.toNamed(route),
+      onTap: onTap ?? () => Get.toNamed(route!),
       borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: const EdgeInsets.all(16),
