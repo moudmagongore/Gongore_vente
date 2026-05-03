@@ -26,7 +26,9 @@ class VenteFormView extends GetView<VenteFormController> {
                 )),
         ],
       ),
-      body: Obx(() {
+      body: SafeArea(
+        top: false,
+        child: Obx(() {
         if (controller.boutiques.isEmpty) {
           return _NoBoutique();
         }
@@ -40,6 +42,7 @@ class VenteFormView extends GetView<VenteFormController> {
           ],
         );
       }),
+      ),
     );
   }
 
@@ -579,13 +582,17 @@ class _LigneTile extends StatelessWidget {
   void _showRemiseDialog(BuildContext context, int index, double max) {
     final montantCtrl = TextEditingController();
     final pourcentCtrl = TextEditingController();
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+    final viewPadding = MediaQuery.of(context).viewPadding.bottom;
     Get.bottomSheet(
       SafeArea(
+        top: false,
         bottom: false,
         child: Container(
           color: Theme.of(context).cardTheme.color,
           padding: EdgeInsets.fromLTRB(
-              16, 20, 16, MediaQuery.of(context).viewInsets.bottom + 16),
+              16, 20, 16,
+              (viewInsets > 0 ? viewInsets : viewPadding) + 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -921,7 +928,9 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
                     separatorBuilder: (_, _) => const SizedBox(height: 4),
                     itemBuilder: (_, i) {
                       final p = list[i];
+                      final isOut = p.quantiteStock <= 0;
                       return ListTile(
+                        enabled: !isOut,
                         leading: Container(
                           width: 40,
                           height: 40,
@@ -941,6 +950,23 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
                             color: AppColors.primary,
                             fontWeight: FontWeight.w600,
                             fontSize: 12,
+                          ),
+                        ),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: (isOut ? Colors.red : AppColors.success)
+                                .withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            isOut ? 'Rupture' : 'Stock ${p.quantiteStock}',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: isOut ? Colors.red : AppColors.success,
+                            ),
                           ),
                         ),
                         onTap: () {
@@ -1062,14 +1088,19 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
   Widget build(BuildContext context) {
     final p = widget.produit;
     final devise = widget.controller.devise;
+    // Stock dispo en live (basé sur le stream produits du controller).
+    final dispo = widget.controller.stockDispoUi(p.id) ?? p.quantiteStock;
     final sousTotalBrut = p.prixVente * _quantite;
     final sousTotal = sousTotalBrut - _remise;
 
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+    final viewPadding = MediaQuery.of(context).viewPadding.bottom;
     return SafeArea(
+      top: false,
       bottom: false,
       child: Padding(
         padding: EdgeInsets.fromLTRB(
-            20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+            20, 20, 20, (viewInsets > 0 ? viewInsets : viewPadding) + 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1123,6 +1154,23 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
                     ],
                   ),
                 ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: (dispo <= 0 ? Colors.red : AppColors.success)
+                        .withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    dispo <= 0 ? 'Rupture' : 'Dispo $dispo',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: dispo <= 0 ? Colors.red : AppColors.success,
+                    ),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 18),
@@ -1137,7 +1185,10 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
                 _QtyStepper(
                   quantite: _quantite,
                   onMinus: () => _setQuantite(_quantite - 1),
-                  onPlus: () => _setQuantite(_quantite + 1),
+                  onPlus: () {
+                    if (_quantite >= dispo) return;
+                    _setQuantite(_quantite + 1);
+                  },
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1153,7 +1204,7 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
                     ),
                     onChanged: (v) {
                       final n = int.tryParse(v) ?? 1;
-                      _setQuantite(n);
+                      _setQuantite(n > dispo ? dispo : n);
                     },
                   ),
                 ),
@@ -1216,14 +1267,16 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
             ),
             const SizedBox(height: 18),
             ElevatedButton.icon(
-              onPressed: () {
-                final ok = widget.controller.addLigne(
-                  produit: p,
-                  quantite: _quantite,
-                  remise: _remise,
-                );
-                if (ok) Get.back();
-              },
+              onPressed: dispo <= 0
+                  ? null
+                  : () {
+                      final ok = widget.controller.addLigne(
+                        produit: p,
+                        quantite: _quantite,
+                        remise: _remise,
+                      );
+                      if (ok) Get.back();
+                    },
               icon: const Icon(Icons.check_rounded),
               label: const Text('Ajouter à la vente'),
             ),

@@ -11,7 +11,11 @@ abstract class FirestoreKeys {
   static const clients = 'clients';
   static const reglements = 'reglements';
 
-  /// Compteurs par boutique pour la génération des numéros de vente
-  /// séquentiels. Document = boutiqueId, champ = "ventesYYYY".
+  static const fournisseurs = 'fournisseurs';
+  static const approvisionnements = 'approvisionnements';
+  static const reglementsFournisseurs = 'reglementsFournisseurs';
+
+  /// Compteurs par boutique pour la génération des numéros séquentiels.
+  /// Document = boutiqueId, champs = "ventesYYYY", "approsYYYY".
   static const counters = 'counters';
 }

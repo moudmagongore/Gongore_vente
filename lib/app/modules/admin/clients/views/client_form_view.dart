@@ -14,7 +14,9 @@ class ClientFormView extends GetView<ClientFormController> {
       appBar: AppBar(
         title: Obx(() => Text(controller.title)),
       ),
-      body: Form(
+      body: SafeArea(
+        top: false,
+        child: Form(
         key: controller.formKey,
         child: ListView(
           padding: const EdgeInsets.all(20),
@@ -197,6 +199,7 @@ class ClientFormView extends GetView<ClientFormController> {
               child: const Text('Annuler'),
             ),
           ],
+        ),
         ),
       ),
     );

@@ -45,6 +45,18 @@ class VendeurDrawer extends StatelessWidget {
                     selected: currentRoute == AppRoutes.adminClients,
                   ),
                   _Item(
+                    icon: Icons.local_shipping_rounded,
+                    label: 'Fournisseurs',
+                    route: AppRoutes.adminFournisseurs,
+                    selected: currentRoute == AppRoutes.adminFournisseurs,
+                  ),
+                  _Item(
+                    icon: Icons.move_to_inbox_rounded,
+                    label: 'Approvisionnements',
+                    route: AppRoutes.adminAppros,
+                    selected: currentRoute == AppRoutes.adminAppros,
+                  ),
+                  _Item(
                     icon: Icons.payments_rounded,
                     label: 'Règlements',
                     route: AppRoutes.adminReglements,

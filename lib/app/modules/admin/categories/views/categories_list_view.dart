@@ -36,22 +36,25 @@ class CategoriesListView extends GetView<CategoriesController> {
       drawer: canEdit
           ? const AdminDrawer(currentRoute: AppRoutes.adminCategories)
           : const VendeurDrawer(currentRoute: AppRoutes.adminCategories),
-      body: Obx(() {
-        if (controller.isLoading.value) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final list = controller.filtered;
-        if (list.isEmpty) {
-          return _Empty(hasSearch: controller.search.value.isNotEmpty);
-        }
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-          itemCount: list.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 10),
-          itemBuilder: (_, i) =>
-              _CategorieTile(categorie: list[i], canEdit: canEdit),
-        );
-      }),
+      body: SafeArea(
+        top: false,
+        child: Obx(() {
+          if (controller.isLoading.value) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final list = controller.filtered;
+          if (list.isEmpty) {
+            return _Empty(hasSearch: controller.search.value.isNotEmpty);
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+            itemCount: list.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
+            itemBuilder: (_, i) =>
+                _CategorieTile(categorie: list[i], canEdit: canEdit),
+          );
+        }),
+      ),
       floatingActionButton: canEdit
           ? FloatingActionButton.extended(
               onPressed: () => Get.toNamed(AppRoutes.adminCategorieForm),

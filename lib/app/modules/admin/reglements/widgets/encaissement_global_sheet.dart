@@ -61,7 +61,9 @@ class _EncaissementGlobalSheetState extends State<EncaissementGlobalSheet> {
           borderRadius:
               const BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        child: Column(
+        child: SafeArea(
+          top: false,
+          child: Column(
           children: [
             const SizedBox(height: 8),
             Container(
@@ -215,6 +217,7 @@ class _EncaissementGlobalSheetState extends State<EncaissementGlobalSheet> {
               }),
             ),
           ],
+        ),
         ),
       ),
     );

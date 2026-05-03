@@ -302,6 +302,16 @@ class VenteFormController extends GetxController {
       );
       return false;
     }
+    // Contrôle du stock disponible
+    if (produit.quantiteStock < quantite) {
+      _snackError(
+        produit.quantiteStock <= 0
+            ? '${produit.nom} : rupture de stock.'
+            : '${produit.nom} : stock insuffisant '
+                '(disponible ${produit.quantiteStock}, demandé $quantite).',
+      );
+      return false;
+    }
     final maxRemise = produit.prixVente * quantite;
     final remiseClamp = remise.clamp(0, maxRemise).toDouble();
     lignes.add(LigneVente(
@@ -313,8 +323,22 @@ class VenteFormController extends GetxController {
     return true;
   }
 
+  /// Stock disponible côté UI (basé sur le stream produits, donc live).
+  /// `null` si le produit n'est plus dans la liste (supprimé par exemple).
+  int? stockDispoUi(String produitId) {
+    return produits.firstWhereOrNull((p) => p.id == produitId)?.quantiteStock;
+  }
+
   void incrementLigne(int index) {
-    lignes[index].quantite++;
+    final l = lignes[index];
+    final dispo = stockDispoUi(l.produit.id);
+    if (dispo != null && l.quantite >= dispo) {
+      _snackError(
+        'Stock épuisé pour ${l.produit.nom} (max $dispo).',
+      );
+      return;
+    }
+    l.quantite++;
     lignes.refresh();
   }
 
@@ -421,6 +445,8 @@ class VenteFormController extends GetxController {
 
       await Future.delayed(const Duration(milliseconds: 200));
       Get.toNamed(AppRoutes.venteDetail, arguments: venteId);
+    } on StockInsuffisantException catch (e) {
+      _snackError(e.message);
     } catch (e) {
       _snackError('Erreur de validation : $e');
     } finally {

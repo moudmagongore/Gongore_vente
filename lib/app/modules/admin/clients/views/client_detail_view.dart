@@ -41,25 +41,28 @@ class ClientDetailView extends GetView<ClientDetailController> {
             ],
           ),
         ),
-        body: Obx(() {
-          final c = controller.client.value;
-          if (c == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          return Column(
-            children: [
-              _ClientHeader(client: c, controller: controller),
-              Expanded(
-                child: TabBarView(
-                  children: [
-                    _VentesTab(controller: controller),
-                    _ReglementsTab(controller: controller),
-                  ],
+        body: SafeArea(
+          top: false,
+          child: Obx(() {
+            final c = controller.client.value;
+            if (c == null) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            return Column(
+              children: [
+                _ClientHeader(client: c, controller: controller),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      _VentesTab(controller: controller),
+                      _ReglementsTab(controller: controller),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          );
-        }),
+              ],
+            );
+          }),
+        ),
       ),
     );
   }

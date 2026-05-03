@@ -21,6 +21,15 @@ class ReportData {
   final int nbArticles;
   final Map<ModePaiement, double> caParPaiement;
   final List<({String nom, int qte, double ca})> topProduits;
+
+  // ====== Achats ======
+  final int nbAppros;
+  final double totalAchats;
+  final double margePeriode;
+  final double detteFournisseurPeriode;
+  final double detteFournisseurGlobale;
+  final List<({String nom, int nbAppros, double total})> topFournisseurs;
+
   final String devise;
 
   ReportData({
@@ -36,6 +45,12 @@ class ReportData {
     required this.nbArticles,
     required this.caParPaiement,
     required this.topProduits,
+    this.nbAppros = 0,
+    this.totalAchats = 0,
+    this.margePeriode = 0,
+    this.detteFournisseurPeriode = 0,
+    this.detteFournisseurGlobale = 0,
+    this.topFournisseurs = const [],
     this.devise = 'GNF',
   });
 }
@@ -206,6 +221,92 @@ class ReportPdfService {
                         e.value.nom,
                         '${e.value.qte}',
                         Fmt.money(e.value.ca, currency: data.devise),
+                      ],
+                    ),
+              ],
+            ),
+          pw.SizedBox(height: 24),
+
+          // ====== Achats ======
+          pw.Text(
+            'Achats & fournisseurs',
+            style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 10),
+          pw.Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _kpiBox(
+                'Total achats',
+                Fmt.money(data.totalAchats, currency: data.devise),
+                PdfColors.deepPurple,
+              ),
+              _kpiBox(
+                'Approvisionnements',
+                '${data.nbAppros}',
+                PdfColors.indigo,
+              ),
+              _kpiBox(
+                'Marge brute (CA - achats)',
+                Fmt.money(data.margePeriode, currency: data.devise),
+                data.margePeriode >= 0
+                    ? PdfColors.green700
+                    : PdfColors.red700,
+              ),
+              _kpiBox(
+                'Dette appros période',
+                Fmt.money(data.detteFournisseurPeriode,
+                    currency: data.devise),
+                PdfColors.orange700,
+              ),
+              _kpiBox(
+                'Dette fournisseur totale',
+                Fmt.money(data.detteFournisseurGlobale,
+                    currency: data.devise),
+                PdfColors.red700,
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 24),
+
+          // ====== Top fournisseurs ======
+          pw.Text(
+            'Top fournisseurs',
+            style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 8),
+          if (data.topFournisseurs.isEmpty)
+            pw.Text('Aucun appro sur cette période',
+                style: pw.TextStyle(color: PdfColors.grey))
+          else
+            pw.TableHelper.fromTextArray(
+              headerStyle: pw.TextStyle(
+                fontWeight: pw.FontWeight.bold,
+                fontSize: 10,
+              ),
+              cellStyle: const pw.TextStyle(fontSize: 9),
+              cellAlignment: pw.Alignment.centerLeft,
+              cellAlignments: {
+                0: pw.Alignment.centerRight,
+                2: pw.Alignment.centerRight,
+                3: pw.Alignment.centerRight,
+              },
+              headerDecoration:
+                  const pw.BoxDecoration(color: PdfColors.grey200),
+              data: [
+                ['#', 'Fournisseur', 'Appros', 'Total acheté'],
+                ...data.topFournisseurs
+                    .take(20)
+                    .toList()
+                    .asMap()
+                    .entries
+                    .map(
+                      (e) => [
+                        '${e.key + 1}',
+                        e.value.nom,
+                        '${e.value.nbAppros}',
+                        Fmt.money(e.value.total, currency: data.devise),
                       ],
                     ),
               ],

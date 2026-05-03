@@ -17,7 +17,10 @@ class VendeurHomeView extends GetView<VendeurHomeController> {
       appBar: AppBar(
         title: Obx(() => Column(
               children: [
-                const Text('Espace vendeur', style: TextStyle(fontSize: 14)),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: const Text('Espace vendeur', style: TextStyle(fontSize: 14)),
+                ),
                 if (controller.boutique.value != null)
                   Text(
                     controller.boutique.value!.nom,
@@ -27,7 +30,9 @@ class VendeurHomeView extends GetView<VendeurHomeController> {
             )),
       ),
       drawer: const VendeurDrawer(currentRoute: AppRoutes.vendeurHome),
-      body: RefreshIndicator(
+      body: SafeArea(
+        top: false,
+        child: RefreshIndicator(
         onRefresh: () async {
           // bindStream est déjà live, juste un petit délai cosmétique
           await Future.delayed(const Duration(milliseconds: 400));
@@ -69,6 +74,7 @@ class VendeurHomeView extends GetView<VendeurHomeController> {
             _RecentList(controller: controller),
           ],
         ),
+      ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Get.toNamed(AppRoutes.venteForm),

@@ -159,11 +159,16 @@ class _ReglementSheetState extends State<ReglementSheet> {
   @override
   Widget build(BuildContext context) {
     final c = widget.client;
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+    final viewPadding = MediaQuery.of(context).viewPadding.bottom;
     return SafeArea(
+      top: false,
       bottom: false,
       child: Padding(
+        // viewInsets = clavier ; viewPadding = barre de gestes Android.
+        // On garde le max des deux pour ne pas masquer le contenu.
         padding: EdgeInsets.fromLTRB(
-            20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+            20, 20, 20, (viewInsets > 0 ? viewInsets : viewPadding) + 20),
         child: Form(
           key: _formKey,
           child: Column(

@@ -11,7 +11,8 @@ class SplashView extends GetView<SplashController> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.primary,
-      body: Center(
+      body: SafeArea(
+        child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -57,6 +58,7 @@ class SplashView extends GetView<SplashController> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

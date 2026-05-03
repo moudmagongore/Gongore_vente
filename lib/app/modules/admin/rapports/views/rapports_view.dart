@@ -29,7 +29,9 @@ class RapportsView extends GetView<RapportsController> {
       drawer: controller.isAnyAdmin
           ? const AdminDrawer(currentRoute: AppRoutes.adminRapports)
           : const VendeurDrawer(currentRoute: AppRoutes.adminRapports),
-      body: Obx(() {
+      body: SafeArea(
+        top: false,
+        child: Obx(() {
         if (controller.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -70,9 +72,26 @@ class RapportsView extends GetView<RapportsController> {
                 icon: Icons.inventory_2_outlined),
             const SizedBox(height: 10),
             _TopProduitsSection(c: controller),
+            const SizedBox(height: 20),
+
+            // ====== Section Achats ======
+            const _SectionTitle(
+                label: 'Achats',
+                icon: Icons.move_to_inbox_rounded),
+            const SizedBox(height: 10),
+            _AchatsSection(c: controller),
+            const SizedBox(height: 20),
+
+            // ====== Section Top fournisseurs ======
+            const _SectionTitle(
+                label: 'Top fournisseurs',
+                icon: Icons.local_shipping_outlined),
+            const SizedBox(height: 10),
+            _TopFournisseursSection(c: controller),
           ],
         );
       }),
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _exporterPdf,
         icon: const Icon(Icons.picture_as_pdf_rounded),
@@ -115,6 +134,15 @@ class RapportsView extends GetView<RapportsController> {
           caParPaiement: c.caParModePaiement,
           topProduits: c.topProduits
               .map((t) => (nom: t.nom, qte: t.qte, ca: t.ca))
+              .toList(),
+          nbAppros: c.nbAppros,
+          totalAchats: c.totalAchats,
+          margePeriode: c.margePeriode,
+          detteFournisseurPeriode: c.detteFournisseurPeriode,
+          detteFournisseurGlobale: c.detteFournisseurGlobale,
+          topFournisseurs: c.topFournisseurs
+              .map((t) =>
+                  (nom: t.nom, nbAppros: t.nbAppros, total: t.total))
               .toList(),
           devise: devise,
         ),
@@ -551,6 +579,106 @@ class _TopProduitsSection extends StatelessWidget {
                       style: const TextStyle(fontSize: 11)),
                   trailing: Text(
                     Fmt.money(t.ca, currency: 'GNF'),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+                if (i < list.length - 1)
+                  Divider(height: 1, color: Colors.grey.shade200),
+              ],
+            );
+          }).toList(),
+        ),
+      );
+    });
+  }
+}
+
+class _AchatsSection extends StatelessWidget {
+  final RapportsController c;
+  const _AchatsSection({required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() => Card(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              children: [
+                _Row(
+                  'Total achats',
+                  Fmt.money(c.totalAchats, currency: 'GNF'),
+                  color: AppColors.primary,
+                  big: true,
+                ),
+                const Divider(),
+                _Row('Approvisionnements', '${c.nbAppros}'),
+                _Row(
+                  'Marge brute (CA - achats)',
+                  Fmt.money(c.margePeriode, currency: 'GNF'),
+                  color: c.margePeriode >= 0
+                      ? AppColors.success
+                      : Colors.red,
+                ),
+                _Row(
+                  'Dette sur appros de la période',
+                  Fmt.money(c.detteFournisseurPeriode,
+                      currency: 'GNF'),
+                  color: c.detteFournisseurPeriode > 0
+                      ? AppColors.warning
+                      : null,
+                ),
+                _Row(
+                  'Dette fournisseur totale',
+                  Fmt.money(c.detteFournisseurGlobale,
+                      currency: 'GNF'),
+                  color: c.detteFournisseurGlobale > 0
+                      ? AppColors.warning
+                      : null,
+                ),
+              ],
+            ),
+          ),
+        ));
+  }
+}
+
+class _TopFournisseursSection extends StatelessWidget {
+  final RapportsController c;
+  const _TopFournisseursSection({required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final list = c.topFournisseurs.take(10).toList();
+      if (list.isEmpty) {
+        return const _EmptyCard(message: 'Aucun appro sur cette période');
+      }
+      return Card(
+        child: Column(
+          children: list.asMap().entries.map((e) {
+            final i = e.key;
+            final t = e.value;
+            return Column(
+              children: [
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor:
+                        AppColors.primary.withValues(alpha: 0.12),
+                    child: Text('${i + 1}',
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                        )),
+                  ),
+                  title: Text(t.nom,
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text('${t.nbAppros} appro(s)',
+                      style: const TextStyle(fontSize: 11)),
+                  trailing: Text(
+                    Fmt.money(t.total, currency: 'GNF'),
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       color: AppColors.primary,

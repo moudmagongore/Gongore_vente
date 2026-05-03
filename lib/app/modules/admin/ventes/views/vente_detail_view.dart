@@ -46,13 +46,16 @@ class VenteDetailView extends GetView<VenteDetailController> {
           }),
         ],
       ),
-      body: Obx(() {
+      body: SafeArea(
+        top: false,
+        child: Obx(() {
         final v = controller.vente.value;
         if (controller.isLoading.value || v == null) {
           return const Center(child: CircularProgressIndicator());
         }
         return _DetailBody(vente: v, controller: controller);
       }),
+      ),
       bottomNavigationBar: Obx(() {
         final v = controller.vente.value;
         if (v == null) return const SizedBox.shrink();

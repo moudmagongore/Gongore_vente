@@ -33,7 +33,9 @@ class UsersListView extends GetView<UsersController> {
         ),
       ),
       drawer: const AdminDrawer(currentRoute: AppRoutes.adminUsers),
-      body: Column(
+      body: SafeArea(
+        top: false,
+        child: Column(
         children: [
           _FiltersBar(controller: controller),
           Expanded(
@@ -54,6 +56,7 @@ class UsersListView extends GetView<UsersController> {
             }),
           ),
         ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Get.toNamed(AppRoutes.adminUserForm),

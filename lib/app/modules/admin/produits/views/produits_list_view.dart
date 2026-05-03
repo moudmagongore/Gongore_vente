@@ -37,7 +37,9 @@ class ProduitsListView extends GetView<ProduitsController> {
       drawer: canEdit
           ? const AdminDrawer(currentRoute: AppRoutes.adminProduits)
           : const VendeurDrawer(currentRoute: AppRoutes.adminProduits),
-      body: Column(
+      body: SafeArea(
+        top: false,
+        child: Column(
         children: [
           const SizedBox(height: 12),
           _Filters(controller: controller),
@@ -61,6 +63,7 @@ class ProduitsListView extends GetView<ProduitsController> {
             }),
           ),
         ],
+        ),
       ),
       floatingActionButton: canEdit
           ? FloatingActionButton.extended(

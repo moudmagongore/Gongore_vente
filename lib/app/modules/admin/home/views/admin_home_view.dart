@@ -31,7 +31,9 @@ class AdminHomeView extends StatelessWidget {
         ],
       ),
       drawer: const AdminDrawer(currentRoute: AppRoutes.adminHome),
-      body: Obx(() {
+      body: SafeArea(
+        top: false,
+        child: Obx(() {
         if (c.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -79,6 +81,7 @@ class AdminHomeView extends StatelessWidget {
           ),
         );
       }),
+      ),
     );
   }
 }

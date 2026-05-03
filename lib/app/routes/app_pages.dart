@@ -14,6 +14,18 @@ import '../modules/admin/clients/bindings/clients_binding.dart';
 import '../modules/admin/clients/views/client_detail_view.dart';
 import '../modules/admin/clients/views/client_form_view.dart';
 import '../modules/admin/clients/views/clients_list_view.dart';
+import '../modules/admin/fournisseurs/bindings/fournisseur_detail_binding.dart';
+import '../modules/admin/fournisseurs/bindings/fournisseur_form_binding.dart';
+import '../modules/admin/fournisseurs/bindings/fournisseurs_binding.dart';
+import '../modules/admin/fournisseurs/views/fournisseur_detail_view.dart';
+import '../modules/admin/fournisseurs/views/fournisseur_form_view.dart';
+import '../modules/admin/fournisseurs/views/fournisseurs_list_view.dart';
+import '../modules/admin/appros/bindings/appro_detail_binding.dart';
+import '../modules/admin/appros/bindings/appro_form_binding.dart';
+import '../modules/admin/appros/bindings/appros_binding.dart';
+import '../modules/admin/appros/views/appro_detail_view.dart';
+import '../modules/admin/appros/views/appro_form_view.dart';
+import '../modules/admin/appros/views/appros_list_view.dart';
 import '../modules/admin/home/views/admin_home_view.dart';
 import '../modules/admin/produits/bindings/produit_form_binding.dart';
 import '../modules/admin/reglements/bindings/reglements_binding.dart';
@@ -122,6 +134,42 @@ class AppPages {
       name: AppRoutes.adminClientDetail,
       page: () => const ClientDetailView(),
       binding: ClientDetailBinding(),
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.adminFournisseurs,
+      page: () => const FournisseursListView(),
+      binding: FournisseursBinding(),
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.adminFournisseurForm,
+      page: () => const FournisseurFormView(),
+      binding: FournisseurFormBinding(),
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.adminFournisseurDetail,
+      page: () => const FournisseurDetailView(),
+      binding: FournisseurDetailBinding(),
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.adminAppros,
+      page: () => const ApprosListView(),
+      binding: ApprosBinding(),
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.approForm,
+      page: () => const ApproFormView(),
+      binding: ApproFormBinding(),
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.approDetail,
+      page: () => const ApproDetailView(),
+      binding: ApproDetailBinding(),
       middlewares: [AuthGuard()],
     ),
     GetPage(

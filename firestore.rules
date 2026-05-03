@@ -147,10 +147,22 @@ service cloud.firestore {
       allow create: if isSuperAdmin()
                     || (isAdmin() && createBoutiqueIdMatches());
 
+      // Update :
+      //   • super-admin / admin : tout (édition de la fiche produit)
+      //   • tout user actif de la boutique : uniquement les champs gérés
+      //     par les transactions vente / appro :
+      //       - quantiteStock (décrément vente, incrément appro)
+      //       - prixAchat (recalcul CMUP à chaque appro)
+      //       - updatedAt (timestamp serveur)
       allow update: if isSuperAdmin()
                     || (isAdmin()
                         && resourceBoutiqueIdMatches()
-                        && boutiqueIdNotChanged());
+                        && boutiqueIdNotChanged())
+                    || (isActive()
+                        && resourceBoutiqueIdMatches()
+                        && request.resource.data.diff(resource.data)
+                            .affectedKeys()
+                            .hasOnly(['quantiteStock', 'prixAchat', 'updatedAt']));
 
       allow delete: if isSuperAdmin()
                     || (isAdmin() && resourceBoutiqueIdMatches());
@@ -239,9 +251,82 @@ service cloud.firestore {
                     || (isAdmin() && resourceBoutiqueIdMatches());
     }
 
-    // ================== Compteurs (numéros de vente séquentiels) ==================
-    // Document ID = boutiqueId. Champs `ventes{ANNEE}` incrémentés à chaque
-    // création de vente dans la même transaction.
+    // ================== Fournisseurs (par boutique) ==================
+    // Symétrique aux clients : tout user actif peut créer / modifier ;
+    // suppression bloquée si historique d'opérations (flag dénormalisé
+    // `hasOperations` posé à `true` à la première appro / règlement).
+    match /fournisseurs/{fid} {
+      allow read: if isSuperAdmin()
+                  || (isAuthed() && resource.data.boutiqueId == userBoutiqueId());
+
+      allow create: if isSuperAdmin()
+                    || (isAuthed() && createBoutiqueIdMatches());
+
+      allow update: if isSuperAdmin()
+                    || (isAuthed()
+                        && resourceBoutiqueIdMatches()
+                        && boutiqueIdNotChanged());
+
+      // Suppression : super-admin (toujours), ou tout user actif de la
+      // boutique uniquement si le fournisseur n'a JAMAIS eu d'opération.
+      allow delete: if isSuperAdmin()
+                    || (isActive()
+                        && resourceBoutiqueIdMatches()
+                        && resource.data.get('hasOperations', false) != true);
+    }
+
+    // ================== Approvisionnements ==================
+    // Création autorisée à tout user actif de la boutique (vendeur compris).
+    // La transaction met à jour le stock (quantiteStock) et le CMUP
+    // (prixAchat) des produits + le solde fournisseur, atomique.
+    match /approvisionnements/{aid} {
+      allow read: if isSuperAdmin()
+                  || (isAuthed() && resource.data.boutiqueId == userBoutiqueId());
+
+      allow create: if isSuperAdmin()
+                    || (isAuthed() && createBoutiqueIdMatches());
+
+      // Update :
+      //   • super-admin : tout
+      //   • admin de la boutique : tout
+      //   • tout user actif : annulation uniquement (statut + motif)
+      allow update: if isSuperAdmin()
+                    || (isAdmin()
+                        && resourceBoutiqueIdMatches()
+                        && boutiqueIdNotChanged())
+                    || (isActive()
+                        && resourceBoutiqueIdMatches()
+                        && resource.data.statut == 'validee'
+                        && request.resource.data.statut == 'annulee'
+                        && request.resource.data.diff(resource.data)
+                            .affectedKeys()
+                            .hasOnly(['statut', 'motifAnnulation']));
+
+      // Pas de suppression (audit). Pour annuler, passer le statut.
+      allow delete: if isSuperAdmin();
+    }
+
+    // ================== Règlements fournisseurs ==================
+    // Symétrique aux règlements clients : tout user actif peut créer
+    // (la transaction décrémente le solde fournisseur en FIFO).
+    match /reglementsFournisseurs/{rid} {
+      allow read: if isSuperAdmin()
+                  || (isAuthed() && resource.data.boutiqueId == userBoutiqueId());
+
+      allow create: if isSuperAdmin()
+                    || (isAuthed() && createBoutiqueIdMatches());
+
+      // Pas d'update (immuable). Suppression admin/super-admin via
+      // deleteAndRestore qui inverse les imputations FIFO.
+      allow update: if isSuperAdmin();
+
+      allow delete: if isSuperAdmin()
+                    || (isAdmin() && resourceBoutiqueIdMatches());
+    }
+
+    // ================== Compteurs (numéros séquentiels) ==================
+    // Document ID = boutiqueId. Champs `ventes{ANNEE}`, `appros{ANNEE}`
+    // incrémentés atomiquement dans les transactions correspondantes.
     match /counters/{cid} {
       // Lecture/écriture par tout user lié à cette boutique.
       // L'ID du document EST le boutiqueId, donc on compare au boutiqueId user.

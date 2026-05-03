@@ -45,7 +45,9 @@ class ReglementsListView extends GetView<ReglementsController> {
       drawer: UserController.to.isAnyAdmin
           ? const AdminDrawer(currentRoute: AppRoutes.adminReglements)
           : const VendeurDrawer(currentRoute: AppRoutes.adminReglements),
-      body: Column(
+      body: SafeArea(
+        top: false,
+        child: Column(
         children: [
           const SizedBox(height: 12),
           _PeriodeBar(controller: controller),
@@ -76,6 +78,7 @@ class ReglementsListView extends GetView<ReglementsController> {
             }),
           ),
         ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => EncaissementGlobalSheet.open(context),
@@ -88,7 +91,7 @@ class ReglementsListView extends GetView<ReglementsController> {
   void _showFilterSheet(BuildContext context) {
     Get.bottomSheet(
       SafeArea(
-        bottom: false,
+        top: false,
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(

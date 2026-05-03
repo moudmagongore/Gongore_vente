@@ -31,32 +31,35 @@ class BoutiquesListView extends GetView<BoutiquesController> {
         ),
       ),
       drawer: const AdminDrawer(currentRoute: AppRoutes.adminBoutiques),
-      body: Column(
-        children: [
-          _FilterBar(controller: controller),
-          Expanded(
-            child: Obx(() {
-              if (controller.isLoading.value) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final list = controller.filtered;
-              if (list.isEmpty) {
-                return _EmptyState(hasSearch: controller.search.value.isNotEmpty);
-              }
-              return RefreshIndicator(
-                onRefresh: () async => Future.delayed(
-                  const Duration(milliseconds: 300),
-                ),
-                child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
-                  itemCount: list.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
-                  itemBuilder: (_, i) => _BoutiqueTile(boutique: list[i]),
-                ),
-              );
-            }),
-          ),
-        ],
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            _FilterBar(controller: controller),
+            Expanded(
+              child: Obx(() {
+                if (controller.isLoading.value) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final list = controller.filtered;
+                if (list.isEmpty) {
+                  return _EmptyState(hasSearch: controller.search.value.isNotEmpty);
+                }
+                return RefreshIndicator(
+                  onRefresh: () async => Future.delayed(
+                    const Duration(milliseconds: 300),
+                  ),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
+                    itemCount: list.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    itemBuilder: (_, i) => _BoutiqueTile(boutique: list[i]),
+                  ),
+                );
+              }),
+            ),
+          ],
+        ),
       ),
       floatingActionButton: controller.isSuperAdmin
           ? FloatingActionButton.extended(

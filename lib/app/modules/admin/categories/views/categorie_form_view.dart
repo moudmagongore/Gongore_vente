@@ -11,9 +11,11 @@ class CategorieFormView extends GetView<CategorieFormController> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Obx(() => Text(controller.title))),
-      body: Form(
-        key: controller.formKey,
-        child: ListView(
+      body: SafeArea(
+        top: false,
+        child: Form(
+          key: controller.formKey,
+          child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
             TextFormField(
@@ -114,6 +116,7 @@ class CategorieFormView extends GetView<CategorieFormController> {
               child: const Text('Annuler'),
             ),
           ],
+        ),
         ),
       ),
     );

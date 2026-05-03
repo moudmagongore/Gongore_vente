@@ -37,7 +37,9 @@ class ClientsListView extends GetView<ClientsController> {
       drawer: UserController.to.isAnyAdmin
           ? const AdminDrawer(currentRoute: AppRoutes.adminClients)
           : const VendeurDrawer(currentRoute: AppRoutes.adminClients),
-      body: Column(
+      body: SafeArea(
+        top: false,
+        child: Column(
         children: [
           const SizedBox(height: 12),
           _StatsRow(controller: controller),
@@ -62,6 +64,7 @@ class ClientsListView extends GetView<ClientsController> {
             }),
           ),
         ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Get.toNamed(AppRoutes.adminClientForm),

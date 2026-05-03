@@ -12,7 +12,9 @@ class ProduitFormView extends GetView<ProduitFormController> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Obx(() => Text(controller.title))),
-      body: Form(
+      body: SafeArea(
+        top: false,
+        child: Form(
         key: controller.formKey,
         child: ListView(
           padding: const EdgeInsets.all(20),
@@ -212,6 +214,7 @@ class ProduitFormView extends GetView<ProduitFormController> {
               child: const Text('Annuler'),
             ),
           ],
+        ),
         ),
       ),
     );

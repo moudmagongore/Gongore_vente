@@ -57,7 +57,9 @@ class VentesListView extends GetView<VentesController> {
       drawer: controller.isAnyAdmin
           ? const AdminDrawer(currentRoute: AppRoutes.adminVentes)
           : const VendeurDrawer(currentRoute: AppRoutes.vendeurVentes),
-      body: Column(
+      body: SafeArea(
+        top: false,
+        child: Column(
         children: [
           const SizedBox(height: 12),
           _PeriodeBar(controller: controller),
@@ -98,6 +100,7 @@ class VentesListView extends GetView<VentesController> {
             }),
           ),
         ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Get.toNamed(AppRoutes.venteForm),
@@ -110,7 +113,7 @@ class VentesListView extends GetView<VentesController> {
   void _showFilterSheet(BuildContext context) {
     Get.bottomSheet(
       SafeArea(
-        bottom: false,
+        top: false,
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(

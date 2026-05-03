@@ -4,11 +4,32 @@ class ProduitModel {
   final String id;
   final String nom;
   final String? description;
+
+  /// Coût d'achat unitaire. Mis à jour automatiquement à chaque
+  /// approvisionnement via la formule du **Coût Moyen Unitaire Pondéré**
+  /// (CMUP) :
+  ///
+  /// ```
+  /// nouveau_PA = (qte_actuelle × PA_actuel + qte_appro × PA_appro)
+  ///            / (qte_actuelle + qte_appro)
+  /// ```
+  ///
+  /// Ne pas l'éditer à la main si vous voulez que la valorisation reste
+  /// cohérente : la modification manuelle écrase le CMUP calculé.
   final double prixAchat;
   final double prixVente;
   final String? categorieId;
   final String? unite;
   final String boutiqueId;
+
+  /// Quantité actuellement en stock dans la boutique. Maintenue
+  /// atomiquement par les transactions :
+  /// - VenteRepository.create / cancel
+  /// - ApprovisionnementRepository.create / cancel
+  /// Ne PAS modifier directement (risque de désynchronisation avec
+  /// l'historique des opérations).
+  final int quantiteStock;
+
   final bool active;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -22,6 +43,7 @@ class ProduitModel {
     this.prixAchat = 0,
     this.categorieId,
     this.unite,
+    this.quantiteStock = 0,
     this.active = true,
     this.createdAt,
     this.updatedAt,
@@ -37,6 +59,7 @@ class ProduitModel {
       categorieId: map['categorieId'] as String?,
       unite: map['unite'] as String?,
       boutiqueId: (map['boutiqueId'] ?? '') as String,
+      quantiteStock: (map['quantiteStock'] as num?)?.toInt() ?? 0,
       active: (map['active'] ?? true) as bool,
       createdAt: (map['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
@@ -57,12 +80,16 @@ class ProduitModel {
         'categorieId': categorieId,
         'unite': unite,
         'boutiqueId': boutiqueId,
+        'quantiteStock': quantiteStock,
         'active': active,
         if (createdAt != null) 'createdAt': Timestamp.fromDate(createdAt!),
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
   double get marge => prixVente - prixAchat;
+
+  /// Valeur du stock courant au prix d'achat (CMUP).
+  double get valeurStock => quantiteStock * prixAchat;
 
   ProduitModel copyWith({
     String? nom,
@@ -72,6 +99,7 @@ class ProduitModel {
     String? categorieId,
     String? unite,
     String? boutiqueId,
+    int? quantiteStock,
     bool? active,
   }) {
     return ProduitModel(
@@ -83,6 +111,7 @@ class ProduitModel {
       categorieId: categorieId ?? this.categorieId,
       unite: unite ?? this.unite,
       boutiqueId: boutiqueId ?? this.boutiqueId,
+      quantiteStock: quantiteStock ?? this.quantiteStock,
       active: active ?? this.active,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
