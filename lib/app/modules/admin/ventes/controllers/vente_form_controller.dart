@@ -6,13 +6,11 @@ import '../../../../data/models/boutique_model.dart';
 import '../../../../data/models/categorie_model.dart';
 import '../../../../data/models/client_model.dart';
 import '../../../../data/models/produit_model.dart';
-import '../../../../data/models/stock_model.dart';
 import '../../../../data/models/vente_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/categorie_repository.dart';
 import '../../../../data/repositories/client_repository.dart';
 import '../../../../data/repositories/produit_repository.dart';
-import '../../../../data/repositories/stock_repository.dart';
 import '../../../../data/repositories/vente_repository.dart';
 import '../../../../routes/app_routes.dart';
 
@@ -52,7 +50,6 @@ class VenteFormController extends GetxController {
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
   final CategorieRepository _catRepo = CategorieRepository();
   final ClientRepository _clientRepo = ClientRepository();
-  final StockRepository _stockRepo = StockRepository();
   final VenteRepository _venteRepo = VenteRepository();
 
   // ===== Boutique =====
@@ -61,7 +58,6 @@ class VenteFormController extends GetxController {
 
   // ===== Catalogue =====
   final RxList<ProduitModel> produits = <ProduitModel>[].obs;
-  final RxList<StockModel> stocks = <StockModel>[].obs;
   final RxList<CategorieModel> categories = <CategorieModel>[].obs;
 
   // ===== Clients =====
@@ -140,7 +136,6 @@ class VenteFormController extends GetxController {
       produits.bindStream(
         _produitRepo.watchAll(boutiqueId: id, onlyActive: true),
       );
-      stocks.bindStream(_stockRepo.watchByBoutique(id));
       debounce(produits, (_) => isLoadingProduits.value = false,
           time: const Duration(milliseconds: 200));
     });
@@ -261,27 +256,6 @@ class VenteFormController extends GetxController {
     montantPaye.value = total;
   }
 
-  // ===== Catalogue / stock =====
-  int stockOf(String produitId) {
-    return stocks
-            .firstWhereOrNull((s) => s.produitId == produitId)
-            ?.quantite ??
-        0;
-  }
-
-  /// Renvoie la quantité déjà ajoutée au bon pour ce produit.
-  int quantiteDejaAjoutee(String produitId) {
-    return lignes
-        .where((l) => l.produit.id == produitId)
-        .fold(0, (acc, l) => acc + l.quantite);
-  }
-
-  /// Renvoie le stock encore disponible si on tient compte de ce qui est déjà
-  /// dans le bon de vente (utile pour limiter l'ajout).
-  int stockDisponiblePourBon(String produitId) {
-    return stockOf(produitId) - quantiteDejaAjoutee(produitId);
-  }
-
   // ===== Client =====
   void selectClient(String? id) {
     clientId.value = id;
@@ -328,13 +302,6 @@ class VenteFormController extends GetxController {
       );
       return false;
     }
-    final dispo = stockDisponiblePourBon(produit.id);
-    if (dispo < quantite) {
-      _snackError(
-        'Stock insuffisant : reste $dispo (déjà ${quantiteDejaAjoutee(produit.id)} dans la vente)',
-      );
-      return false;
-    }
     final maxRemise = produit.prixVente * quantite;
     final remiseClamp = remise.clamp(0, maxRemise).toDouble();
     lignes.add(LigneVente(
@@ -347,13 +314,7 @@ class VenteFormController extends GetxController {
   }
 
   void incrementLigne(int index) {
-    final l = lignes[index];
-    final dispo = stockOf(l.produit.id) - quantiteDejaAjoutee(l.produit.id);
-    if (dispo < 1) {
-      _snackError('Stock épuisé');
-      return;
-    }
-    l.quantite++;
+    lignes[index].quantite++;
     lignes.refresh();
   }
 
@@ -460,8 +421,6 @@ class VenteFormController extends GetxController {
 
       await Future.delayed(const Duration(milliseconds: 200));
       Get.toNamed(AppRoutes.venteDetail, arguments: venteId);
-    } on StockInsuffisantException catch (e) {
-      _snackError(e.message);
     } catch (e) {
       _snackError('Erreur de validation : $e');
     } finally {

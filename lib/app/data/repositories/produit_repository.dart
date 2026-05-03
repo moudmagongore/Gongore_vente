@@ -7,27 +7,24 @@ class ProduitRepository {
   final FirestoreService _fs = FirestoreService.to;
 
   CollectionReference<Map<String, dynamic>> get _col => _fs.produits;
-  CollectionReference<Map<String, dynamic>> get _mouvements =>
-      _fs.mouvementsStock;
-  CollectionReference<Map<String, dynamic>> get _stocks => _fs.stocks;
+  CollectionReference<Map<String, dynamic>> get _ventes => _fs.ventes;
 
   /// Renvoie true si le produit a déjà été **vendu** au moins une fois.
-  /// Les mouvements de stock initial (entrée, ajustement) ne comptent pas :
-  /// un produit créé puis jamais vendu reste supprimable, et la cascade
-  /// nettoie son stock résiduel ([delete]).
+  /// Source de vérité : la collection `ventes`. Chaque vente écrit son
+  /// tableau dénormalisé `articleProduitIds`, ce qui rend cette query
+  /// `array-contains` efficace et sans pagination.
   ///
   /// Le filtre `boutiqueId` est obligatoire pour aligner la query sur les
   /// rules Firestore (`resource.data.boutiqueId == userBoutiqueId()`),
   /// sinon la query est refusée d'office (PERMISSION_DENIED).
   Future<bool> hasUsage(String produitId, {required String boutiqueId}) async {
     if (produitId.isEmpty || boutiqueId.isEmpty) return false;
-    final m = await _mouvements
+    final v = await _ventes
         .where('boutiqueId', isEqualTo: boutiqueId)
-        .where('produitId', isEqualTo: produitId)
-        .where('type', isEqualTo: 'vente')
+        .where('articleProduitIds', arrayContains: produitId)
         .limit(1)
         .get();
-    return m.docs.isNotEmpty;
+    return v.docs.isNotEmpty;
   }
 
   /// Stream temps réel des produits, filtrable par boutique et catégorie.
@@ -59,16 +56,6 @@ class ProduitRepository {
     return ProduitModel.fromFirestore(snap);
   }
 
-  Future<ProduitModel?> findByCodeBarre(String codeBarre, String boutiqueId) async {
-    final snap = await _col
-        .where('boutiqueId', isEqualTo: boutiqueId)
-        .where('codeBarre', isEqualTo: codeBarre)
-        .limit(1)
-        .get();
-    if (snap.docs.isEmpty) return null;
-    return ProduitModel.fromFirestore(snap.docs.first);
-  }
-
   Future<String> create(ProduitModel produit) async {
     final data = produit.toMap()
       ..['createdAt'] = FieldValue.serverTimestamp()
@@ -88,24 +75,11 @@ class ProduitRepository {
     });
   }
 
-  /// Supprime le produit et **nettoie en cascade** ses stocks orphelins.
-  /// À n'appeler qu'après [hasUsage] négatif (sinon vous perdez la traçabilité
-  /// des ventes).
-  ///
-  /// Le filtre `boutiqueId` est obligatoire pour aligner la query stocks sur
-  /// les rules Firestore (`resource.data.boutiqueId == userBoutiqueId()`),
-  /// sinon la query est refusée d'office (PERMISSION_DENIED).
-  Future<void> delete(String id, {required String boutiqueId}) async {
-    if (id.isEmpty || boutiqueId.isEmpty) return;
-    final stockSnap = await _stocks
-        .where('boutiqueId', isEqualTo: boutiqueId)
-        .where('produitId', isEqualTo: id)
-        .get();
-    final batch = _fs.db.batch();
-    for (final doc in stockSnap.docs) {
-      batch.delete(doc.reference);
-    }
-    batch.delete(_col.doc(id));
-    await batch.commit();
+  /// Suppression simple : à n'appeler qu'après [hasUsage] négatif (sinon
+  /// vous perdez la traçabilité des ventes — bien que les lignes de vente
+  /// stockent un snapshot du nom et du prix).
+  Future<void> delete(String id) {
+    if (id.isEmpty) return Future.value();
+    return _col.doc(id).delete();
   }
 }

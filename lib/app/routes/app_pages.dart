@@ -23,12 +23,6 @@ import '../modules/admin/produits/views/produit_form_view.dart';
 import '../modules/admin/produits/views/produits_list_view.dart';
 import '../modules/admin/rapports/bindings/rapports_binding.dart';
 import '../modules/admin/rapports/views/rapports_view.dart';
-import '../modules/admin/stock/bindings/historique_mouvements_binding.dart';
-import '../modules/admin/stock/bindings/mouvement_binding.dart';
-import '../modules/admin/stock/bindings/stock_binding.dart';
-import '../modules/admin/stock/views/historique_mouvements_view.dart';
-import '../modules/admin/stock/views/mouvement_form_view.dart';
-import '../modules/admin/stock/views/stock_list_view.dart';
 import '../modules/admin/ventes/bindings/vente_detail_binding.dart';
 import '../modules/admin/ventes/bindings/vente_form_binding.dart';
 import '../modules/admin/ventes/bindings/ventes_binding.dart';
@@ -151,24 +145,6 @@ class AppPages {
       middlewares: [AdminGuard()],
     ),
     GetPage(
-      name: AppRoutes.adminStock,
-      page: () => const StockListView(),
-      binding: StockBinding(),
-      middlewares: [AdminGuard()],
-    ),
-    GetPage(
-      name: AppRoutes.adminMouvementForm,
-      page: () => const MouvementFormView(),
-      binding: MouvementBinding(),
-      middlewares: [AdminGuard()],
-    ),
-    GetPage(
-      name: AppRoutes.adminMouvementsHistorique,
-      page: () => const HistoriqueMouvementsView(),
-      binding: HistoriqueMouvementsBinding(),
-      middlewares: [AdminGuard()],
-    ),
-    GetPage(
       name: AppRoutes.adminVentes,
       page: () => const VentesListView(),
       binding: VentesBinding(),
@@ -190,7 +166,9 @@ class AppPages {
       name: AppRoutes.adminRapports,
       page: () => const RapportsView(),
       binding: RapportsBinding(),
-      middlewares: [AdminGuard()],
+      // Vendeur peut accéder : il voit le rapport scopé à ses propres ventes
+      // (le controller verrouille `vendeurId` sur lui-même).
+      middlewares: [AuthGuard()],
     ),
     // ========== Vendeur (tout user connecté) ==========
     GetPage(

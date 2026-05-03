@@ -25,7 +25,7 @@ class ProduitsListView extends GetView<ProduitsController> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             child: TextField(
               decoration: const InputDecoration(
-                hintText: 'Rechercher (nom, code-barre, description)...',
+                hintText: 'Rechercher (nom, description)...',
                 prefixIcon: Icon(Icons.search_rounded),
                 isDense: true,
               ),
@@ -328,11 +328,6 @@ class _ProduitTile extends StatelessWidget {
                             ],
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Obx(() => _StockBadge(
-                              quantite: controller.stockOf(produit),
-                              seuil: produit.seuilAlerte,
-                            )),
                       ],
                     ),
                   ],
@@ -411,51 +406,6 @@ class _ProductIcon extends StatelessWidget {
       child: const Icon(
         Icons.inventory_2_rounded,
         color: AppColors.primary,
-      ),
-    );
-  }
-}
-
-class _StockBadge extends StatelessWidget {
-  final int quantite;
-  final int seuil;
-  const _StockBadge({required this.quantite, required this.seuil});
-
-  @override
-  Widget build(BuildContext context) {
-    final isOut = quantite <= 0;
-    final isLow = !isOut && quantite <= seuil;
-    final color = isOut || isLow ? Colors.red : AppColors.success;
-    final bg = (isOut || isLow ? Colors.red : AppColors.success)
-        .withValues(alpha: 0.12);
-    final label = isOut ? 'Rupture' : 'Stock $quantite';
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            isOut || isLow
-                ? Icons.warning_amber_rounded
-                : Icons.inventory_2_outlined,
-            size: 12,
-            color: color,
-          ),
-          const SizedBox(width: 3),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
       ),
     );
   }

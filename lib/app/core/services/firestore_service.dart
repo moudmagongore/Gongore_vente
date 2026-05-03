@@ -24,12 +24,6 @@ class FirestoreService extends GetxService {
   CollectionReference<Map<String, dynamic>> get categories =>
       _db.collection(FirestoreKeys.categories);
 
-  CollectionReference<Map<String, dynamic>> get stocks =>
-      _db.collection(FirestoreKeys.stocks);
-
-  CollectionReference<Map<String, dynamic>> get mouvementsStock =>
-      _db.collection(FirestoreKeys.mouvementsStock);
-
   CollectionReference<Map<String, dynamic>> get ventes =>
       _db.collection(FirestoreKeys.ventes);
 

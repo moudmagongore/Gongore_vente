@@ -62,6 +62,12 @@ class VendeurDrawer extends StatelessWidget {
                     route: AppRoutes.adminCategories,
                     selected: currentRoute == AppRoutes.adminCategories,
                   ),
+                  _Item(
+                    icon: Icons.bar_chart_rounded,
+                    label: 'Mes rapports',
+                    route: AppRoutes.adminRapports,
+                    selected: currentRoute == AppRoutes.adminRapports,
+                  ),
                 ],
               ),
             ),

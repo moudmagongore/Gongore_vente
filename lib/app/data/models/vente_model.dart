@@ -194,6 +194,11 @@ class VenteModel {
         'clientId': clientId,
         'clientNomLibre': clientNomLibre,
         'articles': articles.map((a) => a.toMap()).toList(),
+        // Tableau dénormalisé des produitId présents dans `articles`,
+        // pour permettre une query Firestore efficace
+        // `where('articleProduitIds', arrayContains: pid)` (utilisée
+        // notamment pour bloquer la suppression d'un produit déjà vendu).
+        'articleProduitIds': articles.map((a) => a.produitId).toSet().toList(),
         'sousTotal': sousTotal,
         'remise': remise,
         'total': total,

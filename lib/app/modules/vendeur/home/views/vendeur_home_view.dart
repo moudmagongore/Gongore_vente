@@ -184,39 +184,129 @@ class _StatsBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(
-      () => IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: _StatCard(
-                icon: Icons.receipt_long_rounded,
-                value: controller.nbVentesJour.toString(),
-                label: 'Ventes du jour',
-                color: AppColors.primary,
-              ),
+      () => Column(
+        children: [
+          // Hero : chiffre d'affaires du jour (pleine largeur)
+          _HeroStatCard(
+            icon: Icons.attach_money_rounded,
+            value: Fmt.number(controller.caJour),
+            label: 'Chiffre d\'affaires du jour',
+            color: AppColors.success,
+            suffix: controller.devise,
+          ),
+          const SizedBox(height: 10),
+          // 2 stats secondaires côte à côte
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _StatCard(
+                    icon: Icons.receipt_long_rounded,
+                    value: controller.nbVentesJour.toString(),
+                    label: 'Ventes du jour',
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _StatCard(
+                    icon: Icons.shopping_basket_rounded,
+                    value: controller.nbArticlesVendus.toString(),
+                    label: 'Articles vendus',
+                    color: AppColors.accent,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _StatCard(
-                icon: Icons.attach_money_rounded,
-                value: Fmt.number(controller.caJour),
-                label: 'Chiffre d\'affaires du jour',
-                color: AppColors.success,
-                suffix: controller.devise,
-              ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroStatCard extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+  final Color color;
+  final String suffix;
+
+  const _HeroStatCard({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.color,
+    required this.suffix,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border, width: 1),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(14),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _StatCard(
-                icon: Icons.shopping_basket_rounded,
-                value: controller.nbArticlesVendus.toString(),
-                label: 'Articles',
-                color: AppColors.accent,
-              ),
+            child: Icon(icon, color: color, size: 26),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          color: color,
+                          letterSpacing: -0.6,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      suffix,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: color.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -227,14 +317,12 @@ class _StatCard extends StatelessWidget {
   final String value;
   final String label;
   final Color color;
-  final String? suffix;
 
   const _StatCard({
     required this.icon,
     required this.value,
     required this.label,
     required this.color,
-    this.suffix,
   });
 
   @override
@@ -246,8 +334,7 @@ class _StatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border, width: 1),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
@@ -257,33 +344,35 @@ class _StatCard extends StatelessWidget {
             ),
             child: Icon(icon, color: color, size: 18),
           ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: color,
-              letterSpacing: -0.3,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            suffix ?? '',
-            style: TextStyle(
-              fontSize: 10,
-              color: Colors.grey.shade500,
-            ),
-          ),
-          const Spacer(),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey.shade700,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: color,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

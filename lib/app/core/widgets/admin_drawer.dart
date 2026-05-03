@@ -76,12 +76,6 @@ class AdminDrawer extends StatelessWidget {
                     selected: currentRoute == AppRoutes.adminProduits,
                   ),
                   _Item(
-                    icon: Icons.warehouse_rounded,
-                    label: 'Stock',
-                    route: AppRoutes.adminStock,
-                    selected: currentRoute == AppRoutes.adminStock,
-                  ),
-                  _Item(
                     icon: Icons.receipt_long_rounded,
                     label: 'Ventes',
                     route: AppRoutes.adminVentes,

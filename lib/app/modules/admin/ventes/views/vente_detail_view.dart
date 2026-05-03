@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/services/receipt_service.dart';
+import '../../../../core/services/user_controller.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../data/models/vente_model.dart';
+import '../../../../routes/app_routes.dart';
 import '../../../../theme/app_colors.dart';
 import '../controllers/vente_detail_controller.dart';
 
@@ -52,29 +54,51 @@ class VenteDetailView extends GetView<VenteDetailController> {
         return _DetailBody(vente: v, controller: controller);
       }),
       bottomNavigationBar: Obx(() {
-        if (!controller.peutAnnuler) return const SizedBox.shrink();
+        final v = controller.vente.value;
+        if (v == null) return const SizedBox.shrink();
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                minimumSize: const Size.fromHeight(50),
-              ),
-              onPressed: controller.isCanceling.value
-                  ? null
-                  : controller.confirmCancel,
-              icon: controller.isCanceling.value
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.4,
-                        valueColor: AlwaysStoppedAnimation(Colors.white),
-                      ),
-                    )
-                  : const Icon(Icons.cancel_outlined),
-              label: const Text('Annuler la vente'),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50),
+                  ),
+                  onPressed: () => Get.offAllNamed(
+                    UserController.to.isAnyAdmin
+                        ? AppRoutes.adminHome
+                        : AppRoutes.vendeurHome,
+                  ),
+                  icon: const Icon(Icons.home_rounded),
+                  label: const Text('Retour à l\'accueil'),
+                ),
+                if (controller.peutAnnuler) ...[
+                  const SizedBox(height: 10),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      minimumSize: const Size.fromHeight(50),
+                    ),
+                    onPressed: controller.isCanceling.value
+                        ? null
+                        : controller.confirmCancel,
+                    icon: controller.isCanceling.value
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.4,
+                              valueColor:
+                                  AlwaysStoppedAnimation(Colors.white),
+                            ),
+                          )
+                        : const Icon(Icons.cancel_outlined),
+                    label: const Text('Annuler la vente'),
+                  ),
+                ],
+              ],
             ),
           ),
         );

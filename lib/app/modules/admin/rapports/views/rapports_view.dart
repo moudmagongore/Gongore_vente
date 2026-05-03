@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../../../../core/services/report_pdf_service.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../core/widgets/admin_drawer.dart';
+import '../../../../core/widgets/vendeur_drawer.dart';
 import '../../../../data/models/vente_model.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../../theme/app_colors.dart';
@@ -25,7 +26,9 @@ class RapportsView extends GetView<RapportsController> {
           ),
         ],
       ),
-      drawer: const AdminDrawer(currentRoute: AppRoutes.adminRapports),
+      drawer: controller.isAnyAdmin
+          ? const AdminDrawer(currentRoute: AppRoutes.adminRapports)
+          : const VendeurDrawer(currentRoute: AppRoutes.adminRapports),
       body: Obx(() {
         if (controller.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
@@ -346,55 +349,60 @@ class _FiltresRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(
-      () => Row(
-        children: [
-          if (c.isSuperAdmin) ...[
+      () {
+        // Le vendeur est verrouillé sur ses propres ventes : aucun filtre
+        // pertinent à afficher (boutique = la sienne, vendeur = lui-même).
+        if (c.isVendeur) return const SizedBox.shrink();
+        return Row(
+          children: [
+            if (c.isSuperAdmin) ...[
+              Expanded(
+                child: DropdownButtonFormField<String?>(
+                  initialValue: c.boutiqueId.value,
+                  decoration: const InputDecoration(
+                    labelText: 'Boutique',
+                    isDense: true,
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('Toutes'),
+                    ),
+                    ...c.boutiques.map(
+                      (b) => DropdownMenuItem(value: b.id, child: Text(b.nom)),
+                    ),
+                  ],
+                  onChanged: (v) => c.boutiqueId.value = v,
+                ),
+              ),
+              const SizedBox(width: 10),
+            ],
             Expanded(
               child: DropdownButtonFormField<String?>(
-                initialValue: c.boutiqueId.value,
+                initialValue: c.vendeurId.value,
                 decoration: const InputDecoration(
-                  labelText: 'Boutique',
+                  labelText: 'Vendeur',
                   isDense: true,
                 ),
                 items: [
                   const DropdownMenuItem<String?>(
                     value: null,
-                    child: Text('Toutes'),
+                    child: Text('Tous'),
                   ),
-                  ...c.boutiques.map(
-                    (b) => DropdownMenuItem(value: b.id, child: Text(b.nom)),
-                  ),
+                  ...c.users
+                      .where((u) =>
+                          c.isSuperAdmin ||
+                          u.boutiqueId == c.boutiqueId.value)
+                      .map(
+                        (u) => DropdownMenuItem(value: u.id, child: Text(u.nom)),
+                      ),
                 ],
-                onChanged: (v) => c.boutiqueId.value = v,
+                onChanged: (v) => c.vendeurId.value = v,
               ),
             ),
-            const SizedBox(width: 10),
           ],
-          Expanded(
-            child: DropdownButtonFormField<String?>(
-              initialValue: c.vendeurId.value,
-              decoration: const InputDecoration(
-                labelText: 'Vendeur',
-                isDense: true,
-              ),
-              items: [
-                const DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text('Tous'),
-                ),
-                ...c.users
-                    .where((u) =>
-                        c.isSuperAdmin ||
-                        u.boutiqueId == c.boutiqueId.value)
-                    .map(
-                      (u) => DropdownMenuItem(value: u.id, child: Text(u.nom)),
-                    ),
-              ],
-              onChanged: (v) => c.vendeurId.value = v,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

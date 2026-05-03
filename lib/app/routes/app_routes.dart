@@ -25,9 +25,6 @@ abstract class AppRoutes {
   static const adminClientDetail = '/admin/clients/detail';
   static const adminReglements = '/admin/reglements';
   static const venteForm = '/admin/ventes/form';
-  static const adminStock = '/admin/stock';
-  static const adminMouvementForm = '/admin/stock/mouvement';
-  static const adminMouvementsHistorique = '/admin/stock/historique';
   static const adminVentes = '/admin/ventes';
   static const venteDetail = '/ventes/detail';
   static const adminRapports = '/admin/rapports';

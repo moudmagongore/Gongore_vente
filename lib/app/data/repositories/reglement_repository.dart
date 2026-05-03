@@ -125,9 +125,13 @@ class ReglementRepository {
         'imputations': imputations.map((i) => i.toMap()).toList(),
       });
 
-      // ===== Étape 4 : décrémenter le solde du client du montant total =====
+      // ===== Étape 4 : décrémenter le solde du client + flagger =====
+      // `hasOperations: true` est posé pour que les rules Firestore
+      // bloquent la suppression côté serveur (irréversible une fois
+      // qu'un règlement existe sur ce client).
       tx.update(clientRef, {
         'solde': FieldValue.increment(-reg.montant),
+        'hasOperations': true,
         'updatedAt': FieldValue.serverTimestamp(),
       });
 

@@ -898,8 +898,7 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
                       return false;
                     }
                     if (q.isEmpty) return true;
-                    return p.nom.toLowerCase().contains(q) ||
-                        (p.codeBarre?.toLowerCase().contains(q) ?? false);
+                    return p.nom.toLowerCase().contains(q);
                   }).toList();
                   if (list.isEmpty) {
                     return Center(
@@ -922,11 +921,6 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
                     separatorBuilder: (_, _) => const SizedBox(height: 4),
                     itemBuilder: (_, i) {
                       final p = list[i];
-                      final stockDispo =
-                          widget.controller.stockDisponiblePourBon(p.id);
-                      final isOut = stockDispo <= 0;
-                      final isLow =
-                          !isOut && stockDispo <= p.seuilAlerte;
                       return ListTile(
                         leading: Container(
                           width: 40,
@@ -949,26 +943,6 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
                             fontSize: 12,
                           ),
                         ),
-                        trailing: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: (isOut || isLow ? Colors.red : AppColors.success)
-                                .withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            isOut ? 'Rupture' : 'Stock $stockDispo',
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w700,
-                              color: isOut || isLow
-                                  ? Colors.red
-                                  : AppColors.success,
-                            ),
-                          ),
-                        ),
-                        enabled: !isOut,
                         onTap: () {
                           Navigator.of(context).pop();
                           _openAjoutLigneDialog(context, p);
@@ -1087,7 +1061,6 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
   @override
   Widget build(BuildContext context) {
     final p = widget.produit;
-    final stockDispo = widget.controller.stockDisponiblePourBon(p.id);
     final devise = widget.controller.devise;
     final sousTotalBrut = p.prixVente * _quantite;
     final sousTotal = sousTotalBrut - _remise;
@@ -1152,31 +1125,6 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 14),
-            // Stock dispo
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.success.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.inventory_outlined,
-                      size: 16, color: AppColors.success),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Stock disponible : $stockDispo',
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.success,
-                    ),
-                  ),
-                ],
-              ),
-            ),
             const SizedBox(height: 18),
             // Quantité
             const Text(
@@ -1189,10 +1137,7 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
                 _QtyStepper(
                   quantite: _quantite,
                   onMinus: () => _setQuantite(_quantite - 1),
-                  onPlus: () {
-                    if (_quantite >= stockDispo) return;
-                    _setQuantite(_quantite + 1);
-                  },
+                  onPlus: () => _setQuantite(_quantite + 1),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1208,7 +1153,7 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
                     ),
                     onChanged: (v) {
                       final n = int.tryParse(v) ?? 1;
-                      _setQuantite(n > stockDispo ? stockDispo : n);
+                      _setQuantite(n);
                     },
                   ),
                 ),
@@ -1271,16 +1216,14 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
             ),
             const SizedBox(height: 18),
             ElevatedButton.icon(
-              onPressed: stockDispo <= 0
-                  ? null
-                  : () {
-                      final ok = widget.controller.addLigne(
-                        produit: p,
-                        quantite: _quantite,
-                        remise: _remise,
-                      );
-                      if (ok) Get.back();
-                    },
+              onPressed: () {
+                final ok = widget.controller.addLigne(
+                  produit: p,
+                  quantite: _quantite,
+                  remise: _remise,
+                );
+                if (ok) Get.back();
+              },
               icon: const Icon(Icons.check_rounded),
               label: const Text('Ajouter à la vente'),
             ),

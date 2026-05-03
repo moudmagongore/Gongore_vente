@@ -7,8 +7,6 @@ abstract class FirestoreKeys {
   static const boutiques = 'boutiques';
   static const produits = 'produits';
   static const categories = 'categories';
-  static const stocks = 'stocks';
-  static const mouvementsStock = 'mouvementsStock';
   static const ventes = 'ventes';
   static const clients = 'clients';
   static const reglements = 'reglements';

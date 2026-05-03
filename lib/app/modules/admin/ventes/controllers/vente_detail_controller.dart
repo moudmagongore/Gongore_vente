@@ -62,8 +62,8 @@ class VenteDetailController extends GetxController {
     if (vente.value == null) return false;
     if (vente.value!.statut != VenteStatut.validee) return false;
     // Tout user actif (admin / super-admin / vendeur) peut annuler une vente
-    // pour corriger une erreur de saisie ; la transaction restitue le stock
-    // et inverse l'effet sur le solde du client.
+    // pour corriger une erreur de saisie ; la transaction inverse l'effet
+    // sur le solde du client.
     return UserController.to.user?.active ?? false;
   }
 
@@ -78,8 +78,8 @@ class VenteDetailController extends GetxController {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'Le stock des articles vendus sera restitué.\n'
-              'Cette action est tracée dans l\'historique.',
+              'La vente sera marquée comme annulée et l\'effet sur le '
+              'solde client sera inversé.\nCette action est tracée.',
             ),
             const SizedBox(height: 16),
             TextField(
@@ -131,7 +131,7 @@ class VenteDetailController extends GetxController {
       );
       Get.snackbar(
         'Vente annulée',
-        'Le stock a été restitué',
+        'L\'effet sur le solde client a été inversé.',
         snackPosition: SnackPosition.BOTTOM,
       );
     } catch (e) {

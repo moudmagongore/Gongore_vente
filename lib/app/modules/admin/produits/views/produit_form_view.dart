@@ -40,20 +40,6 @@ class ProduitFormView extends GetView<ProduitFormController> {
               minLines: 1,
               maxLines: 3,
             ),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: controller.codeBarreCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Code-barre',
-                prefixIcon: Icon(Icons.qr_code_2_rounded),
-                hintText: 'EAN-13, UPC...',
-              ),
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
-                LengthLimitingTextInputFormatter(20),
-              ],
-            ),
             const SizedBox(height: 24),
 
             // ============ Boutique & catégorie ============
@@ -170,56 +156,18 @@ class ProduitFormView extends GetView<ProduitFormController> {
             ),
             const SizedBox(height: 24),
 
-            // ============ Stock ============
-            _Section('Stock'),
+            // ============ Unité ============
+            _Section('Unité'),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: controller.uniteCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Unité',
-                      prefixIcon: Icon(Icons.straighten_rounded),
-                      hintText: 'pièce, kg, L...',
-                    ),
-                    textCapitalization: TextCapitalization.none,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: controller.seuilCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Seuil d\'alerte',
-                      prefixIcon: Icon(Icons.warning_amber_rounded),
-                    ),
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                    ],
-                    validator: controller.validateSeuil,
-                  ),
-                ),
-              ],
+            TextFormField(
+              controller: controller.uniteCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Unité',
+                prefixIcon: Icon(Icons.straighten_rounded),
+                hintText: 'pièce, kg, L...',
+              ),
+              textCapitalization: TextCapitalization.none,
             ),
-            const SizedBox(height: 14),
-            Obx(() => TextFormField(
-                  controller: controller.stockInitialCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'Quantité en stock *',
-                    prefixIcon: const Icon(Icons.add_box_outlined),
-                    hintText: '0',
-                    helperText: controller.isEdit
-                        ? 'Toute modification crée un ajustement traçable'
-                        : 'Crée automatiquement une entrée de stock',
-                  ),
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                  ],
-                  validator: controller.validateStockInitial,
-                )),
             const SizedBox(height: 24),
 
             // ============ Statut ============

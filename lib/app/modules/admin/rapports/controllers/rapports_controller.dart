@@ -34,6 +34,8 @@ class RapportsController extends GetxController {
   final RxBool isLoading = true.obs;
 
   bool get isSuperAdmin => UserController.to.isSuperAdmin;
+  bool get isAnyAdmin => UserController.to.isAnyAdmin;
+  bool get isVendeur => UserController.to.isVendeur;
 
   @override
   void onInit() {
@@ -47,6 +49,11 @@ class RapportsController extends GetxController {
     // Pour admin de boutique : verrouiller le filtre sur sa boutique
     if (scope != null) {
       boutiqueId.value = scope;
+    }
+    // Pour le vendeur : verrouiller AUSSI le filtre sur son propre user id,
+    // afin qu'il ne voit que SES ventes dans le rapport.
+    if (isVendeur) {
+      vendeurId.value = UserController.to.user?.id;
     }
 
     _applyPreset(PeriodePreset.mois);
@@ -183,15 +190,4 @@ class RapportsController extends GetxController {
     return out;
   }
 
-  // ====== Stock ======
-  /// Produits sous le seuil d'alerte (toutes boutiques sauf si filtre).
-  List<ProduitModel> get produitsEnAlerte {
-    return produits.where((p) {
-      if (boutiqueId.value != null && p.boutiqueId != boutiqueId.value) {
-        return false;
-      }
-      // On n'a pas le stock ici dans ce controller. On retourne juste les produits actifs.
-      return p.active;
-    }).toList();
-  }
 }

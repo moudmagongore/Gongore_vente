@@ -156,41 +156,6 @@ service cloud.firestore {
                     || (isAdmin() && resourceBoutiqueIdMatches());
     }
 
-    // ================== Stocks (par boutique) ==================
-    // Document ID = "{boutiqueId}_{produitId}"
-    match /stocks/{sid} {
-      allow read: if isSuperAdmin()
-                  || (isAuthed() && resource.data.boutiqueId == userBoutiqueId());
-
-      // Création/update du stock : tous les rôles authentifiés liés à la boutique
-      // (admin gère, vendeur valide une vente qui décrémente).
-      allow create: if isSuperAdmin()
-                    || (isAuthed() && createBoutiqueIdMatches());
-
-      allow update: if isSuperAdmin()
-                    || (isAuthed()
-                        && resourceBoutiqueIdMatches()
-                        && boutiqueIdNotChanged());
-
-      // Suppression : super-admin, ou admin de la boutique (cascade lors
-      // de la suppression d'un produit jamais vendu).
-      allow delete: if isSuperAdmin()
-                    || (isAdmin() && resourceBoutiqueIdMatches());
-    }
-
-    // ================== Mouvements de stock ==================
-    match /mouvementsStock/{mid} {
-      allow read: if isSuperAdmin()
-                  || (isAuthed() && resource.data.boutiqueId == userBoutiqueId());
-
-      // Création par tout user de la boutique (vente, entrée, sortie, transfert).
-      allow create: if isSuperAdmin()
-                    || (isAuthed() && createBoutiqueIdMatches());
-
-      // Pas d'update / delete sur les mouvements (audit trail) sauf super-admin.
-      allow update, delete: if isSuperAdmin();
-    }
-
     // ================== Ventes ==================
     match /ventes/{vid} {
       allow read: if isSuperAdmin()
@@ -241,8 +206,18 @@ service cloud.firestore {
                         && resourceBoutiqueIdMatches()
                         && boutiqueIdNotChanged());
 
+      // Suppression : super-admin (toujours), ou tout user actif de la
+      // boutique uniquement si le client n'a JAMAIS eu d'opération
+      // (drapeau dénormalisé `hasOperations`, posé à `true` à la
+      // première vente ou règlement par les transactions correspondantes).
+      // Une fois flaggé, le client devient indélébile côté serveur.
+      // NB: les clients existants en base sans le champ retombent sur
+      // `false` par défaut (rétro-compat) ; à leur prochaine opération
+      // ils seront flaggés.
       allow delete: if isSuperAdmin()
-                    || (isAdmin() && resourceBoutiqueIdMatches());
+                    || (isActive()
+                        && resourceBoutiqueIdMatches()
+                        && resource.data.get('hasOperations', false) != true);
     }
 
     // ================== Règlements (encaissements) ==================

@@ -96,7 +96,6 @@ class BoutiquesController extends GetxController {
           'avec TOUTES ses données :\n\n'
           '• Tous les utilisateurs (admins + vendeurs)\n'
           '• Tous les produits et catégories\n'
-          '• Tout le stock et l\'historique des mouvements\n'
           '• Toutes les ventes et tous les clients\n\n'
           'Cette action est IRRÉVERSIBLE.\n\n'
           '💡 Astuce : préférez la désactiver pour conserver les données.',
@@ -128,7 +127,7 @@ class BoutiquesController extends GetxController {
       Get.snackbar(
         'Boutique supprimée',
         '${res.users} users, ${res.produits} produits, '
-        '${res.ventes} ventes, ${res.mouvements} mouvements...',
+        '${res.ventes} ventes, ${res.clients} clients.',
         snackPosition: SnackPosition.BOTTOM,
         duration: const Duration(seconds: 4),
       );
