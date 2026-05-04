@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_theme.dart';
 import '../services/user_controller.dart';
 import 'sign_out_dialog.dart';
 
@@ -14,126 +15,182 @@ class AdminDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = UserController.to.user;
-    final isSuper = UserController.to.isSuperAdmin;
-
     return Drawer(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _Header(
-            name: user?.nom ?? '',
-            email: user?.email ?? '',
-            isSuper: isSuper,
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: SafeArea(
-              top: false,
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: [
-                  _Item(
-                    icon: Icons.dashboard_rounded,
-                    label: 'Tableau de bord',
-                    route: AppRoutes.adminHome,
-                    selected: currentRoute == AppRoutes.adminHome,
-                  ),
-                  _Item(
-                    icon: Icons.store_rounded,
-                    label: isSuper ? 'Boutiques' : 'Ma boutique',
-                    route: AppRoutes.adminBoutiques,
-                    selected: currentRoute == AppRoutes.adminBoutiques,
-                  ),
-                  _Item(
-                    icon: Icons.people_alt_rounded,
-                    label: isSuper ? 'Utilisateurs' : 'Mes gestionnaires',
-                    route: AppRoutes.adminUsers,
-                    selected: currentRoute == AppRoutes.adminUsers,
-                  ),
-                  _Item(
-                    icon: Icons.contacts_rounded,
-                    label: 'Clients',
-                    route: AppRoutes.adminClients,
-                    selected: currentRoute == AppRoutes.adminClients,
-                  ),
-                  _Item(
-                    icon: Icons.local_shipping_rounded,
-                    label: 'Fournisseurs',
-                    route: AppRoutes.adminFournisseurs,
-                    selected: currentRoute == AppRoutes.adminFournisseurs,
-                  ),
-                  _Item(
-                    icon: Icons.move_to_inbox_rounded,
-                    label: 'Approvisionnements',
-                    route: AppRoutes.adminAppros,
-                    selected: currentRoute == AppRoutes.adminAppros,
-                  ),
-                  // Règlements clients & fournisseurs : admin/super-admin
-                  // en lecture seule (les actions Encaisser/Verser/Supprimer
-                  // sont gardées dans la vue).
-                  _Item(
-                    icon: Icons.payments_rounded,
-                    label: 'Règlements clients',
-                    route: AppRoutes.adminReglements,
-                    selected: currentRoute == AppRoutes.adminReglements,
-                  ),
-                  _Item(
-                    icon: Icons.account_balance_wallet_rounded,
-                    label: 'Règlements fournisseurs',
-                    route: AppRoutes.adminReglementsFournisseurs,
-                    selected: currentRoute ==
+      child: Obx(() {
+        // Obx au top : tout le drawer se redessine si l'utilisateur change
+        // (ex. admin coche/décoche `alsoGestionnaire` sur son propre profil).
+        final user = UserController.to.user;
+        final isSuper = UserController.to.isSuperAdmin;
+        final isAdmin = UserController.to.isAdmin;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _Header(
+              name: user?.nom ?? '',
+              email: user?.email ?? '',
+              isSuper: isSuper,
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: SafeArea(
+                top: false,
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    _Item(
+                      icon: Icons.dashboard_rounded,
+                      label: 'Tableau de bord',
+                      route: AppRoutes.adminHome,
+                      currentRoute: currentRoute,
+                    ),
+                    _Item(
+                      icon: Icons.store_rounded,
+                      label: isSuper ? 'Boutiques' : 'Ma boutique',
+                      route: AppRoutes.adminBoutiques,
+                      currentRoute: currentRoute,
+                    ),
+                    _Item(
+                      icon: Icons.people_alt_rounded,
+                      label: isSuper ? 'Utilisateurs' : 'Mes gestionnaires',
+                      route: AppRoutes.adminUsers,
+                      currentRoute: currentRoute,
+                    ),
+                    _ExpansionGroup(
+                      icon: Icons.inventory_2_rounded,
+                      title: 'Catalogue',
+                      currentRoute: currentRoute,
+                      childrenRoutes: const [
+                        AppRoutes.adminProduits,
+                        AppRoutes.adminCategories,
+                        AppRoutes.adminStock,
+                      ],
+                      children: [
+                        _Item(
+                          icon: Icons.inventory_2_rounded,
+                          label: 'Produits',
+                          route: AppRoutes.adminProduits,
+                          currentRoute: currentRoute,
+                        ),
+                        _Item(
+                          icon: Icons.category_rounded,
+                          label: 'Catégories',
+                          route: AppRoutes.adminCategories,
+                          currentRoute: currentRoute,
+                        ),
+                        _Item(
+                          icon: Icons.warehouse_rounded,
+                          label: 'Stock',
+                          route: AppRoutes.adminStock,
+                          currentRoute: currentRoute,
+                        ),
+                      ],
+                    ),
+                    _ExpansionGroup(
+                      icon: Icons.local_shipping_rounded,
+                      title: 'Achats',
+                      currentRoute: currentRoute,
+                      childrenRoutes: const [
+                        AppRoutes.adminFournisseurs,
+                        AppRoutes.adminAppros,
                         AppRoutes.adminReglementsFournisseurs,
-                  ),
-                  _Item(
-                    icon: Icons.category_rounded,
-                    label: 'Catégories',
-                    route: AppRoutes.adminCategories,
-                    selected: currentRoute == AppRoutes.adminCategories,
-                  ),
-                  _Item(
-                    icon: Icons.inventory_2_rounded,
-                    label: 'Produits',
-                    route: AppRoutes.adminProduits,
-                    selected: currentRoute == AppRoutes.adminProduits,
-                  ),
-                  _Item(
-                    icon: Icons.warehouse_rounded,
-                    label: 'Stock',
-                    route: AppRoutes.adminStock,
-                    selected: currentRoute == AppRoutes.adminStock,
-                  ),
-                  _Item(
-                    icon: Icons.receipt_long_rounded,
-                    label: 'Ventes',
-                    route: AppRoutes.adminVentes,
-                    selected: currentRoute == AppRoutes.adminVentes,
-                  ),
-                  _Item(
-                    icon: Icons.bar_chart_rounded,
-                    label: 'Rapports',
-                    route: AppRoutes.adminRapports,
-                    selected: currentRoute == AppRoutes.adminRapports,
-                  ),
-                ],
+                      ],
+                      children: [
+                        _Item(
+                          icon: Icons.local_shipping_rounded,
+                          label: 'Fournisseurs',
+                          route: AppRoutes.adminFournisseurs,
+                          currentRoute: currentRoute,
+                        ),
+                        _Item(
+                          icon: Icons.move_to_inbox_rounded,
+                          label: 'Approvisionnements',
+                          route: AppRoutes.adminAppros,
+                          currentRoute: currentRoute,
+                        ),
+                        _Item(
+                          icon: Icons.account_balance_wallet_rounded,
+                          label: 'Règlements fournisseurs',
+                          route: AppRoutes.adminReglementsFournisseurs,
+                          currentRoute: currentRoute,
+                        ),
+                      ],
+                    ),
+                    _ExpansionGroup(
+                      icon: Icons.receipt_long_rounded,
+                      title: 'Ventes & règlements',
+                      currentRoute: currentRoute,
+                      childrenRoutes: const [
+                        AppRoutes.adminVentes,
+                        AppRoutes.adminClients,
+                        AppRoutes.adminReglements,
+                      ],
+                      children: [
+                        _Item(
+                          icon: Icons.receipt_long_rounded,
+                          label: 'Ventes',
+                          route: AppRoutes.adminVentes,
+                          currentRoute: currentRoute,
+                        ),
+                        _Item(
+                          icon: Icons.contacts_rounded,
+                          label: 'Clients',
+                          route: AppRoutes.adminClients,
+                          currentRoute: currentRoute,
+                        ),
+                        _Item(
+                          icon: Icons.payments_rounded,
+                          label: 'Règlements clients',
+                          route: AppRoutes.adminReglements,
+                          currentRoute: currentRoute,
+                        ),
+                      ],
+                    ),
+                    _Item(
+                      icon: Icons.bar_chart_rounded,
+                      label: 'Rapports',
+                      route: AppRoutes.adminRapports,
+                      currentRoute: currentRoute,
+                    ),
+                    // Mon compte : visible uniquement pour admin de boutique
+                    // (super-admin n'a pas besoin, vendeur n'utilise pas ce drawer).
+                    // Permet à l'admin d'activer le cumul "Aussi gestionnaire".
+                    if (isAdmin)
+                      Builder(
+                        builder: (ctx) => ListTile(
+                          leading: const Icon(Icons.account_circle_outlined),
+                          title: const Text(
+                            'Mon compte',
+                            style: TextStyle(fontFamily: AppTheme.fontFamily),
+                          ),
+                          onTap: () {
+                            Navigator.of(ctx).pop();
+                            final me = UserController.to.user;
+                            if (me != null) {
+                              Get.toNamed(AppRoutes.adminUserForm,
+                                  arguments: me);
+                            }
+                          },
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
-          const Divider(height: 1),
-          Builder(
-            builder: (ctx) => ListTile(
-              leading:
-                  const Icon(Icons.logout_rounded, color: Colors.red),
-              title: const Text(
-                'Déconnexion',
-                style: TextStyle(color: Colors.red),
+            const Divider(height: 1),
+            Builder(
+              builder: (ctx) => ListTile(
+                leading: const Icon(Icons.logout_rounded, color: Colors.red),
+                title: const Text(
+                  'Déconnexion',
+                  style: TextStyle(color: Colors.red),
+                ),
+                onTap: () => confirmSignOut(ctx),
               ),
-              onTap: () => confirmSignOut(ctx),
             ),
-          ),
-          SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
-        ],
-      ),
+            SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
+          ],
+        );
+      }),
     );
   }
 }
@@ -223,23 +280,49 @@ class _Header extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              isSuper ? 'SUPER ADMIN' : 'ADMINISTRATEUR',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.8,
-              ),
-            ),
+          // Badge rôle : on affiche aussi "+ GESTIONNAIRE" si l'admin a
+          // activé le cumul des rôles (alsoGestionnaire = true).
+          Builder(
+            builder: (_) {
+              final user = UserController.to.user;
+              final showCumul = !isSuper && (user?.alsoGestionnaire ?? false);
+              return Wrap(
+                spacing: 6,
+                children: [
+                  _RoleBadge(
+                    label: isSuper ? 'SUPER ADMIN' : 'ADMINISTRATEUR',
+                  ),
+                  if (showCumul) const _RoleBadge(label: '+ GESTIONNAIRE'),
+                ],
+              );
+            },
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _RoleBadge extends StatelessWidget {
+  final String label;
+  const _RoleBadge({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8,
+        ),
       ),
     );
   }
@@ -249,18 +332,22 @@ class _Item extends StatelessWidget {
   final IconData icon;
   final String label;
   final String route;
-  final bool selected;
+  final String currentRoute;
 
   const _Item({
     required this.icon,
     required this.label,
     required this.route,
-    required this.selected,
+    required this.currentRoute,
   });
 
   @override
   Widget build(BuildContext context) {
+    final selected = currentRoute == route;
     return ListTile(
+      // Pas d'arrondi pour la surbrillance du drawer : on veut un highlight
+      // qui occupe toute la largeur sans coin arrondi.
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       leading: Icon(
         icon,
         color: selected ? AppColors.primary : null,
@@ -268,6 +355,7 @@ class _Item extends StatelessWidget {
       title: Text(
         label,
         style: TextStyle(
+          fontFamily: AppTheme.fontFamily,
           color: selected ? AppColors.primary : null,
           fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
         ),
@@ -279,6 +367,56 @@ class _Item extends StatelessWidget {
         if (selected) return;
         Get.offNamed(route);
       },
+    );
+  }
+}
+
+/// Groupe d'items réunis dans un ExpansionTile. S'ouvre par défaut quand
+/// la route active fait partie du groupe pour faire ressortir l'item courant.
+class _ExpansionGroup extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String currentRoute;
+  final List<String> childrenRoutes;
+  final List<Widget> children;
+
+  const _ExpansionGroup({
+    required this.icon,
+    required this.title,
+    required this.currentRoute,
+    required this.childrenRoutes,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final containsCurrent = childrenRoutes.contains(currentRoute);
+    return Theme(
+      // ExpansionTile met une bordure top/bottom qui jure avec le reste
+      // du drawer : on la neutralise.
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        // Pas d'arrondi sur la zone d'expansion (full-width flat).
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        collapsedShape:
+            const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        leading: Icon(
+          icon,
+          color: containsCurrent ? AppColors.primary : null,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontFamily: AppTheme.fontFamily,
+            color: containsCurrent ? AppColors.primary : null,
+            fontWeight:
+                containsCurrent ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+        initiallyExpanded: containsCurrent,
+        childrenPadding: const EdgeInsets.only(left: 12),
+        children: children,
+      ),
     );
   }
 }

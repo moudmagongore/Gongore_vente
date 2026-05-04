@@ -29,6 +29,11 @@ class UserFormController extends GetxController {
   final RxBool obscurePassword = true.obs;
   final RxBool sendResetEmail = true.obs;
 
+  /// Cumul admin + gestionnaire : un admin avec ce flag a en plus tous
+  /// les droits gestionnaire (caisse, encaissements, règlements).
+  /// Ignoré lorsque `role != admin`.
+  final RxBool alsoGestionnaire = false.obs;
+
   final RxList<BoutiqueModel> boutiques = <BoutiqueModel>[].obs;
   final RxBool isSaving = false.obs;
 
@@ -36,7 +41,16 @@ class UserFormController extends GetxController {
   final Rxn<UserModel> editing = Rxn<UserModel>();
 
   bool get isEdit => editing.value != null;
-  String get title => isEdit ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur';
+
+  /// Édition de son propre profil (admin de boutique éditant son user).
+  /// Utilisé pour limiter ce qui est éditable (pas de rôle / boutique /
+  /// statut actif modifiables — voir aussi les rules Firestore).
+  bool get isSelfEdit =>
+      isEdit && editing.value!.id == UserController.to.user?.id;
+
+  String get title => isSelfEdit
+      ? 'Mon compte'
+      : (isEdit ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur');
 
   /// Super-admin peut créer des admins. Admin de boutique : vendeurs uniquement.
   bool get canCreateAdmin => UserController.to.isSuperAdmin;
@@ -61,6 +75,7 @@ class UserFormController extends GetxController {
       role.value = arg.role;
       boutiqueId.value = arg.boutiqueId;
       active.value = arg.active;
+      alsoGestionnaire.value = arg.alsoGestionnaire;
     } else if (!canCreateAdmin) {
       // Création par un admin de boutique : forcer rôle vendeur
       // et pré-remplir sa boutique.
@@ -145,11 +160,7 @@ class UserFormController extends GetxController {
   Future<void> _saveCreate() async {
     final boutiqueIdToSave =
         role.value == UserRole.superAdmin ? null : boutiqueId.value;
-    // ignore: avoid_print
-    print('[USER CREATE] role=${role.value.name} '
-        'boutiqueId.value=${boutiqueId.value} '
-        'boutiqueIdToSave=$boutiqueIdToSave');
-    await _creation.createUser(
+    final result = await _creation.createUser(
       email: emailCtrl.text,
       password: passwordCtrl.text,
       nom: nomCtrl.text,
@@ -157,25 +168,39 @@ class UserFormController extends GetxController {
       role: role.value,
       boutiqueId: boutiqueIdToSave,
       active: active.value,
+      alsoGestionnaire:
+          role.value == UserRole.admin ? alsoGestionnaire.value : false,
+      sendPasswordResetEmail: sendResetEmail.value,
     );
-
-    if (sendResetEmail.value) {
-      try {
-        await _creation.sendPasswordResetEmail(emailCtrl.text);
-      } catch (_) {
-        // non bloquant
-      }
-    }
 
     Get.back();
-    Get.snackbar(
-      'Utilisateur créé',
-      sendResetEmail.value
-          ? 'Un email de définition de mot de passe a été envoyé.'
-          : nomCtrl.text.trim(),
-      snackPosition: SnackPosition.BOTTOM,
-      duration: const Duration(seconds: 3),
-    );
+
+    // Cas 1 : email demandé ET envoyé → succès complet
+    // Cas 2 : email demandé mais échoué → snackbar warning avec le détail
+    //         (le compte existe quand même, l'admin peut renvoyer plus tard)
+    // Cas 3 : email non demandé → snackbar simple "créé"
+    if (sendResetEmail.value && !result.emailSent) {
+      Get.snackbar(
+        'Utilisateur créé (email non envoyé)',
+        'Le compte ${nomCtrl.text.trim()} est créé, mais l\'email de '
+            'définition de mot de passe n\'a pas pu partir : '
+            '${result.emailError ?? "erreur inconnue"}. '
+            'Vous pouvez le renvoyer depuis la liste des utilisateurs.',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 6),
+        backgroundColor: Colors.orange.shade50,
+        colorText: Colors.orange.shade900,
+      );
+    } else {
+      Get.snackbar(
+        'Utilisateur créé',
+        sendResetEmail.value
+            ? 'Un email de définition de mot de passe a été envoyé à ${emailCtrl.text.trim()}.'
+            : nomCtrl.text.trim(),
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 4),
+      );
+    }
   }
 
   Future<void> _saveEdit() async {
@@ -188,6 +213,10 @@ class UserFormController extends GetxController {
       boutiqueId:
           role.value == UserRole.superAdmin ? null : boutiqueId.value,
       active: active.value,
+      // Le flag n'a de sens que pour un admin ; remis à false pour les
+      // autres rôles (cohérence si on rétrograde un user admin → vendeur).
+      alsoGestionnaire:
+          role.value == UserRole.admin ? alsoGestionnaire.value : false,
     );
     await _userRepo.update(updated);
 

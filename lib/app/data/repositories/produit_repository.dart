@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/services/firestore_service.dart';
+import '../../core/utils/stream_helpers.dart';
 import '../models/produit_model.dart';
 
 class ProduitRepository {
@@ -44,7 +45,7 @@ class ProduitRepository {
       query = query.where('active', isEqualTo: true);
     }
     query = query.orderBy('nom');
-    return query.snapshots().map(
+    return query.snapshots().ignorePermissionDenied().map(
           (snap) => snap.docs.map(ProduitModel.fromFirestore).toList(),
         );
   }

@@ -98,6 +98,45 @@ class UserFormView extends GetView<UserFormController> {
               ),
               const SizedBox(height: 14),
             ],
+            // Cumul admin + gestionnaire : visible quand le rôle sélectionné
+            // est admin. Cumule les droits gestionnaire en plus de admin.
+            Obx(() {
+              if (controller.role.value != UserRole.admin) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.secondary.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: SwitchListTile(
+                    value: controller.alsoGestionnaire.value,
+                    onChanged: (v) =>
+                        controller.alsoGestionnaire.value = v,
+                    title: const Text(
+                      'Aussi gestionnaire de la boutique',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      'Donne en plus tous les droits gestionnaire (caisse, '
+                      'encaisser, verser règlement, créer vente...).',
+                      style: TextStyle(fontSize: 11.5),
+                    ),
+                    activeThumbColor: AppColors.secondary,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 4),
+                  ),
+                ),
+              );
+            }),
             // Sélecteur boutique : visible pour super-admin uniquement.
             // Pour admin de boutique, la boutique est verrouillée sur la sienne.
             if (controller.canPickBoutique)
@@ -243,23 +282,29 @@ class UserFormView extends GetView<UserFormController> {
             }),
 
             // ============ Statut ============
-            _SectionTitle('Statut'),
-            const SizedBox(height: 6),
-            Obx(
-              () => SwitchListTile(
-                value: controller.active.value,
-                onChanged: (v) => controller.active.value = v,
-                title: const Text('Compte actif'),
-                subtitle: Text(
-                  controller.active.value
-                      ? 'L\'utilisateur peut se connecter'
-                      : 'L\'utilisateur ne peut pas se connecter',
-                  style: const TextStyle(fontSize: 12),
+            // En self-edit (admin éditant son propre profil), le switch est
+            // masqué pour éviter qu'il se désactive lui-même par erreur
+            // (les rules le bloqueraient de toute façon).
+            if (!controller.isSelfEdit) ...[
+              _SectionTitle('Statut'),
+              const SizedBox(height: 6),
+              Obx(
+                () => SwitchListTile(
+                  value: controller.active.value,
+                  onChanged: (v) => controller.active.value = v,
+                  title: const Text('Compte actif'),
+                  subtitle: Text(
+                    controller.active.value
+                        ? 'L\'utilisateur peut se connecter'
+                        : 'L\'utilisateur ne peut pas se connecter',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  contentPadding: EdgeInsets.zero,
                 ),
-                contentPadding: EdgeInsets.zero,
               ),
-            ),
-            const SizedBox(height: 32),
+              const SizedBox(height: 32),
+            ] else
+              const SizedBox(height: 16),
 
             // ============ Actions ============
             Obx(

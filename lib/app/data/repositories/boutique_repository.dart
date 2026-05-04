@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/services/firestore_service.dart';
+import '../../core/utils/stream_helpers.dart';
 import '../models/boutique_model.dart';
 
 /// Couche d'accès aux boutiques.
@@ -15,7 +16,7 @@ class BoutiqueRepository {
     if (actives != null) {
       query = query.where('active', isEqualTo: actives);
     }
-    return query.snapshots().map(
+    return query.snapshots().ignorePermissionDenied().map(
           (snap) => snap.docs.map(BoutiqueModel.fromFirestore).toList(),
         );
   }
@@ -34,7 +35,7 @@ class BoutiqueRepository {
     if (scope.isEmpty) {
       return Stream.value(<BoutiqueModel>[]);
     }
-    return _col.doc(scope).snapshots().map((snap) {
+    return _col.doc(scope).snapshots().ignorePermissionDenied().map((snap) {
       if (!snap.exists) return <BoutiqueModel>[];
       final b = BoutiqueModel.fromFirestore(snap);
       if (actives == true && !b.active) return <BoutiqueModel>[];

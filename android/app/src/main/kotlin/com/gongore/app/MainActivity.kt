@@ -1,4 +1,4 @@
-package com.example.gongore_vente
+package com.gongore.app
 
 import io.flutter.embedding.android.FlutterActivity
 

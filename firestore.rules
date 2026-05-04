@@ -39,8 +39,15 @@ service cloud.firestore {
       return isActive() && userDoc().role == 'admin';
     }
 
+    // Gestionnaire = anciennement « vendeur ». Inclut aussi un admin qui
+    // a coché « Aussi gestionnaire » (champ `alsoGestionnaire: true`),
+    // ce qui lui donne tous les droits gestionnaire EN PLUS de ses droits
+    // admin (cumul utile pour qu'un admin puisse aussi tenir la caisse).
     function isVendeur() {
-      return isActive() && userDoc().role == 'vendeur';
+      return isActive()
+        && (userDoc().role == 'vendeur'
+            || (userDoc().role == 'admin'
+                && userDoc().get('alsoGestionnaire', false) == true));
     }
 
     function userBoutiqueId() {
@@ -90,15 +97,23 @@ service cloud.firestore {
 
       // Update :
       //   • superAdmin : tout sauf promouvoir vers superAdmin
-      //   • admin : uniquement vendeurs de sa boutique, sans changer rôle/boutique
-      //   • soi-même : limité (nom, téléphone) — non couvert ici, simple deny
+      //   • admin : vendeurs de sa boutique (sans changer rôle/boutique)
+      //   • admin : SOI-MÊME, uniquement pour basculer `alsoGestionnaire`
+      //     (et `updatedAt`) — permet de s'auto-promouvoir gestionnaire
+      //     sans pouvoir modifier role/boutiqueId/active
       allow update: if (isSuperAdmin()
                         && request.resource.data.role != 'superAdmin')
                     || (isAdmin()
                         && resource.data.role == 'vendeur'
                         && resource.data.boutiqueId == userBoutiqueId()
                         && request.resource.data.role == 'vendeur'
-                        && boutiqueIdNotChanged());
+                        && boutiqueIdNotChanged())
+                    || (isAdmin()
+                        && request.auth.uid == userId
+                        && resource.data.role == 'admin'
+                        && request.resource.data.role == 'admin'
+                        && boutiqueIdNotChanged()
+                        && request.resource.data.active == resource.data.active);
 
       // Delete :
       //   • superAdmin : tous

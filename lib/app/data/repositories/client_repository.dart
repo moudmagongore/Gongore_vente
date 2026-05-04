@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/services/firestore_service.dart';
+import '../../core/utils/stream_helpers.dart';
 import '../models/client_model.dart';
 
 class ClientRepository {
@@ -38,7 +39,7 @@ class ClientRepository {
   /// - `scope` vide → liste vide
   Stream<List<ClientModel>> watchScoped(String? scope) {
     if (scope == null) {
-      return _col.orderBy('nom').snapshots().map(
+      return _col.orderBy('nom').snapshots().ignorePermissionDenied().map(
             (snap) => snap.docs.map(ClientModel.fromFirestore).toList(),
           );
     }
@@ -46,7 +47,7 @@ class ClientRepository {
     return _col
         .where('boutiqueId', isEqualTo: scope)
         .orderBy('nom')
-        .snapshots()
+        .snapshots().ignorePermissionDenied()
         .map((snap) => snap.docs.map(ClientModel.fromFirestore).toList());
   }
 
@@ -64,7 +65,7 @@ class ClientRepository {
     if (id.isEmpty) return Stream.value(null);
     return _col
         .doc(id)
-        .snapshots()
+        .snapshots().ignorePermissionDenied()
         .map((s) => s.exists ? ClientModel.fromFirestore(s) : null);
   }
 

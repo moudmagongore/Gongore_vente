@@ -8,6 +8,7 @@ import '../../data/models/boutique_model.dart';
 import '../../data/models/user_model.dart';
 import '../../data/models/vente_model.dart';
 import '../utils/format_helpers.dart';
+import 'pdf_theme_service.dart';
 
 /// Génère un reçu PDF (format 80mm classique pour imprimante thermique).
 class ReceiptService {
@@ -17,7 +18,7 @@ class ReceiptService {
     UserModel? vendeur,
     String? clientLabel,
   }) async {
-    final pdf = pw.Document();
+    final pdf = pw.Document(theme: await PdfThemeService.theme);
     final devise = boutique.devise;
 
     pdf.addPage(

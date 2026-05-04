@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/services/firestore_service.dart';
+import '../../core/utils/stream_helpers.dart';
 import '../models/mouvement_stock_model.dart';
 
 class MouvementStockRepository {
@@ -25,7 +26,7 @@ class MouvementStockRepository {
           isGreaterThanOrEqualTo: Timestamp.fromDate(after));
     }
     q = q.orderBy('date', descending: true).limit(limit);
-    return q.snapshots().map(
+    return q.snapshots().ignorePermissionDenied().map(
           (s) => s.docs.map(MouvementStockModel.fromFirestore).toList(),
         );
   }
@@ -46,7 +47,7 @@ class MouvementStockRepository {
         .where('produitId', isEqualTo: produitId)
         .orderBy('date', descending: true)
         .limit(limit)
-        .snapshots()
+        .snapshots().ignorePermissionDenied()
         .map((s) => s.docs.map(MouvementStockModel.fromFirestore).toList());
   }
 

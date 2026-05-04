@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/services/firestore_service.dart';
+import '../../core/utils/stream_helpers.dart';
 import '../models/categorie_model.dart';
 
 class CategorieRepository {
@@ -29,7 +30,7 @@ class CategorieRepository {
     if (boutiqueId != null && boutiqueId.isNotEmpty) {
       query = query.where('boutiqueId', isEqualTo: boutiqueId);
     }
-    return query.orderBy('nom').snapshots().map(
+    return query.orderBy('nom').snapshots().ignorePermissionDenied().map(
           (snap) => snap.docs.map(CategorieModel.fromFirestore).toList(),
         );
   }

@@ -9,6 +9,7 @@ import '../../data/models/client_model.dart';
 import '../../data/models/reglement_model.dart';
 import '../../data/models/user_model.dart';
 import '../utils/format_helpers.dart';
+import 'pdf_theme_service.dart';
 
 /// Génère un reçu PDF pour un règlement (encaissement). Format 80mm
 /// pour imprimante thermique.
@@ -20,7 +21,7 @@ class ReglementReceiptService {
     UserModel? vendeur,
     double? soldeApres,
   }) async {
-    final pdf = pw.Document();
+    final pdf = pw.Document(theme: await PdfThemeService.theme);
     final devise = boutique.devise;
     final numero = reglement.id.isEmpty
         ? '—'

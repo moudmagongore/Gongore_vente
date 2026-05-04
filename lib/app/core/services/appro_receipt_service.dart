@@ -9,6 +9,7 @@ import '../../data/models/boutique_model.dart';
 import '../../data/models/fournisseur_model.dart';
 import '../../data/models/user_model.dart';
 import '../utils/format_helpers.dart';
+import 'pdf_theme_service.dart';
 
 /// Génère un bon de réception PDF (format A4 portrait) pour un appro.
 class ApproReceiptService {
@@ -18,7 +19,7 @@ class ApproReceiptService {
     required FournisseurModel fournisseur,
     UserModel? user,
   }) async {
-    final pdf = pw.Document();
+    final pdf = pw.Document(theme: await PdfThemeService.theme);
     final devise = boutique.devise;
     final annulee = appro.statut == ApproStatut.annulee;
 

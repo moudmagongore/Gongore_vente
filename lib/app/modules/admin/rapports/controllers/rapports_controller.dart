@@ -156,7 +156,6 @@ class RapportsController extends GetxController {
   int get nbAnnulees => _annulees.length;
   double get caTotal => _validees.fold(0.0, (acc, v) => acc + v.total);
   double get caAnnule => _annulees.fold(0.0, (acc, v) => acc + v.total);
-  double get caMoyenne => nbVentes == 0 ? 0 : caTotal / nbVentes;
   int get nbArticlesVendus =>
       _validees.fold(0, (acc, v) => acc + v.nbArticles);
 

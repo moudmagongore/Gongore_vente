@@ -103,15 +103,18 @@ class VentesListView extends GetView<VentesController> {
         ],
         ),
       ),
-      // FAB réservé au vendeur : la création d'une vente est une opération
-      // métier, admin/super-admin sont en lecture seule.
-      floatingActionButton: UserController.to.isVendeur
-          ? FloatingActionButton.extended(
-              onPressed: () => Get.toNamed(AppRoutes.venteForm),
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Nouvelle vente'),
-            )
-          : null,
+      // FAB réservé au gestionnaire — réactif (Obx) pour qu'un admin qui
+      // active « Aussi gestionnaire » sur son profil voie le bouton
+      // apparaître immédiatement sans rouvrir la page.
+      floatingActionButton: Obx(
+        () => UserController.to.isVendeur
+            ? FloatingActionButton.extended(
+                onPressed: () => Get.toNamed(AppRoutes.venteForm),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Nouvelle vente'),
+              )
+            : const SizedBox.shrink(),
+      ),
     );
   }
 

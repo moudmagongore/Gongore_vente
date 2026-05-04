@@ -18,24 +18,24 @@ class ClientDetailView extends GetView<ClientDetailController> {
   Widget build(BuildContext context) {
     // Onglet Règlements visible pour tous (admin/super-admin lecture seule).
     // Le bouton Modifier reste réservé au vendeur (édition = opération).
-    final isVendeur = UserController.to.isVendeur;
+    // Obx → réagit au cumul admin+gestionnaire en direct.
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         appBar: AppBar(
           title: Obx(() => Text(controller.client.value?.nom ?? 'Client')),
           actions: [
-            if (isVendeur)
-              Obx(() {
-                final c = controller.client.value;
-                if (c == null) return const SizedBox.shrink();
-                return IconButton(
-                  tooltip: 'Modifier',
-                  icon: const Icon(Icons.edit_outlined),
-                  onPressed: () =>
-                      Get.toNamed(AppRoutes.adminClientForm, arguments: c),
-                );
-              }),
+            Obx(() {
+              if (!UserController.to.isVendeur) return const SizedBox.shrink();
+              final c = controller.client.value;
+              if (c == null) return const SizedBox.shrink();
+              return IconButton(
+                tooltip: 'Modifier',
+                icon: const Icon(Icons.edit_outlined),
+                onPressed: () =>
+                    Get.toNamed(AppRoutes.adminClientForm, arguments: c),
+              );
+            }),
           ],
           bottom: const TabBar(
             tabs: [
@@ -195,41 +195,42 @@ class _ClientHeader extends StatelessWidget {
                     value: Fmt.number(controller.totalAchete),
                     icon: Icons.shopping_bag_outlined,
                   ),
-                  const SizedBox(width: 8),
-                  _StatChip(
-                    label: 'Panier moyen',
-                    value: Fmt.number(controller.panierMoyen),
-                    icon: Icons.equalizer_rounded,
-                  ),
                 ],
               )),
           // Actions métier réservées au vendeur.
-          if (UserController.to.isVendeur) ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => ReglementSheet.open(context, client),
-                    icon: const Icon(Icons.payments_rounded, size: 18),
-                    label: const Text('Encaisser'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => Get.toNamed(
-                      AppRoutes.venteForm,
-                      arguments: client, // pré-sélection du client
+          // Obx → réagit au cumul admin+gestionnaire en direct.
+          Obx(
+            () => UserController.to.isVendeur
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () =>
+                                ReglementSheet.open(context, client),
+                            icon: const Icon(Icons.payments_rounded, size: 18),
+                            label: const Text('Encaisser'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => Get.toNamed(
+                              AppRoutes.venteForm,
+                              arguments: client, // pré-sélection du client
+                            ),
+                            icon: const Icon(
+                                Icons.add_shopping_cart_rounded,
+                                size: 18),
+                            label: const Text('Nouvelle vente'),
+                          ),
+                        ),
+                      ],
                     ),
-                    icon:
-                        const Icon(Icons.add_shopping_cart_rounded, size: 18),
-                    label: const Text('Nouvelle vente'),
-                  ),
-                ),
-              ],
-            ),
-          ],
+                  )
+                : const SizedBox.shrink(),
+          ),
         ],
       ),
     );
@@ -600,14 +601,19 @@ class _ReglementTile extends StatelessWidget {
             onPressed: () => controller.reimprimerRecu(reglement),
           ),
           // Suppression : VENDEUR uniquement (admin/super-admin lecture seule).
-          if (UserController.to.isVendeur)
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              tooltip: 'Supprimer',
-              icon: Icon(Icons.delete_outline,
-                  size: 18, color: Colors.red.shade400),
-              onPressed: () => controller.confirmDeleteReglement(reglement),
-            ),
+          // Obx → réagit au cumul admin+gestionnaire en direct.
+          Obx(
+            () => UserController.to.isVendeur
+                ? IconButton(
+                    visualDensity: VisualDensity.compact,
+                    tooltip: 'Supprimer',
+                    icon: Icon(Icons.delete_outline,
+                        size: 18, color: Colors.red.shade400),
+                    onPressed: () =>
+                        controller.confirmDeleteReglement(reglement),
+                  )
+                : const SizedBox.shrink(),
+          ),
         ],
       ),
     );

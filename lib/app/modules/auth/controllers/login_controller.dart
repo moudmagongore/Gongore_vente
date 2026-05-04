@@ -15,6 +15,18 @@ class LoginController extends GetxController {
   final RxBool obscurePassword = true.obs;
 
   @override
+  void onInit() {
+    super.onInit();
+    // Reset l'état d'erreur résiduel d'une session précédente (force-signOut
+    // après désactivation boutique/user) pour éviter d'afficher un message
+    // « toujours désactivé » alors que la situation a été corrigée.
+    UserController.to.errorMessage.value = null;
+    if (Get.isSnackbarOpen) {
+      Get.closeAllSnackbars();
+    }
+  }
+
+  @override
   void onClose() {
     emailCtrl.dispose();
     passwordCtrl.dispose();
@@ -40,6 +52,13 @@ class LoginController extends GetxController {
   Future<void> signIn() async {
     if (!(formKey.currentState?.validate() ?? false)) return;
 
+    // Ferme un éventuel snackbar résiduel ("Votre boutique a été
+    // désactivée...") pour qu'on ne le confonde pas avec la nouvelle
+    // tentative de connexion.
+    if (Get.isSnackbarOpen) {
+      Get.closeAllSnackbars();
+    }
+    UserController.to.errorMessage.value = null;
     isLoading.value = true;
     try {
       await AuthService.to.signInWithEmail(

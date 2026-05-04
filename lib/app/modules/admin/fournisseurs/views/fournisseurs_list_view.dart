@@ -68,13 +68,16 @@ class FournisseursListView extends GetView<FournisseursController> {
         ),
       ),
       // FAB réservé au vendeur (création = opération métier).
-      floatingActionButton: UserController.to.isVendeur
-          ? FloatingActionButton.extended(
-              onPressed: () => Get.toNamed(AppRoutes.adminFournisseurForm),
-              icon: const Icon(Icons.add_business_rounded),
-              label: const Text('Nouveau fournisseur'),
-            )
-          : null,
+      // Obx → réagit au cumul admin+gestionnaire en direct.
+      floatingActionButton: Obx(
+        () => UserController.to.isVendeur
+            ? FloatingActionButton.extended(
+                onPressed: () => Get.toNamed(AppRoutes.adminFournisseurForm),
+                icon: const Icon(Icons.add_business_rounded),
+                label: const Text('Nouveau fournisseur'),
+              )
+            : const SizedBox.shrink(),
+      ),
     );
   }
 }
@@ -343,59 +346,64 @@ class _FournisseurTile extends StatelessWidget {
               ),
               // Menu d'actions (verser / éditer / supprimer) réservé au
               // vendeur. admin/super-admin sont en lecture seule.
-              if (UserController.to.isVendeur)
-                PopupMenuButton<String>(
-                  tooltip: 'Plus',
-                  icon: Icon(Icons.more_vert_rounded,
-                      color: Colors.grey.shade600, size: 20),
-                  onSelected: (v) {
-                    switch (v) {
-                      case 'verser':
-                        ReglementFournisseurSheet.open(context, fournisseur);
-                        break;
-                      case 'edit':
-                        Get.toNamed(AppRoutes.adminFournisseurForm,
-                            arguments: fournisseur);
-                        break;
-                      case 'delete':
-                        controller.confirmDelete(fournisseur);
-                        break;
-                    }
-                  },
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                      value: 'verser',
-                      child: ListTile(
-                        leading: Icon(Icons.payments_rounded,
-                            color: AppColors.primary),
-                        title: Text('Verser règlement'),
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'edit',
-                      child: ListTile(
-                        leading: Icon(Icons.edit_outlined),
-                        title: Text('Modifier'),
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                      ),
-                    ),
-                    const PopupMenuDivider(),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: ListTile(
-                        leading:
-                            Icon(Icons.delete_outline, color: Colors.red),
-                        title: Text('Supprimer',
-                            style: TextStyle(color: Colors.red)),
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                      ),
-                    ),
-                  ],
-                ),
+              // Obx → réagit au cumul admin+gestionnaire en direct.
+              Obx(
+                () => UserController.to.isVendeur
+                    ? PopupMenuButton<String>(
+                        tooltip: 'Plus',
+                        icon: Icon(Icons.more_vert_rounded,
+                            color: Colors.grey.shade600, size: 20),
+                        onSelected: (v) {
+                          switch (v) {
+                            case 'verser':
+                              ReglementFournisseurSheet.open(
+                                  context, fournisseur);
+                              break;
+                            case 'edit':
+                              Get.toNamed(AppRoutes.adminFournisseurForm,
+                                  arguments: fournisseur);
+                              break;
+                            case 'delete':
+                              controller.confirmDelete(fournisseur);
+                              break;
+                          }
+                        },
+                        itemBuilder: (_) => [
+                          const PopupMenuItem(
+                            value: 'verser',
+                            child: ListTile(
+                              leading: Icon(Icons.payments_rounded,
+                                  color: AppColors.primary),
+                              title: Text('Verser règlement'),
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: ListTile(
+                              leading: Icon(Icons.edit_outlined),
+                              title: Text('Modifier'),
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                            ),
+                          ),
+                          const PopupMenuDivider(),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: ListTile(
+                              leading: Icon(Icons.delete_outline,
+                                  color: Colors.red),
+                              title: Text('Supprimer',
+                                  style: TextStyle(color: Colors.red)),
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                            ),
+                          ),
+                        ],
+                      )
+                    : const SizedBox.shrink(),
+              ),
             ],
           ),
         ),

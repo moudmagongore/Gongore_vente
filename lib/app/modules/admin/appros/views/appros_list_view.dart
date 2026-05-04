@@ -89,13 +89,16 @@ class ApprosListView extends GetView<ApprosController> {
         ),
       ),
       // FAB réservé au vendeur (création = opération métier).
-      floatingActionButton: controller.isVendeur
-          ? FloatingActionButton.extended(
-              onPressed: () => Get.toNamed(AppRoutes.approForm),
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Nouvel appro'),
-            )
-          : null,
+      // Obx → réagit au cumul admin+gestionnaire en direct.
+      floatingActionButton: Obx(
+        () => controller.isVendeur
+            ? FloatingActionButton.extended(
+                onPressed: () => Get.toNamed(AppRoutes.approForm),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Nouvel appro'),
+              )
+            : const SizedBox.shrink(),
+      ),
     );
   }
 

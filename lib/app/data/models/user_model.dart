@@ -44,6 +44,13 @@ class UserModel {
   final UserRole role;
   final String? boutiqueId;
   final bool active;
+
+  /// Drapeau cumulatif : `true` ⇒ cet admin a AUSSI les droits gestionnaire
+  /// de sa boutique (encaisser, verser règlement, créer vente, etc.) en
+  /// plus de ses droits admin habituels. Ignoré pour role != admin.
+  /// Permet à un admin de gérer en plus la caisse au quotidien.
+  final bool alsoGestionnaire;
+
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -55,6 +62,7 @@ class UserModel {
     this.telephone,
     this.boutiqueId,
     this.active = true,
+    this.alsoGestionnaire = false,
     this.createdAt,
     this.updatedAt,
   });
@@ -68,6 +76,7 @@ class UserModel {
       role: UserRole.fromString(map['role'] as String?),
       boutiqueId: map['boutiqueId'] as String?,
       active: (map['active'] ?? true) as bool,
+      alsoGestionnaire: (map['alsoGestionnaire'] ?? false) as bool,
       createdAt: (map['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
     );
@@ -84,13 +93,19 @@ class UserModel {
         'role': role.name,
         'boutiqueId': boutiqueId,
         'active': active,
+        'alsoGestionnaire': alsoGestionnaire,
         if (createdAt != null) 'createdAt': Timestamp.fromDate(createdAt!),
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
   bool get isSuperAdmin => role == UserRole.superAdmin;
   bool get isAdmin => role == UserRole.admin;
-  bool get isVendeur => role == UserRole.vendeur;
+
+  /// Vrai si l'utilisateur peut faire les opérations gestionnaire :
+  ///   • role == vendeur (gestionnaire de base)
+  ///   • OU role == admin AVEC `alsoGestionnaire: true` (cumul admin+caisse)
+  bool get isVendeur =>
+      role == UserRole.vendeur || (role == UserRole.admin && alsoGestionnaire);
 
   /// Renvoie true si l'utilisateur a un accès admin (super-admin OU admin
   /// de boutique). Utile pour cacher les écrans réservés aux vendeurs.
@@ -103,6 +118,7 @@ class UserModel {
     UserRole? role,
     String? boutiqueId,
     bool? active,
+    bool? alsoGestionnaire,
   }) {
     return UserModel(
       id: id,
@@ -112,6 +128,7 @@ class UserModel {
       role: role ?? this.role,
       boutiqueId: boutiqueId ?? this.boutiqueId,
       active: active ?? this.active,
+      alsoGestionnaire: alsoGestionnaire ?? this.alsoGestionnaire,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
     );

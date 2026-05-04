@@ -254,7 +254,9 @@ class _FournisseurPickerSheetState extends State<_FournisseurPickerSheet> {
             borderRadius:
                 const BorderRadius.vertical(top: Radius.circular(24)),
           ),
-          child: Column(
+          child: SafeArea(
+            top: false,
+            child: Column(
             children: [
               const SizedBox(height: 8),
               Container(
@@ -397,6 +399,7 @@ class _FournisseurPickerSheetState extends State<_FournisseurPickerSheet> {
                 }),
               ),
             ],
+          ),
           ),
         );
       },
@@ -848,16 +851,29 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
                     separatorBuilder: (_, _) => const SizedBox(height: 4),
                     itemBuilder: (_, i) {
                       final p = list[i];
+                      final ligneExistante = widget.c.lignes
+                          .firstWhereOrNull((l) => l.produit.id == p.id);
+                      final dejaAjoute = ligneExistante != null;
                       return ListTile(
                         leading: Container(
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.10),
+                            color: (dejaAjoute
+                                    ? AppColors.success
+                                    : AppColors.primary)
+                                .withValues(alpha: 0.10),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(Icons.inventory_2_rounded,
-                              color: AppColors.primary, size: 20),
+                          child: Icon(
+                            dejaAjoute
+                                ? Icons.check_circle_rounded
+                                : Icons.inventory_2_rounded,
+                            color: dejaAjoute
+                                ? AppColors.success
+                                : AppColors.primary,
+                            size: 20,
+                          ),
                         ),
                         title: Text(p.nom,
                             maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -866,6 +882,25 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
                           '  •  Stock : ${p.quantiteStock}',
                           style: const TextStyle(fontSize: 11.5),
                         ),
+                        trailing: dejaAjoute
+                            ? Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppColors.success
+                                      .withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'Ajouté ×${ligneExistante.quantite}',
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.success,
+                                  ),
+                                ),
+                              )
+                            : null,
                         onTap: () {
                           Navigator.of(context).pop();
                           _openLigneSheet(context, p);
@@ -1098,6 +1133,12 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
 // Récap totaux + paiement + valider
 // ============================================================================
 
+// ============================================================================
+// Barre du bas compacte : TOTAL + accès paiement (sheet) + Valider.
+// Le détail (mode paiement, note, encaissement) est déporté dans un
+// bottom sheet pour libérer de l'espace vertical à la liste d'articles.
+// ============================================================================
+
 class _SummaryAndAction extends StatelessWidget {
   final ApproFormController c;
   const _SummaryAndAction({required this.c});
@@ -1107,93 +1148,60 @@ class _SummaryAndAction extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Note
-            TextField(
-              maxLines: 1,
-              decoration: const InputDecoration(
-                hintText: 'Note (optionnel)',
-                prefixIcon: Icon(Icons.notes_rounded),
-                isDense: true,
-              ),
-              onChanged: (v) => c.note.value = v,
-            ),
-            const SizedBox(height: 10),
-            // Mode paiement
-            Text(
-              'Mode de paiement',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Colors.grey.shade700,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Obx(
-              () => Wrap(
-                spacing: 6,
-                children: ModePaiement.values
-                    .map((m) => ChoiceChip(
-                          label: Text(m.label,
-                              style: const TextStyle(fontSize: 11)),
-                          selected: c.modePaiement.value == m,
-                          onSelected: (_) => c.modePaiement.value = m,
-                        ))
-                    .toList(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            // Totaux
+            // Ligne TOTAL + chip statut paiement + bouton Paiement (icône).
             Obx(() => Container(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+                  padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.05),
+                    color: AppColors.primary.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.18),
+                      color: AppColors.primary.withValues(alpha: 0.20),
                     ),
                   ),
-                  child: Column(
+                  child: Row(
                     children: [
-                      _RowKv('Sous-total',
-                          Fmt.money(c.sousTotal, currency: c.devise)),
-                      if (c.remiseGlobale.value > 0) ...[
-                        const SizedBox(height: 2),
-                        _RowKv(
-                          'Remise',
-                          '-${Fmt.money(c.remiseGlobale.value, currency: c.devise)}',
-                          color: AppColors.success,
-                        ),
-                      ],
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Divider(
-                          height: 1,
-                          color: AppColors.primary.withValues(alpha: 0.18),
-                        ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'TOTAL',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.6,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            Fmt.money(c.total, currency: c.devise),
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primary,
+                              letterSpacing: -0.4,
+                            ),
+                          ),
+                        ],
                       ),
-                      _RowKv(
-                        'TOTAL',
-                        Fmt.money(c.total, currency: c.devise),
-                        big: true,
+                      const Spacer(),
+                      _PaiementInfoChip(c: c),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        tooltip: 'Paiement & options',
+                        onPressed: () => _PaiementSheet.open(context, c),
+                        icon: const Icon(Icons.tune_rounded),
                       ),
                     ],
                   ),
                 )),
-            // Section encaissement masquée tant qu'aucune ligne (total = 0,
-            // bandeau avance sans effet). Évite aussi de compresser
-            // l'Expanded au-dessus quand le fournisseur a une avance.
-            Obx(() => c.lignes.isEmpty
-                ? const SizedBox.shrink()
-                : Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: _EncaissementSection(c: c),
-                  )),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Obx(
               () => ElevatedButton.icon(
                 onPressed: c.isSaving.value || c.lignes.isEmpty
@@ -1211,11 +1219,236 @@ class _SummaryAndAction extends StatelessWidget {
                     : const Icon(Icons.check_rounded),
                 label: const Text('Valider l\'appro'),
                 style: ElevatedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
+                  minimumSize: const Size.fromHeight(50),
                 ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Chip statut paiement à droite du TOTAL : montre le mode courant ou
+/// signal "Dette X" / "Trop versé X" si reste non nul. Cliquable.
+class _PaiementInfoChip extends StatelessWidget {
+  final ApproFormController c;
+  const _PaiementInfoChip({required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final reste = c.resteAPayer;
+      final hasDette = reste > 0;
+      final hasOver = reste < 0;
+      Color color;
+      String label;
+      if (hasDette) {
+        color = AppColors.warning;
+        label = 'Dette ${Fmt.money(reste, currency: c.devise)}';
+      } else if (hasOver) {
+        color = AppColors.success;
+        label =
+            'Trop versé ${Fmt.money(reste.abs(), currency: c.devise)}';
+      } else {
+        color = Colors.grey.shade700;
+        label = c.modePaiement.value.label;
+      }
+      return InkWell(
+        onTap: () => _PaiementSheet.open(context, c),
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: color.withValues(alpha: 0.30)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                hasDette
+                    ? Icons.warning_amber_rounded
+                    : (hasOver
+                        ? Icons.check_circle_rounded
+                        : Icons.payments_rounded),
+                size: 13,
+                color: color,
+              ),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+}
+
+/// Sheet plein écran qui regroupe les options de paiement de l'appro
+/// (note, mode paiement, encaissement avec avance + montant payé + reste).
+class _PaiementSheet extends StatelessWidget {
+  final ApproFormController c;
+  const _PaiementSheet({required this.c});
+
+  static void open(BuildContext context, ApproFormController c) {
+    Get.bottomSheet(
+      _PaiementSheet(c: c),
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).cardTheme.color,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+    final viewPadding = MediaQuery.of(context).viewPadding.bottom;
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color,
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        top: false,
+        bottom: false,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+              16, 8, 16, (viewInsets > 0 ? viewInsets : viewPadding) + 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade400,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Paiement & options',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Get.back(),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Récap totaux compact
+              Obx(() => Container(
+                    padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.18),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        _RowKv('Sous-total',
+                            Fmt.money(c.sousTotal, currency: c.devise)),
+                        if (c.remiseGlobale.value > 0) ...[
+                          const SizedBox(height: 2),
+                          _RowKv(
+                            'Remise',
+                            '-${Fmt.money(c.remiseGlobale.value, currency: c.devise)}',
+                            color: AppColors.success,
+                          ),
+                        ],
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Divider(
+                            height: 1,
+                            color:
+                                AppColors.primary.withValues(alpha: 0.18),
+                          ),
+                        ),
+                        _RowKv(
+                          'TOTAL',
+                          Fmt.money(c.total, currency: c.devise),
+                          big: true,
+                        ),
+                      ],
+                    ),
+                  )),
+              const SizedBox(height: 12),
+              // Note
+              TextField(
+                maxLines: 1,
+                decoration: const InputDecoration(
+                  hintText: 'Note (optionnel)',
+                  prefixIcon: Icon(Icons.notes_rounded),
+                  isDense: true,
+                ),
+                onChanged: (v) => c.note.value = v,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Mode de paiement',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Obx(
+                () => Wrap(
+                  spacing: 6,
+                  children: ModePaiement.values
+                      .map((m) => ChoiceChip(
+                            label: Text(m.label,
+                                style: const TextStyle(fontSize: 11)),
+                            selected: c.modePaiement.value == m,
+                            onSelected: (_) => c.modePaiement.value = m,
+                          ))
+                      .toList(),
+                ),
+              ),
+              // Section encaissement masquée tant qu'aucune ligne (total = 0,
+              // bandeau avance sans effet à ce stade).
+              Obx(() => c.lignes.isEmpty
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: _EncaissementSection(c: c),
+                    )),
+              const SizedBox(height: 14),
+              ElevatedButton(
+                onPressed: () => Get.back(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -80,8 +80,6 @@ class ClientDetailController extends GetxController {
   double get totalAchete =>
       _ventesValidees.fold(0.0, (acc, v) => acc + v.total);
 
-  double get panierMoyen => nbVentes == 0 ? 0 : totalAchete / nbVentes;
-
   /// Total déjà encaissé (ventes + règlements standalone).
   double get totalEncaisse {
     double sum = 0;

@@ -7,6 +7,7 @@ import 'package:printing/printing.dart';
 import '../../core/utils/format_helpers.dart';
 import '../../data/models/vente_model.dart';
 import '../constants/app_constants.dart';
+import 'pdf_theme_service.dart';
 
 class ReportData {
   final DateTime debut;
@@ -16,7 +17,6 @@ class ReportData {
   final int nbVentes;
   final int nbAnnulees;
   final double caTotal;
-  final double caMoyenne;
   final double benefice;
   final int nbArticles;
   final Map<ModePaiement, double> caParPaiement;
@@ -40,7 +40,6 @@ class ReportData {
     required this.nbVentes,
     required this.nbAnnulees,
     required this.caTotal,
-    required this.caMoyenne,
     required this.benefice,
     required this.nbArticles,
     required this.caParPaiement,
@@ -57,7 +56,7 @@ class ReportData {
 
 class ReportPdfService {
   static Future<Uint8List> build(ReportData data) async {
-    final pdf = pw.Document();
+    final pdf = pw.Document(theme: await PdfThemeService.theme);
 
     pdf.addPage(
       pw.MultiPage(
@@ -131,11 +130,6 @@ class ReportPdfService {
                 PdfColors.green700,
               ),
               _kpiBox('Ventes validées', '${data.nbVentes}', PdfColors.indigo),
-              _kpiBox(
-                'Panier moyen',
-                Fmt.money(data.caMoyenne, currency: data.devise),
-                PdfColors.orange700,
-              ),
               _kpiBox(
                 'Articles vendus',
                 '${data.nbArticles}',

@@ -52,6 +52,14 @@ class GongoreApp extends StatelessWidget {
       initialRoute: AppPages.initial,
       getPages: AppPages.routes,
       defaultTransition: Transition.cupertino,
+      // Force NunitoSans à hériter sur tous les `Text` avec un TextStyle
+      // custom qui ne précise pas la fontFamily (boutons, sous-titres,
+      // headers de drawer custom, etc.). Sans ce wrap, les TextStyle
+      // construits inline cassent l'héritage du theme.
+      builder: (context, child) => DefaultTextStyle.merge(
+        style: const TextStyle(fontFamily: AppTheme.fontFamily),
+        child: child ?? const SizedBox.shrink(),
+      ),
     );
   }
 }

@@ -412,12 +412,6 @@ class _KpisMois extends StatelessWidget {
               label: 'ventes',
               color: AppColors.primary,
             ),
-            (
-              icon: Icons.equalizer_rounded,
-              value: Fmt.number(c.caMoyenneVente),
-              label: 'panier moyen',
-              color: AppColors.accent,
-            ),
           ]),
         ],
       ),

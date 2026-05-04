@@ -67,13 +67,16 @@ class ClientsListView extends GetView<ClientsController> {
         ),
       ),
       // FAB réservé au vendeur (création client = opération métier).
-      floatingActionButton: UserController.to.isVendeur
-          ? FloatingActionButton.extended(
-              onPressed: () => Get.toNamed(AppRoutes.adminClientForm),
-              icon: const Icon(Icons.person_add_alt_1_rounded),
-              label: const Text('Nouveau client'),
-            )
-          : null,
+      // Obx → réactif au cumul admin+gestionnaire toggle en live.
+      floatingActionButton: Obx(
+        () => UserController.to.isVendeur
+            ? FloatingActionButton.extended(
+                onPressed: () => Get.toNamed(AppRoutes.adminClientForm),
+                icon: const Icon(Icons.person_add_alt_1_rounded),
+                label: const Text('Nouveau client'),
+              )
+            : const SizedBox.shrink(),
+      ),
     );
   }
 }
@@ -335,59 +338,63 @@ class _ClientTile extends StatelessWidget {
               ),
               // Menu d'actions (encaisser / éditer / supprimer) réservé au
               // vendeur. admin/super-admin sont en lecture seule.
-              if (UserController.to.isVendeur)
-                PopupMenuButton<String>(
-                  tooltip: 'Plus',
-                  icon: Icon(Icons.more_vert_rounded,
-                      color: Colors.grey.shade600, size: 20),
-                  onSelected: (v) {
-                    switch (v) {
-                      case 'encaisser':
-                        ReglementSheet.open(context, client);
-                        break;
-                      case 'edit':
-                        Get.toNamed(AppRoutes.adminClientForm,
-                            arguments: client);
-                        break;
-                      case 'delete':
-                        controller.confirmDelete(client);
-                        break;
-                    }
-                  },
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                      value: 'encaisser',
-                      child: ListTile(
-                        leading: Icon(Icons.payments_rounded,
-                            color: AppColors.success),
-                        title: Text('Encaisser'),
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'edit',
-                      child: ListTile(
-                        leading: Icon(Icons.edit_outlined),
-                        title: Text('Modifier'),
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                      ),
-                    ),
-                    const PopupMenuDivider(),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: ListTile(
-                        leading: Icon(Icons.delete_outline,
-                            color: Colors.red),
-                        title: Text('Supprimer',
-                            style: TextStyle(color: Colors.red)),
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                      ),
-                    ),
-                  ],
-                ),
+              // Obx → réagit au cumul admin+gestionnaire en direct.
+              Obx(
+                () => UserController.to.isVendeur
+                    ? PopupMenuButton<String>(
+                        tooltip: 'Plus',
+                        icon: Icon(Icons.more_vert_rounded,
+                            color: Colors.grey.shade600, size: 20),
+                        onSelected: (v) {
+                          switch (v) {
+                            case 'encaisser':
+                              ReglementSheet.open(context, client);
+                              break;
+                            case 'edit':
+                              Get.toNamed(AppRoutes.adminClientForm,
+                                  arguments: client);
+                              break;
+                            case 'delete':
+                              controller.confirmDelete(client);
+                              break;
+                          }
+                        },
+                        itemBuilder: (_) => [
+                          const PopupMenuItem(
+                            value: 'encaisser',
+                            child: ListTile(
+                              leading: Icon(Icons.payments_rounded,
+                                  color: AppColors.success),
+                              title: Text('Encaisser'),
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: ListTile(
+                              leading: Icon(Icons.edit_outlined),
+                              title: Text('Modifier'),
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                            ),
+                          ),
+                          const PopupMenuDivider(),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: ListTile(
+                              leading: Icon(Icons.delete_outline,
+                                  color: Colors.red),
+                              title: Text('Supprimer',
+                                  style: TextStyle(color: Colors.red)),
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                            ),
+                          ),
+                        ],
+                      )
+                    : const SizedBox.shrink(),
+              ),
             ],
           ),
         ),

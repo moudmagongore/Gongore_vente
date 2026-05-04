@@ -80,8 +80,6 @@ class FournisseurDetailController extends GetxController {
   double get totalAchete =>
       _validees.fold(0.0, (acc, a) => acc + a.total);
 
-  double get panierMoyen => nbAppros == 0 ? 0 : totalAchete / nbAppros;
-
   /// Total déjà versé (montants payés + règlements standalone).
   double get totalVerse {
     double sum = 0;

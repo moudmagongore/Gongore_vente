@@ -4,7 +4,7 @@
     <uses-permission android:name="android.permission.CAMERA"/>
 
     <application
-        android:label="Gongoré Vente"
+        android:label="Gongore"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="false">

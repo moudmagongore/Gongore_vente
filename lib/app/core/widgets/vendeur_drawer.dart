@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_theme.dart';
 import '../services/user_controller.dart';
 import 'sign_out_dialog.dart';
 
@@ -12,106 +13,141 @@ class VendeurDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = UserController.to.user;
-
     return Drawer(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _Header(name: user?.nom ?? '', email: user?.email ?? ''),
-          const SizedBox(height: 8),
-          Expanded(
-            child: SafeArea(
-              top: false,
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: [
-                  _Item(
-                    icon: Icons.home_rounded,
-                    label: 'Accueil',
-                    route: AppRoutes.vendeurHome,
-                    selected: currentRoute == AppRoutes.vendeurHome,
-                  ),
-                  _Item(
-                    icon: Icons.receipt_long_rounded,
-                    label: 'Vente',
-                    route: AppRoutes.vendeurVentes,
-                    selected: currentRoute == AppRoutes.vendeurVentes,
-                  ),
-                  _Item(
-                    icon: Icons.contacts_rounded,
-                    label: 'Clients',
-                    route: AppRoutes.adminClients,
-                    selected: currentRoute == AppRoutes.adminClients,
-                  ),
-                  _Item(
-                    icon: Icons.local_shipping_rounded,
-                    label: 'Fournisseurs',
-                    route: AppRoutes.adminFournisseurs,
-                    selected: currentRoute == AppRoutes.adminFournisseurs,
-                  ),
-                  _Item(
-                    icon: Icons.move_to_inbox_rounded,
-                    label: 'Approvisionnements',
-                    route: AppRoutes.adminAppros,
-                    selected: currentRoute == AppRoutes.adminAppros,
-                  ),
-                  _Item(
-                    icon: Icons.payments_rounded,
-                    label: 'Règlements clients',
-                    route: AppRoutes.adminReglements,
-                    selected: currentRoute == AppRoutes.adminReglements,
-                  ),
-                  _Item(
-                    icon: Icons.account_balance_wallet_rounded,
-                    label: 'Règlements fournisseurs',
-                    route: AppRoutes.adminReglementsFournisseurs,
-                    selected: currentRoute ==
+      child: Obx(() {
+        final user = UserController.to.user;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _Header(name: user?.nom ?? '', email: user?.email ?? ''),
+            const SizedBox(height: 8),
+            Expanded(
+              child: SafeArea(
+                top: false,
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    _Item(
+                      icon: Icons.home_rounded,
+                      label: 'Accueil',
+                      route: AppRoutes.vendeurHome,
+                      currentRoute: currentRoute,
+                    ),
+                    _ExpansionGroup(
+                      icon: Icons.receipt_long_rounded,
+                      title: 'Ventes & règlements',
+                      currentRoute: currentRoute,
+                      childrenRoutes: const [
+                        AppRoutes.vendeurVentes,
+                        AppRoutes.adminClients,
+                        AppRoutes.adminReglements,
+                      ],
+                      children: [
+                        _Item(
+                          icon: Icons.receipt_long_rounded,
+                          label: 'Ventes',
+                          route: AppRoutes.vendeurVentes,
+                          currentRoute: currentRoute,
+                        ),
+                        _Item(
+                          icon: Icons.contacts_rounded,
+                          label: 'Clients',
+                          route: AppRoutes.adminClients,
+                          currentRoute: currentRoute,
+                        ),
+                        _Item(
+                          icon: Icons.payments_rounded,
+                          label: 'Règlements clients',
+                          route: AppRoutes.adminReglements,
+                          currentRoute: currentRoute,
+                        ),
+                      ],
+                    ),
+                    _ExpansionGroup(
+                      icon: Icons.local_shipping_rounded,
+                      title: 'Achats',
+                      currentRoute: currentRoute,
+                      childrenRoutes: const [
+                        AppRoutes.adminFournisseurs,
+                        AppRoutes.adminAppros,
                         AppRoutes.adminReglementsFournisseurs,
-                  ),
-                  _Item(
-                    icon: Icons.inventory_2_rounded,
-                    label: 'Produits',
-                    route: AppRoutes.adminProduits,
-                    selected: currentRoute == AppRoutes.adminProduits,
-                  ),
-                  _Item(
-                    icon: Icons.warehouse_rounded,
-                    label: 'Stock',
-                    route: AppRoutes.adminStock,
-                    selected: currentRoute == AppRoutes.adminStock,
-                  ),
-                  _Item(
-                    icon: Icons.category_rounded,
-                    label: 'Catégories',
-                    route: AppRoutes.adminCategories,
-                    selected: currentRoute == AppRoutes.adminCategories,
-                  ),
-                  _Item(
-                    icon: Icons.bar_chart_rounded,
-                    label: 'Mes rapports',
-                    route: AppRoutes.adminRapports,
-                    selected: currentRoute == AppRoutes.adminRapports,
-                  ),
-                ],
+                      ],
+                      children: [
+                        _Item(
+                          icon: Icons.local_shipping_rounded,
+                          label: 'Fournisseurs',
+                          route: AppRoutes.adminFournisseurs,
+                          currentRoute: currentRoute,
+                        ),
+                        _Item(
+                          icon: Icons.move_to_inbox_rounded,
+                          label: 'Approvisionnements',
+                          route: AppRoutes.adminAppros,
+                          currentRoute: currentRoute,
+                        ),
+                        _Item(
+                          icon: Icons.account_balance_wallet_rounded,
+                          label: 'Règlements fournisseurs',
+                          route: AppRoutes.adminReglementsFournisseurs,
+                          currentRoute: currentRoute,
+                        ),
+                      ],
+                    ),
+                    _ExpansionGroup(
+                      icon: Icons.inventory_2_rounded,
+                      title: 'Catalogue',
+                      currentRoute: currentRoute,
+                      childrenRoutes: const [
+                        AppRoutes.adminProduits,
+                        AppRoutes.adminCategories,
+                        AppRoutes.adminStock,
+                      ],
+                      children: [
+                        _Item(
+                          icon: Icons.inventory_2_rounded,
+                          label: 'Produits',
+                          route: AppRoutes.adminProduits,
+                          currentRoute: currentRoute,
+                        ),
+                        _Item(
+                          icon: Icons.category_rounded,
+                          label: 'Catégories',
+                          route: AppRoutes.adminCategories,
+                          currentRoute: currentRoute,
+                        ),
+                        _Item(
+                          icon: Icons.warehouse_rounded,
+                          label: 'Stock',
+                          route: AppRoutes.adminStock,
+                          currentRoute: currentRoute,
+                        ),
+                      ],
+                    ),
+                    _Item(
+                      icon: Icons.bar_chart_rounded,
+                      label: 'Mes rapports',
+                      route: AppRoutes.adminRapports,
+                      currentRoute: currentRoute,
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          const Divider(height: 1),
-          Builder(
-            builder: (ctx) => ListTile(
-              leading:
-                  const Icon(Icons.logout_rounded, color: Colors.red),
-              title: const Text(
-                'Déconnexion',
-                style: TextStyle(color: Colors.red),
+            const Divider(height: 1),
+            Builder(
+              builder: (ctx) => ListTile(
+                leading: const Icon(Icons.logout_rounded, color: Colors.red),
+                title: const Text(
+                  'Déconnexion',
+                  style: TextStyle(color: Colors.red),
+                ),
+                onTap: () => confirmSignOut(ctx),
               ),
-              onTap: () => confirmSignOut(ctx),
             ),
-          ),
-          SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
-        ],
-      ),
+            SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
+          ],
+        );
+      }),
     );
   }
 }
@@ -128,7 +164,7 @@ class _Header extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(20, 20 + topInset, 20, 18),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.secondary, AppColors.primary],
+          colors: [AppColors.primary, AppColors.primaryDark],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -144,7 +180,7 @@ class _Header extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: AppColors.secondary,
+                color: AppColors.primary,
               ),
             ),
           ),
@@ -196,33 +232,81 @@ class _Item extends StatelessWidget {
   final IconData icon;
   final String label;
   final String route;
-  final bool selected;
+  final String currentRoute;
 
   const _Item({
     required this.icon,
     required this.label,
     required this.route,
-    required this.selected,
+    required this.currentRoute,
   });
 
   @override
   Widget build(BuildContext context) {
+    final selected = currentRoute == route;
     return ListTile(
-      leading: Icon(icon, color: selected ? AppColors.secondary : null),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+      leading: Icon(icon, color: selected ? AppColors.primary : null),
       title: Text(
         label,
         style: TextStyle(
-          color: selected ? AppColors.secondary : null,
+          fontFamily: AppTheme.fontFamily,
+          color: selected ? AppColors.primary : null,
           fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
         ),
       ),
       selected: selected,
-      selectedTileColor: AppColors.secondary.withValues(alpha: 0.08),
+      selectedTileColor: AppColors.primary.withValues(alpha: 0.08),
       onTap: () {
         Navigator.of(context).pop();
         if (selected) return;
         Get.offNamed(route);
       },
+    );
+  }
+}
+
+class _ExpansionGroup extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String currentRoute;
+  final List<String> childrenRoutes;
+  final List<Widget> children;
+
+  const _ExpansionGroup({
+    required this.icon,
+    required this.title,
+    required this.currentRoute,
+    required this.childrenRoutes,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final containsCurrent = childrenRoutes.contains(currentRoute);
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        collapsedShape:
+            const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        leading: Icon(
+          icon,
+          color: containsCurrent ? AppColors.primary : null,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontFamily: AppTheme.fontFamily,
+            color: containsCurrent ? AppColors.primary : null,
+            fontWeight:
+                containsCurrent ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+        initiallyExpanded: containsCurrent,
+        childrenPadding: const EdgeInsets.only(left: 12),
+        children: children,
+      ),
     );
   }
 }

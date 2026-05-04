@@ -17,7 +17,7 @@ class FournisseurDetailView extends GetView<FournisseurDetailController> {
   @override
   Widget build(BuildContext context) {
     // Onglet Règlements visible pour tous (admin/super-admin lecture seule).
-    final isVendeur = UserController.to.isVendeur;
+    // Obx → réagit au cumul admin+gestionnaire en direct.
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -26,18 +26,18 @@ class FournisseurDetailView extends GetView<FournisseurDetailController> {
             () => Text(controller.fournisseur.value?.nom ?? 'Fournisseur'),
           ),
           actions: [
-            if (isVendeur)
-              Obx(() {
-                final f = controller.fournisseur.value;
-                if (f == null) return const SizedBox.shrink();
-                return IconButton(
-                  tooltip: 'Modifier',
-                  icon: const Icon(Icons.edit_outlined),
-                  onPressed: () => Get.toNamed(
-                      AppRoutes.adminFournisseurForm,
-                      arguments: f),
-                );
-              }),
+            Obx(() {
+              if (!UserController.to.isVendeur) return const SizedBox.shrink();
+              final f = controller.fournisseur.value;
+              if (f == null) return const SizedBox.shrink();
+              return IconButton(
+                tooltip: 'Modifier',
+                icon: const Icon(Icons.edit_outlined),
+                onPressed: () => Get.toNamed(
+                    AppRoutes.adminFournisseurForm,
+                    arguments: f),
+              );
+            }),
           ],
           bottom: const TabBar(
             tabs: [
@@ -217,34 +217,39 @@ class _Header extends StatelessWidget {
               )),
           // Actions métier (Verser règlement, Nouvel appro) réservées au
           // VENDEUR. admin/super-admin sont en lecture seule.
-          if (UserController.to.isVendeur) ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => ReglementFournisseurSheet.open(
-                      context,
-                      fournisseur,
+          // Obx → réagit au cumul admin+gestionnaire en direct.
+          Obx(
+            () => UserController.to.isVendeur
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => ReglementFournisseurSheet.open(
+                              context,
+                              fournisseur,
+                            ),
+                            icon: const Icon(Icons.payments_rounded, size: 18),
+                            label: const Text('Verser règlement'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => Get.toNamed(
+                              AppRoutes.approForm,
+                              arguments: fournisseur,
+                            ),
+                            icon: const Icon(Icons.add_rounded, size: 18),
+                            label: const Text('Nouvel appro'),
+                          ),
+                        ),
+                      ],
                     ),
-                    icon: const Icon(Icons.payments_rounded, size: 18),
-                    label: const Text('Verser règlement'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => Get.toNamed(
-                      AppRoutes.approForm,
-                      arguments: fournisseur,
-                    ),
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: const Text('Nouvel appro'),
-                  ),
-                ),
-              ],
-            ),
-          ],
+                  )
+                : const SizedBox.shrink(),
+          ),
         ],
       ),
     );
@@ -597,14 +602,19 @@ class _ReglementTile extends StatelessWidget {
             onPressed: () => controller.reimprimerRecuReglement(reglement),
           ),
           // Suppression : VENDEUR uniquement (admin/super-admin lecture seule).
-          if (UserController.to.isVendeur)
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              tooltip: 'Supprimer',
-              icon: Icon(Icons.delete_outline,
-                  size: 18, color: Colors.red.shade400),
-              onPressed: () => controller.confirmDeleteReglement(reglement),
-            ),
+          // Obx → réagit au cumul admin+gestionnaire en direct.
+          Obx(
+            () => UserController.to.isVendeur
+                ? IconButton(
+                    visualDensity: VisualDensity.compact,
+                    tooltip: 'Supprimer',
+                    icon: Icon(Icons.delete_outline,
+                        size: 18, color: Colors.red.shade400),
+                    onPressed: () =>
+                        controller.confirmDeleteReglement(reglement),
+                  )
+                : const SizedBox.shrink(),
+          ),
         ],
       ),
     );

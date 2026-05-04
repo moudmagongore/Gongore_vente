@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/services/firestore_service.dart';
+import '../../core/utils/stream_helpers.dart';
 import '../models/vente_model.dart';
 
 /// Levée par [VenteRepository.create] quand le stock est insuffisant pour
@@ -45,7 +46,7 @@ class VenteRepository {
     }
     query = query.orderBy('date', descending: true).limit(limit);
     return query
-        .snapshots()
+        .snapshots().ignorePermissionDenied()
         .map((s) => s.docs.map(VenteModel.fromFirestore).toList());
   }
 
@@ -58,7 +59,7 @@ class VenteRepository {
   Stream<VenteModel?> watchOne(String id) {
     return _ventes
         .doc(id)
-        .snapshots()
+        .snapshots().ignorePermissionDenied()
         .map((s) => s.exists ? VenteModel.fromFirestore(s) : null);
   }
 

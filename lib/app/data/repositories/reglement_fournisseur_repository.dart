@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/services/firestore_service.dart';
+import '../../core/utils/stream_helpers.dart';
 import '../models/approvisionnement_model.dart';
 import '../models/reglement_fournisseur_model.dart';
 
@@ -30,7 +31,7 @@ class ReglementFournisseurRepository {
         .where('fournisseurId', isEqualTo: fournisseurId)
         .orderBy('date', descending: true)
         .limit(limit)
-        .snapshots()
+        .snapshots().ignorePermissionDenied()
         .map((s) =>
             s.docs.map(ReglementFournisseurModel.fromFirestore).toList());
   }
@@ -51,7 +52,7 @@ class ReglementFournisseurRepository {
           isGreaterThanOrEqualTo: Timestamp.fromDate(after));
     }
     q = q.orderBy('date', descending: true).limit(limit);
-    return q.snapshots().map(
+    return q.snapshots().ignorePermissionDenied().map(
           (s) => s.docs.map(ReglementFournisseurModel.fromFirestore).toList(),
         );
   }

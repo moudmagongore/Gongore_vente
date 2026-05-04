@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../../../theme/app_colors.dart';
+import '../../../../theme/app_theme.dart';
 import '../controllers/produit_form_controller.dart';
 
 class ProduitFormView extends GetView<ProduitFormController> {
@@ -201,10 +202,14 @@ class ProduitFormView extends GetView<ProduitFormController> {
               () => SwitchListTile(
                 value: controller.active.value,
                 onChanged: (v) => controller.active.value = v,
-                title: const Text('Produit actif'),
+                title: const Text(
+                  'Produit actif',
+                  style: TextStyle(fontFamily: AppTheme.fontFamily),
+                ),
                 subtitle: const Text(
                   'Les produits inactifs ne sont pas vendables.',
-                  style: TextStyle(fontSize: 12),
+                  style: TextStyle(
+                      fontFamily: AppTheme.fontFamily, fontSize: 12),
                 ),
                 contentPadding: EdgeInsets.zero,
               ),

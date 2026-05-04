@@ -49,15 +49,17 @@ class ReglementsFournisseursListView
           : const VendeurDrawer(
               currentRoute: AppRoutes.adminReglementsFournisseurs),
       // FAB réservé au vendeur (action métier). admin/super-admin sont
-      // en lecture seule.
-      floatingActionButton: UserController.to.isVendeur
-          ? FloatingActionButton.extended(
-              onPressed: () =>
-                  VersementGlobalFournisseurSheet.open(context),
-              icon: const Icon(Icons.payments_rounded),
-              label: const Text('Verser'),
-            )
-          : null,
+      // en lecture seule. Obx → réagit au cumul admin+gestionnaire en direct.
+      floatingActionButton: Obx(
+        () => UserController.to.isVendeur
+            ? FloatingActionButton.extended(
+                onPressed: () =>
+                    VersementGlobalFournisseurSheet.open(context),
+                icon: const Icon(Icons.payments_rounded),
+                label: const Text('Verser'),
+              )
+            : const SizedBox.shrink(),
+      ),
       body: SafeArea(
         top: false,
         child: Column(
@@ -598,14 +600,19 @@ class _ReglementTile extends StatelessWidget {
                 onPressed: () => controller.reimprimerRecu(reglement),
               ),
               // Suppression : VENDEUR uniquement.
-              if (UserController.to.isVendeur)
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  tooltip: 'Supprimer',
-                  icon: Icon(Icons.delete_outline,
-                      size: 18, color: Colors.red.shade400),
-                  onPressed: () => controller.deleteReglement(reglement),
-                ),
+              // Obx → réagit au cumul admin+gestionnaire en direct.
+              Obx(
+                () => UserController.to.isVendeur
+                    ? IconButton(
+                        visualDensity: VisualDensity.compact,
+                        tooltip: 'Supprimer',
+                        icon: Icon(Icons.delete_outline,
+                            size: 18, color: Colors.red.shade400),
+                        onPressed: () =>
+                            controller.deleteReglement(reglement),
+                      )
+                    : const SizedBox.shrink(),
+              ),
             ],
           ),
         ),

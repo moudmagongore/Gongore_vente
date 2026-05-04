@@ -84,14 +84,16 @@ class ReglementsListView extends GetView<ReglementsController> {
         ),
       ),
       // FAB réservé au vendeur (action métier). admin/super-admin sont
-      // en lecture seule.
-      floatingActionButton: UserController.to.isVendeur
-          ? FloatingActionButton.extended(
-              onPressed: () => EncaissementGlobalSheet.open(context),
-              icon: const Icon(Icons.payments_rounded),
-              label: const Text('Encaisser'),
-            )
-          : null,
+      // en lecture seule. Obx → réagit au cumul admin+gestionnaire en direct.
+      floatingActionButton: Obx(
+        () => UserController.to.isVendeur
+            ? FloatingActionButton.extended(
+                onPressed: () => EncaissementGlobalSheet.open(context),
+                icon: const Icon(Icons.payments_rounded),
+                label: const Text('Encaisser'),
+              )
+            : const SizedBox.shrink(),
+      ),
     );
   }
 
@@ -598,14 +600,19 @@ class _ReglementTile extends StatelessWidget {
                 onPressed: () => controller.reimprimerRecu(reglement),
               ),
               // Suppression : VENDEUR uniquement (admin/super-admin lecture seule).
-              if (UserController.to.isVendeur)
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  tooltip: 'Supprimer',
-                  icon: Icon(Icons.delete_outline,
-                      size: 18, color: Colors.red.shade400),
-                  onPressed: () => controller.deleteReglement(reglement),
-                ),
+              // Obx → réagit au cumul admin+gestionnaire en direct.
+              Obx(
+                () => UserController.to.isVendeur
+                    ? IconButton(
+                        visualDensity: VisualDensity.compact,
+                        tooltip: 'Supprimer',
+                        icon: Icon(Icons.delete_outline,
+                            size: 18, color: Colors.red.shade400),
+                        onPressed: () =>
+                            controller.deleteReglement(reglement),
+                      )
+                    : const SizedBox.shrink(),
+              ),
             ],
           ),
         ),

@@ -9,6 +9,7 @@ import '../../data/models/fournisseur_model.dart';
 import '../../data/models/reglement_fournisseur_model.dart';
 import '../../data/models/user_model.dart';
 import '../utils/format_helpers.dart';
+import 'pdf_theme_service.dart';
 
 /// Reçu PDF (format 80mm thermique) pour un règlement fournisseur.
 class ReglementFournisseurReceiptService {
@@ -19,7 +20,7 @@ class ReglementFournisseurReceiptService {
     UserModel? user,
     double? soldeApres,
   }) async {
-    final pdf = pw.Document();
+    final pdf = pw.Document(theme: await PdfThemeService.theme);
     final devise = boutique.devise;
     final numero = reglement.id.isEmpty
         ? '—'

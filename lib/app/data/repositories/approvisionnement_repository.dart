@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/services/firestore_service.dart';
+import '../../core/utils/stream_helpers.dart';
 import '../models/approvisionnement_model.dart';
 
 class ApprovisionnementRepository {
@@ -40,7 +41,7 @@ class ApprovisionnementRepository {
       query = query.where('date', isLessThan: Timestamp.fromDate(before));
     }
     query = query.orderBy('date', descending: true).limit(limit);
-    return query.snapshots().map(
+    return query.snapshots().ignorePermissionDenied().map(
           (s) => s.docs.map(ApprovisionnementModel.fromFirestore).toList(),
         );
   }

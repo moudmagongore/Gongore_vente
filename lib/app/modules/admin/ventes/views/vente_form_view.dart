@@ -126,14 +126,19 @@ class _ClientBar extends StatelessWidget {
                   Obx(() {
                     final c = controller.clientSelectionne;
                     if (c == null) return const SizedBox.shrink();
-                    if (c.solde <= 0) return const SizedBox.shrink();
+                    if (c.solde == 0) return const SizedBox.shrink();
+                    final isDette = c.solde > 0;
                     return Padding(
                       padding: const EdgeInsets.only(top: 2),
                       child: Text(
-                        'Crédit en cours : ${Fmt.number(c.solde)}',
-                        style: const TextStyle(
+                        isDette
+                            ? 'Crédit en cours : ${Fmt.number(c.solde)}'
+                            : 'Avance disponible : ${Fmt.number(-c.solde)}',
+                        style: TextStyle(
                           fontSize: 11,
-                          color: AppColors.warning,
+                          color: isDette
+                              ? AppColors.warning
+                              : AppColors.success,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -198,7 +203,9 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
             borderRadius:
                 const BorderRadius.vertical(top: Radius.circular(24)),
           ),
-          child: Column(
+          child: SafeArea(
+            top: false,
+            child: Column(
             children: [
               const SizedBox(height: 8),
               Container(
@@ -322,6 +329,8 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                     itemBuilder: (_, i) {
                       final c = list[i];
                       final selected = c.id == widget.controller.clientId.value;
+                      final hasDette = c.solde > 0;
+                      final hasAvance = c.solde < 0;
                       return ListTile(
                         leading: CircleAvatar(
                           backgroundColor:
@@ -339,7 +348,7 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                             ? null
                             : Text(c.telephone!,
                                 style: const TextStyle(fontSize: 12)),
-                        trailing: c.solde > 0
+                        trailing: hasDette
                             ? Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 8, vertical: 4),
@@ -357,10 +366,29 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                                   ),
                                 ),
                               )
-                            : selected
-                                ? const Icon(Icons.check_circle_rounded,
-                                    color: AppColors.primary)
-                                : null,
+                            : hasAvance
+                                ? Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.success
+                                          .withValues(alpha: 0.15),
+                                      borderRadius:
+                                          BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      'Avance ${Fmt.number(-c.solde)}',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.success,
+                                      ),
+                                    ),
+                                  )
+                                : selected
+                                    ? const Icon(Icons.check_circle_rounded,
+                                        color: AppColors.primary)
+                                    : null,
                         onTap: () {
                           widget.controller.selectClient(c.id);
                           Get.back();
@@ -371,6 +399,7 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                 }),
               ),
             ],
+          ),
           ),
         );
       },
@@ -821,7 +850,9 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
             borderRadius:
                 const BorderRadius.vertical(top: Radius.circular(24)),
           ),
-          child: Column(
+          child: SafeArea(
+            top: false,
+            child: Column(
             children: [
               const SizedBox(height: 8),
               Container(
@@ -843,6 +874,22 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
                             fontSize: 17, fontWeight: FontWeight.w700),
                       ),
                     ),
+                    // Bouton « Terminer » visible dès qu'au moins un article
+                    // a été ajouté — permet de fermer le picker sans avoir à
+                    // scroller chercher la croix.
+                    Obx(() {
+                      if (widget.controller.lignes.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      return TextButton.icon(
+                        onPressed: () => Get.back(),
+                        icon: const Icon(Icons.check_rounded, size: 18),
+                        label: const Text('Terminer'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.success,
+                        ),
+                      );
+                    }),
                     IconButton(
                       onPressed: () => Get.back(),
                       icon: const Icon(Icons.close_rounded),
@@ -850,6 +897,10 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
                   ],
                 ),
               ),
+              // Panier compact : aperçu horizontal des articles déjà ajoutés.
+              // Permet sur petit écran de voir ce qu'on a déjà sélectionné
+              // sans fermer le picker.
+              _PanierCompact(controller: widget.controller),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                 child: TextField(
@@ -929,17 +980,30 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
                     itemBuilder: (_, i) {
                       final p = list[i];
                       final isOut = p.quantiteStock <= 0;
+                      final ligneExistante = widget.controller.lignes
+                          .firstWhereOrNull((l) => l.produit.id == p.id);
+                      final dejaAjoute = ligneExistante != null;
                       return ListTile(
                         enabled: !isOut,
                         leading: Container(
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.10),
+                            color: (dejaAjoute
+                                    ? AppColors.success
+                                    : AppColors.primary)
+                                .withValues(alpha: 0.10),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(Icons.inventory_2_rounded,
-                              color: AppColors.primary, size: 20),
+                          child: Icon(
+                            dejaAjoute
+                                ? Icons.check_circle_rounded
+                                : Icons.inventory_2_rounded,
+                            color: dejaAjoute
+                                ? AppColors.success
+                                : AppColors.primary,
+                            size: 20,
+                          ),
                         ),
                         title: Text(p.nom,
                             maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -952,22 +1016,52 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
                             fontSize: 12,
                           ),
                         ),
-                        trailing: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: (isOut ? Colors.red : AppColors.success)
-                                .withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            isOut ? 'Rupture' : 'Stock ${p.quantiteStock}',
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w700,
-                              color: isOut ? Colors.red : AppColors.success,
-                            ),
-                          ),
+                        trailing: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (dejaAjoute)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppColors.success
+                                      .withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'Ajouté ×${ligneExistante.quantite}',
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.success,
+                                  ),
+                                ),
+                              )
+                            else
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color:
+                                      (isOut ? Colors.red : AppColors.success)
+                                          .withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  isOut
+                                      ? 'Rupture'
+                                      : 'Stock ${p.quantiteStock}',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                    color:
+                                        isOut ? Colors.red : AppColors.success,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                         onTap: () {
                           Navigator.of(context).pop();
@@ -979,6 +1073,7 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
                 }),
               ),
             ],
+          ),
           ),
         );
       },
@@ -1291,6 +1386,12 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
 // Section : récap totaux + mode paiement + valider
 // ============================================================================
 
+// ============================================================================
+// Barre du bas compacte : TOTAL + accès paiement (sheet) + Valider.
+// Le détail (mode paiement, note, encaissement) est déporté dans un
+// bottom sheet pour libérer de l'espace vertical à la liste d'articles.
+// ============================================================================
+
 class _SummaryAndAction extends StatelessWidget {
   final VenteFormController controller;
   const _SummaryAndAction({required this.controller});
@@ -1300,93 +1401,62 @@ class _SummaryAndAction extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            _NoteField(controller: controller),
-            const SizedBox(height: 10),
-            // Mode paiement
-            Text(
-              'Mode de paiement',
-              style: TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.3,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 36,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Obx(() {
-                  final current = controller.modePaiement.value;
-                  return Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (var i = 0; i < ModePaiement.values.length; i++) ...[
-                        if (i > 0) const SizedBox(width: 8),
-                        _CatPill(
-                          label: ModePaiement.values[i].label,
-                          selected: current == ModePaiement.values[i],
-                          onTap: () => controller.modePaiement.value =
-                              ModePaiement.values[i],
-                        ),
-                      ],
-                    ],
-                  );
-                }),
-              ),
-            ),
-            const SizedBox(height: 12),
-            // Totaux
+            // Ligne TOTAL + bouton Paiement (icône) en compact.
             Obx(() => Container(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+                  padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.05),
+                    color: AppColors.primary.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.18),
+                      color: AppColors.primary.withValues(alpha: 0.20),
                     ),
                   ),
-                  child: Column(
+                  child: Row(
                     children: [
-                      _Row(
-                        label: 'Sous-total',
-                        value: Fmt.money(controller.sousTotal,
-                            currency: controller.devise),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'TOTAL',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.6,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            Fmt.money(controller.total,
+                                currency: controller.devise),
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primary,
+                              letterSpacing: -0.4,
+                            ),
+                          ),
+                        ],
                       ),
-                      if (controller.remiseGlobale.value > 0) ...[
-                        const SizedBox(height: 2),
-                        _Row(
-                          label: 'Remise globale',
-                          value:
-                              '-${Fmt.money(controller.remiseGlobale.value, currency: controller.devise)}',
-                          color: AppColors.success,
-                        ),
-                      ],
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Divider(
-                          height: 1,
-                          color: AppColors.primary.withValues(alpha: 0.18),
-                        ),
-                      ),
-                      _Row(
-                        label: 'TOTAL',
-                        value: Fmt.money(controller.total,
-                            currency: controller.devise),
-                        big: true,
+                      const Spacer(),
+                      _PaiementInfoChip(controller: controller),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        tooltip: 'Paiement & options',
+                        onPressed: () =>
+                            _PaiementSheet.open(context, controller),
+                        icon: const Icon(Icons.tune_rounded),
                       ),
                     ],
                   ),
                 )),
-            const SizedBox(height: 12),
-            _EncaissementSection(controller: controller),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Obx(() => ElevatedButton.icon(
                   onPressed: controller.isSaving.value ||
                           controller.lignes.isEmpty
@@ -1394,7 +1464,7 @@ class _SummaryAndAction extends StatelessWidget {
                       : controller.validerVente,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.success,
-                    minimumSize: const Size.fromHeight(54),
+                    minimumSize: const Size.fromHeight(50),
                   ),
                   icon: controller.isSaving.value
                       ? const SizedBox(
@@ -1418,6 +1488,232 @@ class _SummaryAndAction extends StatelessWidget {
                   ),
                 )),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Chip résumé paiement à droite du TOTAL : montre mode paiement courant
+/// + signal éventuel "Crédit" / "Trop perçu". Cliquable, ouvre la sheet.
+class _PaiementInfoChip extends StatelessWidget {
+  final VenteFormController controller;
+  const _PaiementInfoChip({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final reste = controller.resteAPayer;
+      final hasCredit = reste > 0;
+      final hasOver = reste < 0;
+      Color color;
+      String label;
+      if (hasCredit) {
+        color = AppColors.warning;
+        label = 'Crédit ${Fmt.money(reste, currency: controller.devise)}';
+      } else if (hasOver) {
+        color = AppColors.success;
+        label =
+            'Trop perçu ${Fmt.money(reste.abs(), currency: controller.devise)}';
+      } else {
+        color = Colors.grey.shade700;
+        label = controller.modePaiement.value.label;
+      }
+      return InkWell(
+        onTap: () => _PaiementSheet.open(context, controller),
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: color.withValues(alpha: 0.30)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                hasCredit
+                    ? Icons.warning_amber_rounded
+                    : (hasOver
+                        ? Icons.check_circle_rounded
+                        : Icons.payments_rounded),
+                size: 13,
+                color: color,
+              ),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+}
+
+/// Sheet plein écran qui regroupe les options de paiement
+/// (note, mode paiement, encaissement avec avance + montant payé + reste).
+/// Déclenché depuis la barre TOTAL pour libérer la liste d'articles.
+class _PaiementSheet extends StatelessWidget {
+  final VenteFormController controller;
+  const _PaiementSheet({required this.controller});
+
+  static void open(BuildContext context, VenteFormController controller) {
+    Get.bottomSheet(
+      _PaiementSheet(controller: controller),
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).cardTheme.color,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+    final viewPadding = MediaQuery.of(context).viewPadding.bottom;
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        top: false,
+        bottom: false,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+              16, 8, 16, (viewInsets > 0 ? viewInsets : viewPadding) + 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade400,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Paiement & options',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Get.back(),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Récap totaux compact
+              Obx(() => Container(
+                    padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.18),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        _Row(
+                          label: 'Sous-total',
+                          value: Fmt.money(controller.sousTotal,
+                              currency: controller.devise),
+                        ),
+                        if (controller.remiseGlobale.value > 0) ...[
+                          const SizedBox(height: 2),
+                          _Row(
+                            label: 'Remise globale',
+                            value:
+                                '-${Fmt.money(controller.remiseGlobale.value, currency: controller.devise)}',
+                            color: AppColors.success,
+                          ),
+                        ],
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Divider(
+                            height: 1,
+                            color: AppColors.primary.withValues(alpha: 0.18),
+                          ),
+                        ),
+                        _Row(
+                          label: 'TOTAL',
+                          value: Fmt.money(controller.total,
+                              currency: controller.devise),
+                          big: true,
+                        ),
+                      ],
+                    ),
+                  )),
+              const SizedBox(height: 12),
+              _NoteField(controller: controller),
+              const SizedBox(height: 10),
+              Text(
+                'Mode de paiement',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 36,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Obx(() {
+                    final current = controller.modePaiement.value;
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (var i = 0;
+                            i < ModePaiement.values.length;
+                            i++) ...[
+                          if (i > 0) const SizedBox(width: 8),
+                          _CatPill(
+                            label: ModePaiement.values[i].label,
+                            selected: current == ModePaiement.values[i],
+                            onTap: () => controller.modePaiement.value =
+                                ModePaiement.values[i],
+                          ),
+                        ],
+                      ],
+                    );
+                  }),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _EncaissementSection(controller: controller),
+              const SizedBox(height: 14),
+              ElevatedButton(
+                onPressed: () => Get.back(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1866,6 +2162,117 @@ class _AvanceBanner extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// ============================================================================
+// Panier compact : aperçu horizontal du panier visible dans le picker
+// produits (utile sur petit écran : on garde la liste d'articles à l'œil
+// pendant qu'on en ajoute de nouveaux).
+// ============================================================================
+
+class _PanierCompact extends StatelessWidget {
+  final VenteFormController controller;
+  const _PanierCompact({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      if (controller.lignes.isEmpty) return const SizedBox.shrink();
+      final devise = controller.devise;
+      final nbArticles = controller.nbArticles;
+      final total = controller.total;
+      return Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppColors.primary.withValues(alpha: 0.18),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.shopping_basket_rounded,
+                    size: 14, color: AppColors.primary),
+                const SizedBox(width: 6),
+                Text(
+                  '$nbArticles article${nbArticles > 1 ? 's' : ''} au panier',
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  Fmt.money(total, currency: devise),
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            SizedBox(
+              height: 30,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: controller.lignes.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 6),
+                itemBuilder: (_, i) {
+                  final l = controller.lignes[i];
+                  return Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    child: InkWell(
+                      onTap: () => controller.removeLigne(i),
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.25),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${l.quantite}× ${l.produit.nom}',
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(
+                              Icons.close_rounded,
+                              size: 14,
+                              color: Colors.grey.shade600,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      );
+    });
   }
 }
 

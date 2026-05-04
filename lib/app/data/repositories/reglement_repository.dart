@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/services/firestore_service.dart';
+import '../../core/utils/stream_helpers.dart';
 import '../models/reglement_model.dart';
 import '../models/vente_model.dart';
 
@@ -28,7 +29,7 @@ class ReglementRepository {
         .where('clientId', isEqualTo: clientId)
         .orderBy('date', descending: true)
         .limit(limit)
-        .snapshots()
+        .snapshots().ignorePermissionDenied()
         .map((s) => s.docs.map(ReglementModel.fromFirestore).toList());
   }
 
@@ -43,7 +44,7 @@ class ReglementRepository {
     }
     q = q.orderBy('date', descending: true).limit(limit);
     return q
-        .snapshots()
+        .snapshots().ignorePermissionDenied()
         .map((s) => s.docs.map(ReglementModel.fromFirestore).toList());
   }
 
