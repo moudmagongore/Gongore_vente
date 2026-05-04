@@ -20,13 +20,11 @@ class SplashView extends GetView<SplashController> {
               width: 110,
               height: 110,
               decoration: BoxDecoration(
-                color: Colors.white,
                 borderRadius: BorderRadius.circular(28),
-              ),
-              child: const Icon(
-                Icons.storefront_rounded,
-                size: 64,
-                color: AppColors.primary,
+                image: DecorationImage(
+                  image: AssetImage('assets/images/gongoreSplash.jpg'),
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -41,7 +39,7 @@ class SplashView extends GetView<SplashController> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Gestion des ventes',
+              'Vos ventes, vos clients, votre boutique, partout avec vous.',
               style: TextStyle(
                 color: Colors.white70,
                 fontSize: 14,
