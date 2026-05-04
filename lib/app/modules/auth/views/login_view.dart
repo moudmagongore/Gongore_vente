@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../../core/constants/app_constants.dart';
 import '../../../theme/app_colors.dart';
 import '../controllers/login_controller.dart';
 
@@ -22,29 +21,35 @@ class LoginView extends GetView<LoginController> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 16),
-                  Container(
-                    width: 88,
-                    height: 88,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(22),
-                    ),
-                    child: const Icon(
-                      Icons.storefront_rounded,
-                      size: 48,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    AppConstants.appName,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
+                  Center(
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(28),
+                        image: const DecorationImage(
+                          image: AssetImage('assets/images/login.png'),
+                          fit: BoxFit.cover,
                         ),
+                        // boxShadow: [
+                        //   BoxShadow(
+                        //     color: AppColors.primary.withValues(alpha: 0.18),
+                        //     blurRadius: 24,
+                        //     offset: const Offset(0, 8),
+                        //   ),
+                        // ],
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 30),
+                  // Text(
+                  //   AppConstants.appName,
+                  //   textAlign: TextAlign.center,
+                  //   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  //         fontWeight: FontWeight.w700,
+                  //       ),
+                  // ),
+                  // const SizedBox(height: 6),
                   Text(
                     'Connectez-vous à votre compte',
                     textAlign: TextAlign.center,
