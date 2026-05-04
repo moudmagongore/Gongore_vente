@@ -21,6 +21,7 @@ class ProduitFormController extends GetxController {
   final prixAchatCtrl = TextEditingController();
   final prixVenteCtrl = TextEditingController();
   final uniteCtrl = TextEditingController();
+  final seuilCtrl = TextEditingController(text: '5');
 
   final RxnString categorieId = RxnString();
   final RxnString boutiqueId = RxnString();
@@ -56,6 +57,7 @@ class ProduitFormController extends GetxController {
       prixAchatCtrl.text = arg.prixAchat == 0 ? '' : arg.prixAchat.toString();
       prixVenteCtrl.text = arg.prixVente.toString();
       uniteCtrl.text = arg.unite ?? '';
+      seuilCtrl.text = arg.seuilAlerte.toString();
       categorieId.value = arg.categorieId;
       boutiqueId.value = arg.boutiqueId;
       active.value = arg.active;
@@ -72,6 +74,7 @@ class ProduitFormController extends GetxController {
     prixAchatCtrl.dispose();
     prixVenteCtrl.dispose();
     uniteCtrl.dispose();
+    seuilCtrl.dispose();
     super.onClose();
   }
 
@@ -104,6 +107,14 @@ class ProduitFormController extends GetxController {
     return null;
   }
 
+  String? validateSeuil(String? v) {
+    final value = v?.trim() ?? '';
+    if (value.isEmpty) return null;
+    final n = int.tryParse(value);
+    if (n == null || n < 0) return 'Nombre entier ≥ 0';
+    return null;
+  }
+
   // ============== Save ==============
   Future<void> save() async {
     if (!(formKey.currentState?.validate() ?? false)) return;
@@ -121,6 +132,7 @@ class ProduitFormController extends GetxController {
       final prixVente = double.parse(
         prixVenteCtrl.text.trim().replaceAll(',', '.'),
       );
+      final seuil = int.tryParse(seuilCtrl.text.trim()) ?? 5;
 
       if (isEdit) {
         final updated = editing.value!.copyWith(
@@ -132,6 +144,7 @@ class ProduitFormController extends GetxController {
           categorieId: categorieId.value,
           unite: uniteCtrl.text.trim().isEmpty ? null : uniteCtrl.text.trim(),
           boutiqueId: boutiqueId.value!,
+          seuilAlerte: seuil,
           active: active.value,
         );
         await _repo.update(updated);
@@ -150,6 +163,7 @@ class ProduitFormController extends GetxController {
           categorieId: categorieId.value,
           unite: uniteCtrl.text.trim().isEmpty ? null : uniteCtrl.text.trim(),
           boutiqueId: boutiqueId.value!,
+          seuilAlerte: seuil,
           active: active.value,
         );
         await _repo.create(newProd);

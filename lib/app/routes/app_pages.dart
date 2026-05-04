@@ -26,10 +26,16 @@ import '../modules/admin/appros/bindings/appros_binding.dart';
 import '../modules/admin/appros/views/appro_detail_view.dart';
 import '../modules/admin/appros/views/appro_form_view.dart';
 import '../modules/admin/appros/views/appros_list_view.dart';
+import '../modules/admin/stock/bindings/historique_mouvements_binding.dart';
+import '../modules/admin/stock/bindings/stock_binding.dart';
+import '../modules/admin/stock/views/historique_mouvements_view.dart';
+import '../modules/admin/stock/views/stock_list_view.dart';
 import '../modules/admin/home/views/admin_home_view.dart';
 import '../modules/admin/produits/bindings/produit_form_binding.dart';
 import '../modules/admin/reglements/bindings/reglements_binding.dart';
 import '../modules/admin/reglements/views/reglements_list_view.dart';
+import '../modules/admin/reglements_fournisseurs/bindings/reglements_fournisseurs_binding.dart';
+import '../modules/admin/reglements_fournisseurs/views/reglements_fournisseurs_list_view.dart';
 import '../modules/admin/produits/bindings/produits_binding.dart';
 import '../modules/admin/produits/views/produit_form_view.dart';
 import '../modules/admin/produits/views/produits_list_view.dart';
@@ -173,9 +179,28 @@ class AppPages {
       middlewares: [AuthGuard()],
     ),
     GetPage(
+      name: AppRoutes.adminStock,
+      page: () => const StockListView(),
+      binding: StockBinding(),
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.adminStockHistorique,
+      page: () => const HistoriqueMouvementsView(),
+      binding: HistoriqueMouvementsBinding(),
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
       name: AppRoutes.adminReglements,
       page: () => const ReglementsListView(),
       binding: ReglementsBinding(),
+      // admin/super-admin en lecture seule, vendeur en CRUD.
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.adminReglementsFournisseurs,
+      page: () => const ReglementsFournisseursListView(),
+      binding: ReglementsFournisseursBinding(),
       middlewares: [AuthGuard()],
     ),
     GetPage(

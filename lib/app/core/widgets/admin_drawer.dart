@@ -47,7 +47,7 @@ class AdminDrawer extends StatelessWidget {
                   ),
                   _Item(
                     icon: Icons.people_alt_rounded,
-                    label: isSuper ? 'Utilisateurs' : 'Mes vendeurs',
+                    label: isSuper ? 'Utilisateurs' : 'Mes gestionnaires',
                     route: AppRoutes.adminUsers,
                     selected: currentRoute == AppRoutes.adminUsers,
                   ),
@@ -69,11 +69,21 @@ class AdminDrawer extends StatelessWidget {
                     route: AppRoutes.adminAppros,
                     selected: currentRoute == AppRoutes.adminAppros,
                   ),
+                  // Règlements clients & fournisseurs : admin/super-admin
+                  // en lecture seule (les actions Encaisser/Verser/Supprimer
+                  // sont gardées dans la vue).
                   _Item(
                     icon: Icons.payments_rounded,
-                    label: 'Règlements',
+                    label: 'Règlements clients',
                     route: AppRoutes.adminReglements,
                     selected: currentRoute == AppRoutes.adminReglements,
+                  ),
+                  _Item(
+                    icon: Icons.account_balance_wallet_rounded,
+                    label: 'Règlements fournisseurs',
+                    route: AppRoutes.adminReglementsFournisseurs,
+                    selected: currentRoute ==
+                        AppRoutes.adminReglementsFournisseurs,
                   ),
                   _Item(
                     icon: Icons.category_rounded,
@@ -86,6 +96,12 @@ class AdminDrawer extends StatelessWidget {
                     label: 'Produits',
                     route: AppRoutes.adminProduits,
                     selected: currentRoute == AppRoutes.adminProduits,
+                  ),
+                  _Item(
+                    icon: Icons.warehouse_rounded,
+                    label: 'Stock',
+                    route: AppRoutes.adminStock,
+                    selected: currentRoute == AppRoutes.adminStock,
                   ),
                   _Item(
                     icon: Icons.receipt_long_rounded,

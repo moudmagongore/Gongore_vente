@@ -1,39 +1,42 @@
 import 'package:get/get.dart';
 
-import '../../../../core/services/reglement_receipt_service.dart';
+import '../../../../core/services/reglement_fournisseur_receipt_service.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/boutique_model.dart';
-import '../../../../data/models/client_model.dart';
-import '../../../../data/models/reglement_model.dart';
+import '../../../../data/models/fournisseur_model.dart';
+import '../../../../data/models/reglement_fournisseur_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/models/vente_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
-import '../../../../data/repositories/client_repository.dart';
-import '../../../../data/repositories/reglement_repository.dart';
+import '../../../../data/repositories/fournisseur_repository.dart';
+import '../../../../data/repositories/reglement_fournisseur_repository.dart';
 import '../../../../data/repositories/user_repository.dart';
 
-enum PeriodeReglement { aujourdhui, semaine, mois, tout }
+enum PeriodeReglementFour { aujourdhui, semaine, mois, tout }
 
-class ReglementsController extends GetxController {
-  final ReglementRepository _repo = ReglementRepository();
+class ReglementsFournisseursController extends GetxController {
+  final ReglementFournisseurRepository _repo =
+      ReglementFournisseurRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
-  final ClientRepository _clientRepo = ClientRepository();
+  final FournisseurRepository _fournRepo = FournisseurRepository();
   final UserRepository _userRepo = UserRepository();
 
-  final RxList<ReglementModel> _all = <ReglementModel>[].obs;
+  final RxList<ReglementFournisseurModel> _all =
+      <ReglementFournisseurModel>[].obs;
   final RxList<BoutiqueModel> boutiques = <BoutiqueModel>[].obs;
-  final RxList<ClientModel> clients = <ClientModel>[].obs;
+  final RxList<FournisseurModel> fournisseurs = <FournisseurModel>[].obs;
   final RxList<UserModel> users = <UserModel>[].obs;
 
   final RxBool isLoading = true.obs;
-  final Rx<PeriodeReglement> periode = PeriodeReglement.mois.obs;
+  final Rx<PeriodeReglementFour> periode = PeriodeReglementFour.mois.obs;
   final RxnString filterBoutiqueId = RxnString();
-  final RxnString filterClientId = RxnString();
+  final RxnString filterFournisseurId = RxnString();
   final RxnString filterUserId = RxnString();
   final Rxn<ModePaiement> filterMode = Rxn<ModePaiement>();
   final RxString search = ''.obs;
 
   bool get isSuperAdmin => UserController.to.isSuperAdmin;
+  bool get isAnyAdmin => UserController.to.isAnyAdmin;
 
   @override
   void onInit() {
@@ -44,9 +47,7 @@ class ReglementsController extends GetxController {
       filterBoutiqueId.value = UserController.to.boutiqueId;
     } else {
       // IMPORTANT : enregistre l'auto-select AVANT bindStream pour ne pas
-      // rater la 1re émission du stream (cache Firestore peut émettre
-      // immédiatement). Pour super-admin sans boutique pré-sélectionnée :
-      // prend la 1re boutique disponible. Modifiable via filtre.
+      // rater la 1re émission du stream (cache Firestore).
       ever<List<BoutiqueModel>>(boutiques, (list) {
         if (filterBoutiqueId.value == null && list.isNotEmpty) {
           filterBoutiqueId.value = list.first.id;
@@ -55,7 +56,7 @@ class ReglementsController extends GetxController {
     }
 
     boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
-    clients.bindStream(_clientRepo.watchScoped(scope));
+    fournisseurs.bindStream(_fournRepo.watchScoped(scope));
     users.bindStream(_userRepo.watchScoped(scope: scope));
 
     _bind();
@@ -65,9 +66,8 @@ class ReglementsController extends GetxController {
   void _bind() {
     isLoading.value = true;
     var scope = filterBoutiqueId.value;
-    // Fallback : super-admin sans boutique sélectionnée et boutiques chargées
-    // → auto-sélection de la 1re. Évite l'écran vide si l'`ever` n'a pas
-    // fait son travail à temps.
+    // Fallback : super-admin sans boutique sélectionnée → auto-sélection
+    // de la 1re. Évite l'écran vide si l'`ever` n'a pas fait son travail.
     if ((scope == null || scope.isEmpty) &&
         isSuperAdmin &&
         boutiques.isNotEmpty) {
@@ -86,26 +86,27 @@ class ReglementsController extends GetxController {
         time: const Duration(milliseconds: 200));
   }
 
-  DateTime? _afterDate(PeriodeReglement p) {
+  DateTime? _afterDate(PeriodeReglementFour p) {
     final now = DateTime.now();
     switch (p) {
-      case PeriodeReglement.aujourdhui:
+      case PeriodeReglementFour.aujourdhui:
         return DateTime(now.year, now.month, now.day);
-      case PeriodeReglement.semaine:
+      case PeriodeReglementFour.semaine:
         return DateTime(now.year, now.month, now.day)
             .subtract(Duration(days: now.weekday - 1));
-      case PeriodeReglement.mois:
+      case PeriodeReglementFour.mois:
         return DateTime(now.year, now.month, 1);
-      case PeriodeReglement.tout:
+      case PeriodeReglementFour.tout:
         return null;
     }
   }
 
   // ===== Filtrage côté client =====
-  List<ReglementModel> get filtered {
+  List<ReglementFournisseurModel> get filtered {
     final q = search.value.trim().toLowerCase();
     return _all.where((r) {
-      if (filterClientId.value != null && r.clientId != filterClientId.value) {
+      if (filterFournisseurId.value != null &&
+          r.fournisseurId != filterFournisseurId.value) {
         return false;
       }
       if (filterUserId.value != null && r.userId != filterUserId.value) {
@@ -115,23 +116,21 @@ class ReglementsController extends GetxController {
         return false;
       }
       if (q.isEmpty) return true;
-      final clientName = clientNom(r.clientId).toLowerCase();
-      if (clientName.contains(q)) return true;
-      final userName = userNom(r.userId).toLowerCase();
-      if (userName.contains(q)) return true;
+      if (fournisseurNom(r.fournisseurId).toLowerCase().contains(q)) {
+        return true;
+      }
+      if (userNom(r.userId).toLowerCase().contains(q)) return true;
       return (r.note?.toLowerCase().contains(q) ?? false);
     }).toList();
   }
 
-  bool get isAnyAdmin => UserController.to.isAnyAdmin;
-
   // ===== Stats =====
-  double get totalEncaisse => filtered.fold(0.0, (acc, r) => acc + r.montant);
+  double get totalVerse => filtered.fold(0.0, (acc, r) => acc + r.montant);
   int get nbReglements => filtered.length;
 
   // ===== Helpers =====
-  String clientNom(String id) =>
-      clients.firstWhereOrNull((c) => c.id == id)?.nom ?? '—';
+  String fournisseurNom(String id) =>
+      fournisseurs.firstWhereOrNull((f) => f.id == id)?.nom ?? '—';
 
   String userNom(String id) =>
       users.firstWhereOrNull((u) => u.id == id)?.nom ?? '—';
@@ -139,15 +138,15 @@ class ReglementsController extends GetxController {
   String boutiqueNom(String id) =>
       boutiques.firstWhereOrNull((b) => b.id == id)?.nom ?? '—';
 
-  ClientModel? clientById(String id) =>
-      clients.firstWhereOrNull((c) => c.id == id);
+  FournisseurModel? fournisseurById(String id) =>
+      fournisseurs.firstWhereOrNull((f) => f.id == id);
 
-  Future<void> deleteReglement(ReglementModel r) async {
+  Future<void> deleteReglement(ReglementFournisseurModel r) async {
     try {
       await _repo.deleteAndRestore(r.id);
       Get.snackbar(
         'Règlement supprimé',
-        'Le solde du client a été réajusté.',
+        'Le solde du fournisseur a été réajusté.',
         snackPosition: SnackPosition.BOTTOM,
       );
     } catch (e) {
@@ -159,15 +158,14 @@ class ReglementsController extends GetxController {
     }
   }
 
-  /// Réimprime le reçu d'un règlement existant. Récupère boutique, client
-  /// et vendeur via les Rx déjà chargées (avec fallback Firestore).
-  Future<void> reimprimerRecu(ReglementModel r) async {
-    final client = clientById(r.clientId) ??
-        await _clientRepo.getById(r.clientId);
-    if (client == null) {
+  /// Réimprime le reçu d'un règlement existant.
+  Future<void> reimprimerRecu(ReglementFournisseurModel r) async {
+    final fournisseur = fournisseurById(r.fournisseurId) ??
+        await _fournRepo.getById(r.fournisseurId);
+    if (fournisseur == null) {
       Get.snackbar(
         'Erreur',
-        'Client introuvable.',
+        'Fournisseur introuvable.',
         snackPosition: SnackPosition.BOTTOM,
       );
       return;
@@ -182,14 +180,14 @@ class ReglementsController extends GetxController {
       );
       return;
     }
-    final vendeur = users.firstWhereOrNull((u) => u.id == r.userId) ??
+    final user = users.firstWhereOrNull((u) => u.id == r.userId) ??
         (r.userId.isEmpty ? null : await _userRepo.getById(r.userId));
     try {
-      await ReglementReceiptService.sharePrint(
+      await ReglementFournisseurReceiptService.sharePrint(
         reglement: r,
         boutique: boutique,
-        client: client,
-        vendeur: vendeur,
+        fournisseur: fournisseur,
+        user: user,
       );
     } catch (e) {
       Get.snackbar(

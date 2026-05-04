@@ -14,7 +14,9 @@ class CategoriesListView extends GetView<CategoriesController> {
 
   @override
   Widget build(BuildContext context) {
-    final canEdit = UserController.to.isAnyAdmin;
+    // Gestion catalogue réservée à l'ADMIN de boutique. super-admin et
+    // vendeur sont en lecture seule (pas de FAB ni d'actions sur les tiles).
+    final canEdit = UserController.to.isAdmin;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Catégories'),

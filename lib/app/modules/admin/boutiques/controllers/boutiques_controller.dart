@@ -94,7 +94,7 @@ class BoutiquesController extends GetxController {
         content: Text(
           '⚠️ La boutique « ${b.nom} » sera supprimée DÉFINITIVEMENT '
           'avec TOUTES ses données :\n\n'
-          '• Tous les utilisateurs (admins + vendeurs)\n'
+          '• Tous les utilisateurs (admins + gestionnaires)\n'
           '• Tous les produits et catégories\n'
           '• Toutes les ventes et tous les clients\n\n'
           'Cette action est IRRÉVERSIBLE.\n\n'

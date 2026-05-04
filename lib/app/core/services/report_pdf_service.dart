@@ -98,7 +98,7 @@ class ReportPdfService {
                   ),
                 if (data.vendeurNom != null)
                   pw.Text(
-                    'Vendeur : ${data.vendeurNom}',
+                    'Gestionnaire : ${data.vendeurNom}',
                     style: const pw.TextStyle(fontSize: 10),
                   ),
                 pw.Text(

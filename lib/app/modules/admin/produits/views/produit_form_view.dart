@@ -158,17 +158,39 @@ class ProduitFormView extends GetView<ProduitFormController> {
             ),
             const SizedBox(height: 24),
 
-            // ============ Unité ============
-            _Section('Unité'),
+            // ============ Stock ============
+            _Section('Unité & seuil d\'alerte'),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: controller.uniteCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Unité',
-                prefixIcon: Icon(Icons.straighten_rounded),
-                hintText: 'pièce, kg, L...',
-              ),
-              textCapitalization: TextCapitalization.none,
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: controller.uniteCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Unité',
+                      prefixIcon: Icon(Icons.straighten_rounded),
+                      hintText: 'pièce, kg, L...',
+                    ),
+                    textCapitalization: TextCapitalization.none,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    controller: controller.seuilCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Seuil d\'alerte',
+                      prefixIcon: Icon(Icons.warning_amber_rounded),
+                      helperText: 'Stock bas si en dessous',
+                    ),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                    ],
+                    validator: controller.validateSeuil,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
 

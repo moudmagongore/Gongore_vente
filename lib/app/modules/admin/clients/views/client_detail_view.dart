@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/services/user_controller.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../data/models/client_model.dart';
 import '../../../../data/models/reglement_model.dart';
@@ -15,22 +16,26 @@ class ClientDetailView extends GetView<ClientDetailController> {
 
   @override
   Widget build(BuildContext context) {
+    // Onglet Règlements visible pour tous (admin/super-admin lecture seule).
+    // Le bouton Modifier reste réservé au vendeur (édition = opération).
+    final isVendeur = UserController.to.isVendeur;
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         appBar: AppBar(
           title: Obx(() => Text(controller.client.value?.nom ?? 'Client')),
           actions: [
-            Obx(() {
-              final c = controller.client.value;
-              if (c == null) return const SizedBox.shrink();
-              return IconButton(
-                tooltip: 'Modifier',
-                icon: const Icon(Icons.edit_outlined),
-                onPressed: () =>
-                    Get.toNamed(AppRoutes.adminClientForm, arguments: c),
-              );
-            }),
+            if (isVendeur)
+              Obx(() {
+                final c = controller.client.value;
+                if (c == null) return const SizedBox.shrink();
+                return IconButton(
+                  tooltip: 'Modifier',
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () =>
+                      Get.toNamed(AppRoutes.adminClientForm, arguments: c),
+                );
+              }),
           ],
           bottom: const TabBar(
             tabs: [
@@ -198,29 +203,33 @@ class _ClientHeader extends StatelessWidget {
                   ),
                 ],
               )),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => ReglementSheet.open(context, client),
-                  icon: const Icon(Icons.payments_rounded, size: 18),
-                  label: const Text('Encaisser'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => Get.toNamed(
-                    AppRoutes.venteForm,
-                    arguments: client, // pré-sélection du client
+          // Actions métier réservées au vendeur.
+          if (UserController.to.isVendeur) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => ReglementSheet.open(context, client),
+                    icon: const Icon(Icons.payments_rounded, size: 18),
+                    label: const Text('Encaisser'),
                   ),
-                  icon: const Icon(Icons.add_shopping_cart_rounded, size: 18),
-                  label: const Text('Nouvelle vente'),
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => Get.toNamed(
+                      AppRoutes.venteForm,
+                      arguments: client, // pré-sélection du client
+                    ),
+                    icon:
+                        const Icon(Icons.add_shopping_cart_rounded, size: 18),
+                    label: const Text('Nouvelle vente'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -590,7 +599,8 @@ class _ReglementTile extends StatelessWidget {
                 size: 18, color: Colors.grey.shade700),
             onPressed: () => controller.reimprimerRecu(reglement),
           ),
-          if (controller.isAdminOrSuper)
+          // Suppression : VENDEUR uniquement (admin/super-admin lecture seule).
+          if (UserController.to.isVendeur)
             IconButton(
               visualDensity: VisualDensity.compact,
               tooltip: 'Supprimer',

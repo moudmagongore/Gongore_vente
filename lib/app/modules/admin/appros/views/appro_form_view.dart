@@ -43,7 +43,6 @@ class ApproFormView extends GetView<ApproFormController> {
             if (controller.canPickBoutique) _BoutiquePicker(c: controller),
             _FournisseurPicker(c: controller),
             const SizedBox(height: 6),
-            _AvanceBanner(c: controller),
             Expanded(
               child: Obx(() {
                 if (controller.isLoadingProduits.value) {
@@ -127,7 +126,7 @@ class _BoutiquePicker extends StatelessWidget {
 }
 
 // ============================================================================
-// Fournisseur picker
+// Fournisseur picker (bottom sheet, pattern vente)
 // ============================================================================
 
 class _FournisseurPicker extends StatelessWidget {
@@ -136,51 +135,278 @@ class _FournisseurPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Obx(() {
-        final list = c.fournisseurs;
-        if (list.isEmpty) {
-          return Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.amber.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(10),
+    return InkWell(
+      onTap: () => _openFournisseurPicker(context),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.local_shipping_rounded,
+                color: AppColors.primary,
+                size: 22,
+              ),
             ),
-            child: const Text(
-              'Aucun fournisseur. Créez-en un d\'abord depuis le menu.',
-              style: TextStyle(fontSize: 12),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Fournisseur *',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.grey.shade600,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Obx(() => Text(
+                        c.fournisseurLabel,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          color: c.fournisseurSelectionne == null
+                              ? Colors.grey.shade500
+                              : null,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      )),
+                  Obx(() {
+                    final f = c.fournisseurSelectionne;
+                    if (f == null) return const SizedBox.shrink();
+                    if (f.solde == 0) return const SizedBox.shrink();
+                    final isDette = f.solde > 0;
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        isDette
+                            ? 'Dette en cours : ${Fmt.number(f.solde)}'
+                            : 'Avance disponible : ${Fmt.number(-f.solde)}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDette
+                              ? AppColors.warning
+                              : AppColors.success,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
             ),
-          );
-        }
-        final safe =
-            list.any((f) => f.id == c.fournisseurId.value)
-                ? c.fournisseurId.value
-                : null;
-        return DropdownButtonFormField<String?>(
-          initialValue: safe,
-          decoration: const InputDecoration(
-            labelText: 'Fournisseur *',
-            prefixIcon: Icon(Icons.local_shipping_rounded),
-            isDense: true,
+            const Icon(Icons.keyboard_arrow_right_rounded,
+                color: AppColors.lightTextMuted),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openFournisseurPicker(BuildContext context) {
+    Get.bottomSheet(
+      _FournisseurPickerSheet(controller: c),
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).cardTheme.color,
+    );
+  }
+}
+
+class _FournisseurPickerSheet extends StatefulWidget {
+  final ApproFormController controller;
+  const _FournisseurPickerSheet({required this.controller});
+
+  @override
+  State<_FournisseurPickerSheet> createState() =>
+      _FournisseurPickerSheetState();
+}
+
+class _FournisseurPickerSheetState extends State<_FournisseurPickerSheet> {
+  final _searchCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.85,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (_, scrollController) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardTheme.color,
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(24)),
           ),
-          isExpanded: true,
-          items: list
-              .map((f) => DropdownMenuItem<String?>(
-                    value: f.id,
-                    child: Text(f.nom,
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                  ))
-              .toList(),
-          onChanged: (v) => c.selectFournisseur(v),
+          child: Column(
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Choisir un fournisseur',
+                        style: TextStyle(
+                            fontSize: 17, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Get.back(),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: TextField(
+                  controller: _searchCtrl,
+                  decoration: const InputDecoration(
+                    hintText: 'Rechercher un fournisseur (nom, téléphone)...',
+                    prefixIcon: Icon(Icons.search_rounded),
+                    isDense: true,
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              Expanded(
+                child: Obx(() {
+                  final q = _searchCtrl.text.trim().toLowerCase();
+                  final list = widget.controller.fournisseurs.where((f) {
+                    if (q.isEmpty) return true;
+                    return f.nom.toLowerCase().contains(q) ||
+                        (f.telephone?.toLowerCase().contains(q) ?? false);
+                  }).toList();
+                  if (list.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          q.isEmpty
+                              ? 'Aucun fournisseur enregistré.\nCréez-en un d\'abord depuis le menu.'
+                              : 'Aucun fournisseur ne correspond.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey.shade600),
+                        ),
+                      ),
+                    );
+                  }
+                  return ListView.separated(
+                    controller: scrollController,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    itemCount: list.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 4),
+                    itemBuilder: (_, i) {
+                      final f = list[i];
+                      final selected =
+                          f.id == widget.controller.fournisseurId.value;
+                      final hasDette = f.solde > 0;
+                      final hasAvance = f.solde < 0;
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor:
+                              AppColors.primary.withValues(alpha: 0.12),
+                          child: Text(
+                            f.nom.isEmpty ? '?' : f.nom[0].toUpperCase(),
+                            style: const TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        title: Text(f.nom),
+                        subtitle: f.telephone == null
+                            ? null
+                            : Text(f.telephone!,
+                                style: const TextStyle(fontSize: 12)),
+                        trailing: hasDette
+                            ? Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.warning
+                                      .withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  Fmt.number(f.solde),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.warning,
+                                  ),
+                                ),
+                              )
+                            : hasAvance
+                                ? Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.success
+                                          .withValues(alpha: 0.15),
+                                      borderRadius:
+                                          BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      'Avance ${Fmt.number(-f.solde)}',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.success,
+                                      ),
+                                    ),
+                                  )
+                                : selected
+                                    ? const Icon(
+                                        Icons.check_circle_rounded,
+                                        color: AppColors.primary)
+                                    : null,
+                        onTap: () {
+                          widget.controller.selectFournisseur(f.id);
+                          Get.back();
+                        },
+                      );
+                    },
+                  );
+                }),
+              ),
+            ],
+          ),
         );
-      }),
+      },
     );
   }
 }
 
 // ============================================================================
-// Avance fournisseur disponible
+// Bandeau « Avance fournisseur disponible » (intégré dans la section
+// encaissement, n'apparaît que si le fournisseur a un solde négatif).
 // ============================================================================
 
 class _AvanceBanner extends StatelessWidget {
@@ -189,53 +415,101 @@ class _AvanceBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      final dispo = c.avanceDisponible;
-      if (dispo <= 0) return const SizedBox.shrink();
-      final used = c.avanceUtilisee.value;
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppColors.success.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-                color: AppColors.success.withValues(alpha: 0.25)),
-          ),
-          child: Row(
+    final dispo = c.avanceDisponible;
+    final utilisee = c.avanceUtilisee.value;
+    final maxApp = c.avanceMaxApplicable;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+      decoration: BoxDecoration(
+        color: AppColors.secondary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: AppColors.secondary.withValues(alpha: 0.30),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             children: [
               const Icon(Icons.savings_rounded,
-                  color: AppColors.success, size: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  used > 0
-                      ? 'Avance utilisée : ${Fmt.money(used, currency: c.devise)}'
-                      : 'Avance disponible : ${Fmt.money(dispo, currency: c.devise)}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.success,
-                  ),
+                  size: 16, color: AppColors.secondary),
+              const SizedBox(width: 6),
+              const Text(
+                'Avance fournisseur',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.secondary,
                 ),
               ),
-              if (used > 0)
-                TextButton(
-                  onPressed: c.retirerAvance,
-                  child: const Text('Retirer'),
-                )
-              else
-                TextButton(
-                  onPressed: c.appliquerAvanceMax,
-                  child: Text(
-                      'Utiliser ${Fmt.money(c.avanceMaxApplicable, currency: c.devise)}'),
+              const Spacer(),
+              Text(
+                Fmt.money(dispo, currency: c.devise),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.secondary,
+                  letterSpacing: -0.2,
                 ),
+              ),
             ],
           ),
-        ),
-      );
-    });
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              if (utilisee == 0)
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondary,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(36),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      textStyle: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    onPressed:
+                        maxApp <= 0 ? null : () => c.appliquerAvanceMax(),
+                    icon: const Icon(Icons.bolt_rounded, size: 16),
+                    label: Text(
+                      'Utiliser ${Fmt.money(maxApp, currency: c.devise)}',
+                    ),
+                  ),
+                )
+              else ...[
+                Expanded(
+                  child: Text(
+                    'Utilisée : ${Fmt.money(utilisee, currency: c.devise)}',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.secondary,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    foregroundColor: Colors.grey.shade600,
+                  ),
+                  onPressed: () => c.retirerAvance(),
+                  icon: const Icon(Icons.close_rounded, size: 14),
+                  label: const Text(
+                    'Retirer',
+                    style: TextStyle(fontSize: 11.5),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -872,58 +1146,54 @@ class _SummaryAndAction extends StatelessWidget {
                     .toList(),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             // Totaux
-            Obx(() {
-              final reste = c.resteAPayer;
-              final hasCredit = reste > 0;
-              final tropVerse = reste < 0;
-              return Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  children: [
-                    _RowKv('Sous-total',
-                        Fmt.money(c.sousTotal, currency: c.devise)),
-                    if (c.remiseGlobale.value > 0)
-                      _RowKv(
-                        'Remise',
-                        '-${Fmt.money(c.remiseGlobale.value, currency: c.devise)}',
-                        color: AppColors.success,
-                      ),
-                    const Divider(height: 14),
-                    _RowKv(
-                      'TOTAL',
-                      Fmt.money(c.total, currency: c.devise),
-                      big: true,
+            Obx(() => Container(
+                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.18),
                     ),
-                    const SizedBox(height: 6),
-                    _MontantPayeRow(c: c),
-                    if (c.avanceUtilisee.value > 0)
-                      _RowKv('Avance utilisée',
-                          Fmt.money(c.avanceUtilisee.value,
-                              currency: c.devise),
-                          color: AppColors.success),
-                    if (hasCredit)
-                      _RowKv(
-                        'Reste à payer',
-                        '${Fmt.money(reste, currency: c.devise)} (dette)',
-                        color: AppColors.warning,
-                      )
-                    else if (tropVerse)
-                      _RowKv(
-                        'Trop-versé',
-                        Fmt.money(reste.abs(), currency: c.devise),
-                        color: AppColors.success,
+                  ),
+                  child: Column(
+                    children: [
+                      _RowKv('Sous-total',
+                          Fmt.money(c.sousTotal, currency: c.devise)),
+                      if (c.remiseGlobale.value > 0) ...[
+                        const SizedBox(height: 2),
+                        _RowKv(
+                          'Remise',
+                          '-${Fmt.money(c.remiseGlobale.value, currency: c.devise)}',
+                          color: AppColors.success,
+                        ),
+                      ],
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Divider(
+                          height: 1,
+                          color: AppColors.primary.withValues(alpha: 0.18),
+                        ),
                       ),
-                  ],
-                ),
-              );
-            }),
-            const SizedBox(height: 10),
+                      _RowKv(
+                        'TOTAL',
+                        Fmt.money(c.total, currency: c.devise),
+                        big: true,
+                      ),
+                    ],
+                  ),
+                )),
+            // Section encaissement masquée tant qu'aucune ligne (total = 0,
+            // bandeau avance sans effet). Évite aussi de compresser
+            // l'Expanded au-dessus quand le fournisseur a une avance.
+            Obx(() => c.lignes.isEmpty
+                ? const SizedBox.shrink()
+                : Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: _EncaissementSection(c: c),
+                  )),
+            const SizedBox(height: 12),
             Obx(
               () => ElevatedButton.icon(
                 onPressed: c.isSaving.value || c.lignes.isEmpty
@@ -952,100 +1222,181 @@ class _SummaryAndAction extends StatelessWidget {
   }
 }
 
-class _MontantPayeRow extends StatefulWidget {
+// ============================================================================
+// Section Encaissement : avance + montant payé + reste à payer/trop-versé
+// ============================================================================
+
+class _EncaissementSection extends StatefulWidget {
   final ApproFormController c;
-  const _MontantPayeRow({required this.c});
+  const _EncaissementSection({required this.c});
 
   @override
-  State<_MontantPayeRow> createState() => _MontantPayeRowState();
+  State<_EncaissementSection> createState() => _EncaissementSectionState();
 }
 
-class _MontantPayeRowState extends State<_MontantPayeRow> {
-  final _ctrl = TextEditingController();
-  bool _editing = false;
+class _EncaissementSectionState extends State<_EncaissementSection> {
+  late final TextEditingController _txt;
+  Worker? _worker;
+
+  @override
+  void initState() {
+    super.initState();
+    _txt = TextEditingController(
+        text: _format(widget.c.montantPaye.value));
+    // Quand le contrôleur ré-aligne montantPaye sur total (auto-sync),
+    // on rafraîchit le champ texte sans perdre le curseur s'il est ouvert.
+    _worker = ever(widget.c.montantPaye, (double v) {
+      final newText = _format(v);
+      if (_txt.text != newText) {
+        _txt.value = TextEditingValue(
+          text: newText,
+          selection: TextSelection.collapsed(offset: newText.length),
+        );
+      }
+    });
+  }
+
+  String _format(double v) => v == 0 ? '' : v.toStringAsFixed(0);
 
   @override
   void dispose() {
-    _ctrl.dispose();
+    _worker?.dispose();
+    _txt.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final c = widget.c;
     return Obx(() {
-      if (!_editing) {
-        return InkWell(
-          onTap: () {
-            setState(() {
-              _editing = true;
-              _ctrl.text = widget.c.montantPaye.value.toStringAsFixed(0);
-            });
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
+      final reste = c.resteAPayer;
+      final hasDette = reste > 0;
+      final tropVerse = reste < 0;
+
+      Color resteColor;
+      String resteLabel;
+      if (hasDette) {
+        resteColor = AppColors.warning;
+        resteLabel = 'Reste à payer (dette fournisseur)';
+      } else if (tropVerse) {
+        resteColor = AppColors.success;
+        resteLabel = 'Trop-versé (avance créée chez fournisseur)';
+      } else {
+        resteColor = Colors.grey.shade600;
+        resteLabel = 'Réglé intégralement';
+      }
+
+      return Container(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardTheme.color,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Bandeau Avance disponible (si applicable)
+            if (c.avanceDisponible > 0) ...[
+              _AvanceBanner(c: c),
+              const SizedBox(height: 12),
+            ],
+            Row(
               children: [
-                Text(
-                  'Payé (cash)',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
-                ),
-                const Spacer(),
-                Text(
-                  Fmt.money(widget.c.montantPaye.value,
-                      currency: widget.c.devise),
-                  style: const TextStyle(
+                const Icon(Icons.payments_rounded,
+                    size: 18, color: AppColors.primary),
+                const SizedBox(width: 6),
+                const Text(
+                  'Montant payé (cash)',
+                  style: TextStyle(
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w700,
-                    fontSize: 13,
                   ),
                 ),
-                const SizedBox(width: 4),
-                Icon(Icons.edit_outlined,
-                    size: 13, color: Colors.grey.shade600),
+                const Spacer(),
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                  onPressed: () => c.resetMontantPayeAuto(),
+                  icon: const Icon(Icons.refresh_rounded, size: 14),
+                  label: const Text(
+                    'Tout payer',
+                    style: TextStyle(fontSize: 11.5),
+                  ),
+                ),
               ],
             ),
-          ),
-        );
-      }
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _ctrl,
-                autofocus: true,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                ],
-                decoration: const InputDecoration(
-                  isDense: true,
-                  labelText: 'Payé (cash)',
-                ),
-                onSubmitted: (v) {
-                  final n = double.tryParse(v.replaceAll(',', '.')) ?? 0;
-                  widget.c.setMontantPaye(n);
-                  setState(() => _editing = false);
-                },
+            const SizedBox(height: 6),
+            TextField(
+              controller: _txt,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+              ],
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: '0',
+                suffixText: c.devise,
               ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.refresh_rounded),
-              tooltip: 'Auto (= total)',
-              onPressed: () {
-                widget.c.resetMontantPayeAuto();
-                setState(() => _editing = false);
+              onChanged: (v) {
+                final n = double.tryParse(v.replaceAll(',', '.')) ?? 0;
+                c.setMontantPaye(n);
               },
             ),
-            IconButton(
-              icon: const Icon(Icons.check_rounded),
-              onPressed: () {
-                final n =
-                    double.tryParse(_ctrl.text.replaceAll(',', '.')) ?? 0;
-                widget.c.setMontantPaye(n);
-                setState(() => _editing = false);
-              },
+            const SizedBox(height: 10),
+            if (c.avanceUtilisee.value > 0) ...[
+              Row(
+                children: [
+                  const Icon(Icons.savings_rounded,
+                      size: 14, color: AppColors.secondary),
+                  const SizedBox(width: 4),
+                  const Text(
+                    'Avance utilisée',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.secondary,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '-${Fmt.money(c.avanceUtilisee.value, currency: c.devise)}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.secondary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+            ],
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    resteLabel,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: resteColor,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  Fmt.money(reste.abs(), currency: c.devise),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: resteColor,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -1063,29 +1414,27 @@ class _RowKv extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: big ? 14 : 12,
-              fontWeight: big ? FontWeight.w700 : FontWeight.w500,
-              color: color,
-            ),
+    return Row(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: big ? 15 : 12.5,
+            fontWeight: big ? FontWeight.w700 : FontWeight.w500,
+            color: color,
           ),
-          const Spacer(),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: big ? 18 : 13,
-              fontWeight: big ? FontWeight.w800 : FontWeight.w700,
-              color: color ?? (big ? AppColors.primary : null),
-            ),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: big ? 20 : 13.5,
+            fontWeight: big ? FontWeight.w800 : FontWeight.w700,
+            color: color ?? (big ? AppColors.primary : null),
+            letterSpacing: big ? -0.3 : null,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

@@ -78,7 +78,7 @@ class ReglementReceiptService {
             _kvRow('Client', client.nom),
             if (client.telephone?.isNotEmpty ?? false)
               _kvRow('Téléphone', client.telephone!),
-            _kvRow('Vendeur', vendeur?.nom ?? '—'),
+            _kvRow('Gestionnaire', vendeur?.nom ?? '—'),
             _kvRow('Mode', reglement.modePaiement.label),
 
             pw.SizedBox(height: 6),

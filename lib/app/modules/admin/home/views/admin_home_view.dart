@@ -70,7 +70,7 @@ class AdminHomeView extends StatelessWidget {
               const SizedBox(height: 10),
               _ListBoutiques(c: c),
               const SizedBox(height: 20),
-              const _SectionTitle('Top vendeurs'),
+              const _SectionTitle('Top gestionnaires'),
               const SizedBox(height: 10),
               _ListVendeurs(c: c),
               const SizedBox(height: 16),
@@ -839,11 +839,13 @@ class _QuickActions extends StatelessWidget {
       crossAxisSpacing: 10,
       childAspectRatio: 0.95,
       children: const [
+        // admin/super-admin n'ont pas le droit de créer une vente.
+        // Raccourci pointé vers la liste (lecture seule).
         _Quick(
-          icon: Icons.add_shopping_cart_rounded,
-          label: 'Nouvelle vente',
+          icon: Icons.receipt_long_rounded,
+          label: 'Ventes',
           color: AppColors.success,
-          route: AppRoutes.venteForm,
+          route: AppRoutes.adminVentes,
         ),
         _Quick(
           icon: Icons.store_rounded,

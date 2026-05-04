@@ -26,9 +26,14 @@ class ProduitModel {
   /// atomiquement par les transactions :
   /// - VenteRepository.create / cancel
   /// - ApprovisionnementRepository.create / cancel
+  /// - MouvementStockRepository.create
   /// Ne PAS modifier directement (risque de désynchronisation avec
   /// l'historique des opérations).
   final int quantiteStock;
+
+  /// Seuil en-dessous duquel le produit est considéré comme « stock bas »
+  /// (alerte visuelle dans la liste stock). Default 5.
+  final int seuilAlerte;
 
   final bool active;
   final DateTime? createdAt;
@@ -44,6 +49,7 @@ class ProduitModel {
     this.categorieId,
     this.unite,
     this.quantiteStock = 0,
+    this.seuilAlerte = 5,
     this.active = true,
     this.createdAt,
     this.updatedAt,
@@ -60,6 +66,7 @@ class ProduitModel {
       unite: map['unite'] as String?,
       boutiqueId: (map['boutiqueId'] ?? '') as String,
       quantiteStock: (map['quantiteStock'] as num?)?.toInt() ?? 0,
+      seuilAlerte: (map['seuilAlerte'] as num?)?.toInt() ?? 5,
       active: (map['active'] ?? true) as bool,
       createdAt: (map['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
@@ -81,6 +88,7 @@ class ProduitModel {
         'unite': unite,
         'boutiqueId': boutiqueId,
         'quantiteStock': quantiteStock,
+        'seuilAlerte': seuilAlerte,
         'active': active,
         if (createdAt != null) 'createdAt': Timestamp.fromDate(createdAt!),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -100,6 +108,7 @@ class ProduitModel {
     String? unite,
     String? boutiqueId,
     int? quantiteStock,
+    int? seuilAlerte,
     bool? active,
   }) {
     return ProduitModel(
@@ -112,6 +121,7 @@ class ProduitModel {
       unite: unite ?? this.unite,
       boutiqueId: boutiqueId ?? this.boutiqueId,
       quantiteStock: quantiteStock ?? this.quantiteStock,
+      seuilAlerte: seuilAlerte ?? this.seuilAlerte,
       active: active ?? this.active,
       createdAt: createdAt,
       updatedAt: DateTime.now(),

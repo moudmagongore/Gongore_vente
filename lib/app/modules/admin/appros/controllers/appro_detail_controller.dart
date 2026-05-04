@@ -75,7 +75,8 @@ class ApproDetailController extends GetxController {
   bool get peutAnnuler {
     if (appro.value == null) return false;
     if (appro.value!.statut != ApproStatut.validee) return false;
-    return UserController.to.user?.active ?? false;
+    // Annulation = opération métier : VENDEUR uniquement.
+    return UserController.to.isVendeur;
   }
 
   Future<void> confirmCancel() async {

@@ -58,15 +58,28 @@ class VendeurDrawer extends StatelessWidget {
                   ),
                   _Item(
                     icon: Icons.payments_rounded,
-                    label: 'Règlements',
+                    label: 'Règlements clients',
                     route: AppRoutes.adminReglements,
                     selected: currentRoute == AppRoutes.adminReglements,
+                  ),
+                  _Item(
+                    icon: Icons.account_balance_wallet_rounded,
+                    label: 'Règlements fournisseurs',
+                    route: AppRoutes.adminReglementsFournisseurs,
+                    selected: currentRoute ==
+                        AppRoutes.adminReglementsFournisseurs,
                   ),
                   _Item(
                     icon: Icons.inventory_2_rounded,
                     label: 'Produits',
                     route: AppRoutes.adminProduits,
                     selected: currentRoute == AppRoutes.adminProduits,
+                  ),
+                  _Item(
+                    icon: Icons.warehouse_rounded,
+                    label: 'Stock',
+                    route: AppRoutes.adminStock,
+                    selected: currentRoute == AppRoutes.adminStock,
                   ),
                   _Item(
                     icon: Icons.category_rounded,
@@ -164,7 +177,7 @@ class _Header extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: const Text(
-              'VENDEUR',
+              'GESTIONNAIRE',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 10,

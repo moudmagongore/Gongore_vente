@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/services/user_controller.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../core/widgets/admin_drawer.dart';
 import '../../../../core/widgets/vendeur_drawer.dart';
@@ -45,7 +46,7 @@ class VentesListView extends GetView<VentesController> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
             child: TextField(
               decoration: const InputDecoration(
-                hintText: 'Rechercher (n° vente, client, vendeur)...',
+                hintText: 'Rechercher (n° vente, client, gestionnaire)...',
                 prefixIcon: Icon(Icons.search_rounded),
                 isDense: true,
               ),
@@ -102,11 +103,15 @@ class VentesListView extends GetView<VentesController> {
         ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Get.toNamed(AppRoutes.venteForm),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Nouvelle vente'),
-      ),
+      // FAB réservé au vendeur : la création d'une vente est une opération
+      // métier, admin/super-admin sont en lecture seule.
+      floatingActionButton: UserController.to.isVendeur
+          ? FloatingActionButton.extended(
+              onPressed: () => Get.toNamed(AppRoutes.venteForm),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Nouvelle vente'),
+            )
+          : null,
     );
   }
 
@@ -158,7 +163,7 @@ class VentesListView extends GetView<VentesController> {
               // Vendeur : visible pour super-admin et admin de boutique.
               // Caché au vendeur (déjà filtré sur ses propres ventes).
               if (controller.isAnyAdmin) ...[
-                const Text('Vendeur', style: TextStyle(fontSize: 12)),
+                const Text('Gestionnaire', style: TextStyle(fontSize: 12)),
                 const SizedBox(height: 6),
                 Obx(
                   () => DropdownButtonFormField<String?>(

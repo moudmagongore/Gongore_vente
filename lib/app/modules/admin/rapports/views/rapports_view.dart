@@ -409,7 +409,7 @@ class _FiltresRow extends StatelessWidget {
               child: DropdownButtonFormField<String?>(
                 initialValue: c.vendeurId.value,
                 decoration: const InputDecoration(
-                  labelText: 'Vendeur',
+                  labelText: 'Gestionnaire',
                   isDense: true,
                 ),
                 items: [

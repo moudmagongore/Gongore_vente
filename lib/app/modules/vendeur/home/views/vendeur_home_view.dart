@@ -19,7 +19,7 @@ class VendeurHomeView extends GetView<VendeurHomeController> {
               children: [
                 Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: const Text('Espace vendeur', style: TextStyle(fontSize: 14)),
+                  child: const Text('Espace gestionnaire', style: TextStyle(fontSize: 14)),
                 ),
                 if (controller.boutique.value != null)
                   Text(

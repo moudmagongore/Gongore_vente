@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/services/user_controller.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../data/models/approvisionnement_model.dart';
 import '../../../../data/models/fournisseur_model.dart';
@@ -15,6 +16,8 @@ class FournisseurDetailView extends GetView<FournisseurDetailController> {
 
   @override
   Widget build(BuildContext context) {
+    // Onglet Règlements visible pour tous (admin/super-admin lecture seule).
+    final isVendeur = UserController.to.isVendeur;
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -23,16 +26,18 @@ class FournisseurDetailView extends GetView<FournisseurDetailController> {
             () => Text(controller.fournisseur.value?.nom ?? 'Fournisseur'),
           ),
           actions: [
-            Obx(() {
-              final f = controller.fournisseur.value;
-              if (f == null) return const SizedBox.shrink();
-              return IconButton(
-                tooltip: 'Modifier',
-                icon: const Icon(Icons.edit_outlined),
-                onPressed: () =>
-                    Get.toNamed(AppRoutes.adminFournisseurForm, arguments: f),
-              );
-            }),
+            if (isVendeur)
+              Obx(() {
+                final f = controller.fournisseur.value;
+                if (f == null) return const SizedBox.shrink();
+                return IconButton(
+                  tooltip: 'Modifier',
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () => Get.toNamed(
+                      AppRoutes.adminFournisseurForm,
+                      arguments: f),
+                );
+              }),
           ],
           bottom: const TabBar(
             tabs: [
@@ -210,32 +215,36 @@ class _Header extends StatelessWidget {
                   ),
                 ],
               )),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => ReglementFournisseurSheet.open(
-                    context,
-                    fournisseur,
+          // Actions métier (Verser règlement, Nouvel appro) réservées au
+          // VENDEUR. admin/super-admin sont en lecture seule.
+          if (UserController.to.isVendeur) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => ReglementFournisseurSheet.open(
+                      context,
+                      fournisseur,
+                    ),
+                    icon: const Icon(Icons.payments_rounded, size: 18),
+                    label: const Text('Verser règlement'),
                   ),
-                  icon: const Icon(Icons.payments_rounded, size: 18),
-                  label: const Text('Verser règlement'),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => Get.toNamed(
-                    AppRoutes.approForm,
-                    arguments: fournisseur,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => Get.toNamed(
+                      AppRoutes.approForm,
+                      arguments: fournisseur,
+                    ),
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: const Text('Nouvel appro'),
                   ),
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Nouvel appro'),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -587,7 +596,8 @@ class _ReglementTile extends StatelessWidget {
                 size: 18, color: Colors.grey.shade700),
             onPressed: () => controller.reimprimerRecuReglement(reglement),
           ),
-          if (controller.isAdminOrSuper)
+          // Suppression : VENDEUR uniquement (admin/super-admin lecture seule).
+          if (UserController.to.isVendeur)
             IconButton(
               visualDensity: VisualDensity.compact,
               tooltip: 'Supprimer',

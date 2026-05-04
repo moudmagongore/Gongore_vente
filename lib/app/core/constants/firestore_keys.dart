@@ -14,6 +14,7 @@ abstract class FirestoreKeys {
   static const fournisseurs = 'fournisseurs';
   static const approvisionnements = 'approvisionnements';
   static const reglementsFournisseurs = 'reglementsFournisseurs';
+  static const mouvementsStock = 'mouvementsStock';
 
   /// Compteurs par boutique pour la génération des numéros séquentiels.
   /// Document = boutiqueId, champs = "ventesYYYY", "approsYYYY".

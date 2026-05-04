@@ -57,7 +57,7 @@ class BoutiqueFormView extends GetView<BoutiqueFormController> {
                 title: const Text('Boutique active'),
                 subtitle: Text(
                   controller.active.value
-                      ? 'Visible et utilisable par les vendeurs'
+                      ? 'Visible et utilisable par les gestionnaires'
                       : 'Masquée et inutilisable',
                   style: const TextStyle(fontSize: 12),
                 ),

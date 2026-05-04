@@ -15,7 +15,7 @@ class UsersListView extends GetView<UsersController> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          controller.isSuperAdmin ? 'Utilisateurs' : 'Mes vendeurs',
+          controller.isSuperAdmin ? 'Utilisateurs' : 'Mes gestionnaires',
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(64),
@@ -62,7 +62,7 @@ class UsersListView extends GetView<UsersController> {
         onPressed: () => Get.toNamed(AppRoutes.adminUserForm),
         icon: const Icon(Icons.person_add_alt_1_rounded),
         label: Text(
-          controller.isSuperAdmin ? 'Nouvel utilisateur' : 'Nouveau vendeur',
+          controller.isSuperAdmin ? 'Nouvel utilisateur' : 'Nouveau gestionnaire',
         ),
       ),
     );
@@ -84,7 +84,7 @@ class _FiltersBar extends StatelessWidget {
           return Row(
             children: [
               _Chip(
-                label: 'Mes vendeurs (${controller.nbVendeurs})',
+                label: 'Mes gestionnaires (${controller.nbVendeurs})',
                 selected: true,
                 onTap: () {},
               ),
@@ -108,7 +108,7 @@ class _FiltersBar extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               _Chip(
-                label: 'Vendeurs (${controller.nbVendeurs})',
+                label: 'Gestionnaires (${controller.nbVendeurs})',
                 selected: controller.filterRole.value == UserRole.vendeur,
                 onTap: () => controller.setFilterRole(UserRole.vendeur),
               ),
@@ -405,7 +405,7 @@ class _RoleBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        isAdmin ? 'ADMIN' : 'VENDEUR',
+        isAdmin ? 'ADMIN' : 'GESTIONNAIRE',
         style: TextStyle(
           color: color,
           fontSize: 10,

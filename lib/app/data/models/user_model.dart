@@ -9,11 +9,15 @@ enum UserRole {
   /// Lié à une boutique précise via `boutiqueId`.
   admin,
 
-  /// Vendeur d'une boutique : utilise la caisse, voit ses propres ventes.
-  /// Lié à une boutique précise via `boutiqueId`.
+  /// Gestionnaire (anciennement « vendeur ») : utilise la caisse, voit ses
+  /// propres ventes/règlements. Lié à une boutique via `boutiqueId`.
+  /// Note : la valeur enum/DB reste `vendeur` pour compatibilité avec les
+  /// comptes existants — on accepte aussi `'gestionnaire'` à la lecture.
   vendeur;
 
   static UserRole fromString(String? value) {
+    // Compat : nouveau libellé `'gestionnaire'` mappé sur l'enum vendeur.
+    if (value == 'gestionnaire') return UserRole.vendeur;
     return UserRole.values.firstWhere(
       (r) => r.name == value,
       orElse: () => UserRole.vendeur,
@@ -27,7 +31,7 @@ enum UserRole {
       case UserRole.admin:
         return 'Administrateur';
       case UserRole.vendeur:
-        return 'Vendeur';
+        return 'Gestionnaire';
     }
   }
 }

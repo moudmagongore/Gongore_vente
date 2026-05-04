@@ -61,10 +61,9 @@ class VenteDetailController extends GetxController {
   bool get peutAnnuler {
     if (vente.value == null) return false;
     if (vente.value!.statut != VenteStatut.validee) return false;
-    // Tout user actif (admin / super-admin / vendeur) peut annuler une vente
-    // pour corriger une erreur de saisie ; la transaction inverse l'effet
-    // sur le solde du client.
-    return UserController.to.user?.active ?? false;
+    // Annulation = opération métier : VENDEUR uniquement.
+    // admin/super-admin sont en lecture seule sur les ventes.
+    return UserController.to.isVendeur;
   }
 
   Future<void> confirmCancel() async {

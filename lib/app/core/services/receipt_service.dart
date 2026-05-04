@@ -62,7 +62,7 @@ class ReceiptService {
             // ====== Méta ======
             _kvRow('Date', Fmt.dateTime(vente.date)),
             _kvRow('Client', clientLabel ?? vente.clientLabelOuLibre),
-            _kvRow('Vendeur', vendeur?.nom ?? '—'),
+            _kvRow('Gestionnaire', vendeur?.nom ?? '—'),
             _kvRow('N° vente', vente.numeroAffichage),
             _kvRow('Paiement', vente.modePaiement.label),
             if (vente.statut == VenteStatut.annulee)

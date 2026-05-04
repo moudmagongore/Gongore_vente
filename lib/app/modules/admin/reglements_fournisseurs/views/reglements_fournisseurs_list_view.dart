@@ -5,28 +5,29 @@ import '../../../../core/services/user_controller.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../core/widgets/admin_drawer.dart';
 import '../../../../core/widgets/vendeur_drawer.dart';
-import '../../../../data/models/reglement_model.dart';
+import '../../../../data/models/reglement_fournisseur_model.dart';
 import '../../../../data/models/vente_model.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../../theme/app_colors.dart';
-import '../controllers/reglements_controller.dart';
-import '../widgets/encaissement_global_sheet.dart';
+import '../controllers/reglements_fournisseurs_controller.dart';
+import '../widgets/versement_global_fournisseur_sheet.dart';
 
-class ReglementsListView extends GetView<ReglementsController> {
-  const ReglementsListView({super.key});
+class ReglementsFournisseursListView
+    extends GetView<ReglementsFournisseursController> {
+  const ReglementsFournisseursListView({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Règlements'),
+        title: const Text('Règlements fournisseurs'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(56),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
             child: TextField(
               decoration: const InputDecoration(
-                hintText: 'Rechercher (client, gestionnaire, note)...',
+                hintText: 'Rechercher (fournisseur, gestionnaire, note)...',
                 prefixIcon: Icon(Icons.search_rounded),
                 isDense: true,
               ),
@@ -43,55 +44,59 @@ class ReglementsListView extends GetView<ReglementsController> {
         ],
       ),
       drawer: UserController.to.isAnyAdmin
-          ? const AdminDrawer(currentRoute: AppRoutes.adminReglements)
-          : const VendeurDrawer(currentRoute: AppRoutes.adminReglements),
-      body: SafeArea(
-        top: false,
-        child: Column(
-        children: [
-          // Sélecteur boutique visible UNIQUEMENT pour super-admin
-          // (admin/vendeur sont scopés sur leur propre boutique).
-          if (controller.isSuperAdmin) _BoutiquePicker(controller: controller),
-          const SizedBox(height: 12),
-          _PeriodeBar(controller: controller),
-          const SizedBox(height: 14),
-          _StatsRow(controller: controller),
-          const SizedBox(height: 8),
-          Expanded(
-            child: Obx(() {
-              if (controller.isLoading.value) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final list = controller.filtered;
-              if (list.isEmpty) {
-                return _EmptyState(
-                  hasSearch:
-                      controller.search.value.isNotEmpty ||
-                          controller.filterClientId.value != null ||
-                          controller.filterMode.value != null,
-                );
-              }
-              return ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
-                itemCount: list.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 8),
-                itemBuilder: (_, i) =>
-                    _ReglementTile(reglement: list[i], controller: controller),
-              );
-            }),
-          ),
-        ],
-        ),
-      ),
+          ? const AdminDrawer(
+              currentRoute: AppRoutes.adminReglementsFournisseurs)
+          : const VendeurDrawer(
+              currentRoute: AppRoutes.adminReglementsFournisseurs),
       // FAB réservé au vendeur (action métier). admin/super-admin sont
       // en lecture seule.
       floatingActionButton: UserController.to.isVendeur
           ? FloatingActionButton.extended(
-              onPressed: () => EncaissementGlobalSheet.open(context),
+              onPressed: () =>
+                  VersementGlobalFournisseurSheet.open(context),
               icon: const Icon(Icons.payments_rounded),
-              label: const Text('Encaisser'),
+              label: const Text('Verser'),
             )
           : null,
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            // Sélecteur boutique visible UNIQUEMENT pour super-admin.
+            if (controller.isSuperAdmin)
+              _BoutiquePicker(controller: controller),
+            const SizedBox(height: 12),
+            _PeriodeBar(controller: controller),
+            const SizedBox(height: 14),
+            _StatsRow(controller: controller),
+            const SizedBox(height: 8),
+            Expanded(
+              child: Obx(() {
+                if (controller.isLoading.value) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final list = controller.filtered;
+                if (list.isEmpty) {
+                  return _EmptyState(
+                    hasSearch: controller.search.value.isNotEmpty ||
+                        controller.filterFournisseurId.value != null ||
+                        controller.filterMode.value != null,
+                  );
+                }
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
+                  itemCount: list.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) => _ReglementTile(
+                    reglement: list[i],
+                    controller: controller,
+                  ),
+                );
+              }),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -140,32 +145,31 @@ class ReglementsListView extends GetView<ReglementsController> {
                 ),
                 const SizedBox(height: 12),
               ],
-              const Text('Client', style: TextStyle(fontSize: 12)),
+              const Text('Fournisseur', style: TextStyle(fontSize: 12)),
               const SizedBox(height: 6),
               Obx(
                 () => DropdownButtonFormField<String?>(
-                  initialValue: controller.filterClientId.value,
+                  initialValue: controller.filterFournisseurId.value,
                   decoration: const InputDecoration(isDense: true),
                   isExpanded: true,
                   items: [
                     const DropdownMenuItem<String?>(
                       value: null,
-                      child: Text('Tous les clients'),
+                      child: Text('Tous les fournisseurs'),
                     ),
-                    ...controller.clients.map(
-                      (c) => DropdownMenuItem(
-                        value: c.id,
-                        child: Text(c.nom,
+                    ...controller.fournisseurs.map(
+                      (f) => DropdownMenuItem(
+                        value: f.id,
+                        child: Text(f.nom,
                             maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ),
                   ],
-                  onChanged: (v) => controller.filterClientId.value = v,
+                  onChanged: (v) =>
+                      controller.filterFournisseurId.value = v,
                 ),
               ),
               const SizedBox(height: 12),
-              // Vendeur : super-admin et admin de boutique. Caché au vendeur
-              // (qui ne voit que ses propres encaissements de toute façon).
               if (controller.isAnyAdmin) ...[
                 const Text('Gestionnaire', style: TextStyle(fontSize: 12)),
                 const SizedBox(height: 6),
@@ -201,15 +205,13 @@ class ReglementsListView extends GetView<ReglementsController> {
                     ChoiceChip(
                       label: const Text('Tous'),
                       selected: controller.filterMode.value == null,
-                      onSelected: (_) =>
-                          controller.filterMode.value = null,
+                      onSelected: (_) => controller.filterMode.value = null,
                     ),
                     ...ModePaiement.values.map(
                       (m) => ChoiceChip(
                         label: Text(m.label),
                         selected: controller.filterMode.value == m,
-                        onSelected: (_) =>
-                            controller.filterMode.value = m,
+                        onSelected: (_) => controller.filterMode.value = m,
                       ),
                     ),
                   ],
@@ -231,12 +233,10 @@ class ReglementsListView extends GetView<ReglementsController> {
 
 // ============================================================================
 // Sélecteur boutique pour super-admin (visible en haut de l'écran).
-// Sans ce dropdown, super-admin ne pourrait pas savoir quelle boutique est
-// affichée et passer par le sheet de filtres serait moins ergonomique.
 // ============================================================================
 
 class _BoutiquePicker extends StatelessWidget {
-  final ReglementsController controller;
+  final ReglementsFournisseursController controller;
   const _BoutiquePicker({required this.controller});
 
   @override
@@ -287,14 +287,14 @@ class _BoutiquePicker extends StatelessWidget {
 // ============================================================================
 
 class _PeriodeBar extends StatelessWidget {
-  final ReglementsController controller;
+  final ReglementsFournisseursController controller;
   const _PeriodeBar({required this.controller});
 
   static const _items = [
-    (PeriodeReglement.aujourdhui, 'Aujourd\'hui'),
-    (PeriodeReglement.semaine, 'Semaine'),
-    (PeriodeReglement.mois, 'Mois'),
-    (PeriodeReglement.tout, 'Tout'),
+    (PeriodeReglementFour.aujourdhui, 'Aujourd\'hui'),
+    (PeriodeReglementFour.semaine, 'Semaine'),
+    (PeriodeReglementFour.mois, 'Mois'),
+    (PeriodeReglementFour.tout, 'Tout'),
   ];
 
   @override
@@ -374,7 +374,7 @@ class _PillTab extends StatelessWidget {
 // ============================================================================
 
 class _StatsRow extends StatelessWidget {
-  final ReglementsController controller;
+  final ReglementsFournisseursController controller;
   const _StatsRow({required this.controller});
 
   @override
@@ -389,9 +389,9 @@ class _StatsRow extends StatelessWidget {
               Expanded(
                 child: _StatCard(
                   icon: Icons.payments_rounded,
-                  value: Fmt.number(controller.totalEncaisse),
-                  label: 'Total encaissé',
-                  color: AppColors.success,
+                  value: Fmt.number(controller.totalVerse),
+                  label: 'Total versé',
+                  color: AppColors.warning,
                 ),
               ),
               const SizedBox(width: 12),
@@ -480,8 +480,8 @@ class _StatCard extends StatelessWidget {
 // ============================================================================
 
 class _ReglementTile extends StatelessWidget {
-  final ReglementModel reglement;
-  final ReglementsController controller;
+  final ReglementFournisseurModel reglement;
+  final ReglementsFournisseursController controller;
   const _ReglementTile({
     required this.reglement,
     required this.controller,
@@ -498,9 +498,9 @@ class _ReglementTile extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
-          final c = controller.clientById(reglement.clientId);
-          if (c != null) {
-            Get.toNamed(AppRoutes.adminClientDetail, arguments: c);
+          final f = controller.fournisseurById(reglement.fournisseurId);
+          if (f != null) {
+            Get.toNamed(AppRoutes.adminFournisseurDetail, arguments: f);
           }
         },
         child: Padding(
@@ -511,12 +511,12 @@ class _ReglementTile extends StatelessWidget {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.12),
+                  color: AppColors.warning.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
                   Icons.payments_rounded,
-                  color: AppColors.success,
+                  color: AppColors.warning,
                   size: 18,
                 ),
               ),
@@ -526,7 +526,7 @@ class _ReglementTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      controller.clientNom(reglement.clientId),
+                      controller.fournisseurNom(reglement.fournisseurId),
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 13,
@@ -537,8 +537,8 @@ class _ReglementTile extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       '${Fmt.dateTime(reglement.date)} · ${reglement.modePaiement.label}',
-                      style:
-                          TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      style: TextStyle(
+                          fontSize: 11, color: Colors.grey.shade600),
                     ),
                     if (reglement.imputations.isNotEmpty) ...[
                       const SizedBox(height: 2),
@@ -556,7 +556,7 @@ class _ReglementTile extends StatelessWidget {
                     if (reglement.surplus > 0) ...[
                       const SizedBox(height: 2),
                       Text(
-                        'Avance : ${Fmt.number(reglement.surplus)}',
+                        'Avance versée : ${Fmt.number(reglement.surplus)}',
                         style: const TextStyle(
                           fontSize: 10.5,
                           color: AppColors.primary,
@@ -582,11 +582,11 @@ class _ReglementTile extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                '+${Fmt.number(reglement.montant)}',
+                '-${Fmt.number(reglement.montant)}',
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 14,
-                  color: AppColors.success,
+                  color: AppColors.warning,
                   letterSpacing: -0.2,
                 ),
               ),
@@ -597,7 +597,7 @@ class _ReglementTile extends StatelessWidget {
                     size: 18, color: Colors.grey.shade700),
                 onPressed: () => controller.reimprimerRecu(reglement),
               ),
-              // Suppression : VENDEUR uniquement (admin/super-admin lecture seule).
+              // Suppression : VENDEUR uniquement.
               if (UserController.to.isVendeur)
                 IconButton(
                   visualDensity: VisualDensity.compact,
@@ -649,11 +649,11 @@ class _EmptyState extends StatelessWidget {
 }
 
 /// Construit le libellé compact des imputations pour la liste globale.
-String _imputationsLabelGlobal(ReglementModel r) {
+String _imputationsLabelGlobal(ReglementFournisseurModel r) {
   if (r.imputations.isEmpty) return '';
   final parts = r.imputations.map((i) {
-    final num = i.numero ?? i.venteId.substring(0,
-        i.venteId.length < 6 ? i.venteId.length : 6);
+    final num = i.numero ??
+        i.approId.substring(0, i.approId.length < 6 ? i.approId.length : 6);
     return '$num ${Fmt.number(i.montant)}';
   });
   return 'Imputé sur ${parts.join(' + ')}';

@@ -88,11 +88,14 @@ class ApprosListView extends GetView<ApprosController> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Get.toNamed(AppRoutes.approForm),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Nouvel appro'),
-      ),
+      // FAB réservé au vendeur (création = opération métier).
+      floatingActionButton: controller.isVendeur
+          ? FloatingActionButton.extended(
+              onPressed: () => Get.toNamed(AppRoutes.approForm),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Nouvel appro'),
+            )
+          : null,
     );
   }
 

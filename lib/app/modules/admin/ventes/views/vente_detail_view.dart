@@ -197,7 +197,7 @@ class _DetailBody extends StatelessWidget {
                     )),
                 Obx(() => _InfoLine(
                       icon: Icons.badge_outlined,
-                      label: 'Vendeur',
+                      label: 'Gestionnaire',
                       value: controller.vendeur.value?.nom ?? '…',
                     )),
                 _InfoLine(
