@@ -15,25 +15,46 @@ import '../../../../data/repositories/vente_repository.dart';
 import '../../../../routes/app_routes.dart';
 
 /// Une ligne du bon de vente : produit + quantité + prix figé + remise éventuelle.
+/// Si le produit gère des variantes (pointures, tailles, …), la ligne porte
+/// l'id + libellé + stock dispo de la variante choisie.
 class LigneVente {
   final ProduitModel produit;
   int quantite;
   final double prixUnitaire; // figé au moment de l'ajout
   double remise;
 
+  /// Variante sélectionnée (uniquement si `produit.hasVariantes`).
+  final String? varianteId;
+  final String? varianteLibelle;
+
+  /// Stock dispo de la variante au moment de l'ajout (sert à la limite UI).
+  /// Pour les produits simples : `null` (on retombe sur `produit.quantiteStock`).
+  final int? varianteStockSnapshot;
+
   LigneVente({
     required this.produit,
     required this.quantite,
     required this.prixUnitaire,
     this.remise = 0,
+    this.varianteId,
+    this.varianteLibelle,
+    this.varianteStockSnapshot,
   });
 
   double get sousTotalBrut => prixUnitaire * quantite;
   double get sousTotal => sousTotalBrut - remise;
 
+  /// Libellé combiné "Veste — 40" si variante, sinon "Veste".
+  String get nomComplet =>
+      varianteLibelle != null && varianteLibelle!.isNotEmpty
+          ? '${produit.nom} — $varianteLibelle'
+          : produit.nom;
+
   VenteArticle toVenteArticle() => VenteArticle(
         produitId: produit.id,
         nom: produit.nom,
+        varianteId: varianteId,
+        varianteLibelle: varianteLibelle,
         quantite: quantite,
         prixUnitaire: prixUnitaire,
         remise: remise,
@@ -281,34 +302,56 @@ class VenteFormController extends GetxController {
 
   // ===== Lignes =====
   /// Ajoute une nouvelle ligne avec quantité et remise. Le prix unitaire
-  /// est figé sur le prix actuel du produit.
+  /// est figé sur le prix actuel du produit. Pour les produits à variantes,
+  /// passer `varianteId`/`varianteLibelle`/`varianteStock`.
   bool addLigne({
     required ProduitModel produit,
     required int quantite,
     double remise = 0,
+    String? varianteId,
+    String? varianteLibelle,
+    int? varianteStock,
   }) {
     if (quantite <= 0) {
       _snackError('Quantité invalide');
       return false;
     }
-    // Pas de doublon : si le produit est déjà dans le bon, rediriger
-    // l'utilisateur vers la ligne existante (modifier qté + remise dessus).
-    final dejaPresent =
-        lignes.any((l) => l.produit.id == produit.id);
+    // Validation variante : un produit hasVariantes doit toujours avoir
+    // une variante choisie, et un produit simple n'en accepte aucune.
+    if (produit.hasVariantes && (varianteId == null || varianteId.isEmpty)) {
+      _snackError('Sélectionnez une variante (pointure / taille).');
+      return false;
+    }
+    // Pas de doublon : on dédoublonne par (produitId, varianteId) — un même
+    // produit peut donc apparaître plusieurs fois s'il s'agit de variantes
+    // différentes.
+    final dejaPresent = lignes.any(
+      (l) => l.produit.id == produit.id && l.varianteId == varianteId,
+    );
     if (dejaPresent) {
+      final lib = varianteLibelle == null || varianteLibelle.isEmpty
+          ? produit.nom
+          : '${produit.nom} — $varianteLibelle';
       _snackError(
-        '${produit.nom} est déjà dans cette vente. '
+        '$lib est déjà dans cette vente. '
         'Modifiez la quantité ou la remise sur la ligne existante.',
       );
       return false;
     }
-    // Contrôle du stock disponible
-    if (produit.quantiteStock < quantite) {
+    // Contrôle du stock disponible : sur la variante si présente, sinon
+    // sur le total produit.
+    final stockDispo = produit.hasVariantes
+        ? (varianteStock ?? 0)
+        : produit.quantiteStock;
+    final nomAffiche = varianteLibelle == null || varianteLibelle.isEmpty
+        ? produit.nom
+        : '${produit.nom} — $varianteLibelle';
+    if (stockDispo < quantite) {
       _snackError(
-        produit.quantiteStock <= 0
-            ? '${produit.nom} : rupture de stock.'
-            : '${produit.nom} : stock insuffisant '
-                '(disponible ${produit.quantiteStock}, demandé $quantite).',
+        stockDispo <= 0
+            ? '$nomAffiche : rupture de stock.'
+            : '$nomAffiche : stock insuffisant '
+                '(disponible $stockDispo, demandé $quantite).',
       );
       return false;
     }
@@ -319,22 +362,34 @@ class VenteFormController extends GetxController {
       quantite: quantite,
       prixUnitaire: produit.prixVente, // figé
       remise: remiseClamp,
+      varianteId: varianteId,
+      varianteLibelle: varianteLibelle,
+      varianteStockSnapshot: varianteStock,
     ));
     return true;
   }
 
-  /// Stock disponible côté UI (basé sur le stream produits, donc live).
-  /// `null` si le produit n'est plus dans la liste (supprimé par exemple).
+  /// Stock disponible côté UI (basé sur le stream produits, donc live)
+  /// pour le total. Pour une variante, on utilise le snapshot stocké sur
+  /// la ligne au moment de l'ajout (pas streamé en temps réel ici).
   int? stockDispoUi(String produitId) {
     return produits.firstWhereOrNull((p) => p.id == produitId)?.quantiteStock;
   }
 
+  /// Stock dispo applicable à une ligne (variante si présente).
+  int? _stockDispoLigne(LigneVente l) {
+    if (l.varianteId != null && l.varianteStockSnapshot != null) {
+      return l.varianteStockSnapshot;
+    }
+    return stockDispoUi(l.produit.id);
+  }
+
   void incrementLigne(int index) {
     final l = lignes[index];
-    final dispo = stockDispoUi(l.produit.id);
+    final dispo = _stockDispoLigne(l);
     if (dispo != null && l.quantite >= dispo) {
       _snackError(
-        'Stock épuisé pour ${l.produit.nom} (max $dispo).',
+        'Stock épuisé pour ${l.nomComplet} (max $dispo).',
       );
       return;
     }
@@ -434,17 +489,16 @@ class VenteFormController extends GetxController {
       // Reset
       _resetVente();
 
-      Get.back(); // ferme le formulaire
-
       Get.snackbar(
         'Vente validée',
         'Total : ${vente.total.toStringAsFixed(0)} $devise',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         duration: const Duration(seconds: 2),
       );
 
-      await Future.delayed(const Duration(milliseconds: 200));
-      Get.toNamed(AppRoutes.venteDetail, arguments: venteId);
+      // Remplace le formulaire par la fiche détail (pas de retour
+      // intermédiaire vers le tableau de bord).
+      Get.offNamed(AppRoutes.venteDetail, arguments: venteId);
     } on StockInsuffisantException catch (e) {
       _snackError(e.message);
     } catch (e) {
@@ -458,7 +512,7 @@ class VenteFormController extends GetxController {
     Get.snackbar(
       'Erreur',
       msg,
-      snackPosition: SnackPosition.BOTTOM,
+      snackPosition: SnackPosition.TOP,
       backgroundColor: Colors.red.shade50,
       colorText: Colors.red.shade900,
       margin: const EdgeInsets.all(12),

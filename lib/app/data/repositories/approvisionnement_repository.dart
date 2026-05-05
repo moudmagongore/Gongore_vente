@@ -77,6 +77,8 @@ class ApprovisionnementRepository {
       // Pour chaque produit on calcule la somme pondérée des PA des lignes
       // (si plusieurs lignes du même produit, leur PA peut différer).
       final lignesParProduit = <String, ({int qte, double valeur})>{};
+      // Agrège aussi par (produit, variante) pour les produits à variantes.
+      final qteParVariante = <String, Map<String, int>>{};
       for (final a in appro.articles) {
         final cur = lignesParProduit[a.produitId] ??
             (qte: 0, valeur: 0.0);
@@ -84,6 +86,13 @@ class ApprovisionnementRepository {
           qte: cur.qte + a.quantite,
           valeur: cur.valeur + (a.prixAchatUnitaire * a.quantite),
         );
+        if (a.varianteId != null && a.varianteId!.isNotEmpty) {
+          final byV = qteParVariante.putIfAbsent(
+            a.produitId,
+            () => <String, int>{},
+          );
+          byV[a.varianteId!] = (byV[a.varianteId!] ?? 0) + a.quantite;
+        }
       }
 
       // Lit chaque produit concerné
@@ -91,6 +100,16 @@ class ApprovisionnementRepository {
           <String, DocumentSnapshot<Map<String, dynamic>>>{};
       for (final pid in lignesParProduit.keys) {
         produitSnaps[pid] = await tx.get(_produits.doc(pid));
+      }
+      // Lit chaque variante concernée
+      final varianteSnaps = <String,
+          Map<String, DocumentSnapshot<Map<String, dynamic>>>>{};
+      for (final entry in qteParVariante.entries) {
+        final m = <String, DocumentSnapshot<Map<String, dynamic>>>{};
+        for (final vid in entry.value.keys) {
+          m[vid] = await tx.get(_fs.variantesOf(entry.key).doc(vid));
+        }
+        varianteSnaps[entry.key] = m;
       }
 
       // Lit le fournisseur
@@ -149,6 +168,20 @@ class ApprovisionnementRepository {
           'quantiteStock': qteActuelle + qteAppro,
           'updatedAt': FieldValue.serverTimestamp(),
         });
+
+        // Incrémente le stock de chaque variante touchée par cette appro.
+        // Le total produit reste la somme des variantes par construction.
+        final byV = qteParVariante[pid];
+        if (byV != null) {
+          byV.forEach((vid, vqte) {
+            final vsnap = varianteSnaps[pid]?[vid];
+            if (vsnap == null || !vsnap.exists) return;
+            tx.update(vsnap.reference, {
+              'stock': FieldValue.increment(vqte),
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          });
+        }
       });
 
       // 2b. Crée le doc appro avec le numéro injecté
@@ -207,11 +240,19 @@ class ApprovisionnementRepository {
         throw Exception('Approvisionnement déjà annulé');
       }
 
-      // Agrège par produit
+      // Agrège par produit + par (produit, variante)
       final qteParProduit = <String, int>{};
+      final qteParVariante = <String, Map<String, int>>{};
       for (final a in appro.articles) {
         qteParProduit[a.produitId] =
             (qteParProduit[a.produitId] ?? 0) + a.quantite;
+        if (a.varianteId != null && a.varianteId!.isNotEmpty) {
+          final byV = qteParVariante.putIfAbsent(
+            a.produitId,
+            () => <String, int>{},
+          );
+          byV[a.varianteId!] = (byV[a.varianteId!] ?? 0) + a.quantite;
+        }
       }
 
       // Lit chaque produit pour vérifier la dispo
@@ -220,25 +261,57 @@ class ApprovisionnementRepository {
       for (final pid in qteParProduit.keys) {
         produitSnaps[pid] = await tx.get(_produits.doc(pid));
       }
+      // Lit chaque variante touchée
+      final varianteSnaps = <String,
+          Map<String, DocumentSnapshot<Map<String, dynamic>>>>{};
+      for (final entry in qteParVariante.entries) {
+        final m = <String, DocumentSnapshot<Map<String, dynamic>>>{};
+        for (final vid in entry.value.keys) {
+          m[vid] = await tx.get(_fs.variantesOf(entry.key).doc(vid));
+        }
+        varianteSnaps[entry.key] = m;
+      }
 
-      // Vérifie que le stock courant peut absorber le retrait
+      // Vérifie que le stock courant peut absorber le retrait. Si le
+      // produit a des variantes, on vérifie chaque variante (si elle existe
+      // encore) ; sinon on vérifie le total.
       qteParProduit.forEach((pid, qteRetrait) {
         final snap = produitSnaps[pid];
         if (snap == null || !snap.exists) return;
         final data = snap.data() ?? {};
-        final qteCourante = (data['quantiteStock'] as num?)?.toInt() ?? 0;
-        if (qteCourante < qteRetrait) {
-          final nom = (data['nom'] ?? '?') as String;
-          throw Exception(
-            'Annulation impossible : stock insuffisant pour « $nom »'
-            ' (actuel $qteCourante, à retirer $qteRetrait). '
-            'Une partie a déjà été vendue ou retirée.',
-          );
+        final hasVar = (data['hasVariantes'] ?? false) as bool;
+        final nom = (data['nom'] ?? '?') as String;
+        if (hasVar) {
+          final byV = qteParVariante[pid] ?? const <String, int>{};
+          byV.forEach((vid, vqte) {
+            final vsnap = varianteSnaps[pid]?[vid];
+            if (vsnap == null || !vsnap.exists) return;
+            final vstock =
+                ((vsnap.data() ?? {})['stock'] as num?)?.toInt() ?? 0;
+            if (vstock < vqte) {
+              final lib =
+                  ((vsnap.data() ?? {})['libelle'] ?? '?') as String;
+              throw Exception(
+                'Annulation impossible : stock insuffisant pour '
+                '« $nom — $lib » (actuel $vstock, à retirer $vqte). '
+                'Une partie a déjà été vendue.',
+              );
+            }
+          });
+        } else {
+          final qteCourante =
+              (data['quantiteStock'] as num?)?.toInt() ?? 0;
+          if (qteCourante < qteRetrait) {
+            throw Exception(
+              'Annulation impossible : stock insuffisant pour « $nom »'
+              ' (actuel $qteCourante, à retirer $qteRetrait). '
+              'Une partie a déjà été vendue ou retirée.',
+            );
+          }
         }
       });
 
-      // Décrémente le stock (le PA reste tel quel — l'historique pondéré
-      // est perdu, c'est un compromis acceptable pour ce modèle simple).
+      // Décrémente le stock total + le stock par variante.
       qteParProduit.forEach((pid, qteRetrait) {
         final snap = produitSnaps[pid];
         if (snap == null || !snap.exists) return;
@@ -246,6 +319,17 @@ class ApprovisionnementRepository {
           'quantiteStock': FieldValue.increment(-qteRetrait),
           'updatedAt': FieldValue.serverTimestamp(),
         });
+        final byV = qteParVariante[pid];
+        if (byV != null) {
+          byV.forEach((vid, vqte) {
+            final vsnap = varianteSnaps[pid]?[vid];
+            if (vsnap == null || !vsnap.exists) return;
+            tx.update(vsnap.reference, {
+              'stock': FieldValue.increment(-vqte),
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          });
+        }
       });
 
       // Inverse l'effet sur le solde fournisseur

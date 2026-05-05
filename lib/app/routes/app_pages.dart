@@ -53,6 +53,7 @@ import '../modules/admin/users/views/user_form_view.dart';
 import '../modules/admin/users/views/users_list_view.dart';
 import '../modules/auth/bindings/login_binding.dart';
 import '../modules/auth/views/login_view.dart';
+import '../modules/parametres/views/parametres_view.dart';
 import '../modules/splash/bindings/splash_binding.dart';
 import '../modules/splash/views/splash_view.dart';
 import '../modules/vendeur/home/bindings/vendeur_home_binding.dart';
@@ -254,6 +255,12 @@ class AppPages {
       name: AppRoutes.vendeurVentes,
       page: () => const VentesListView(),
       binding: VentesBinding(),
+      middlewares: [AuthGuard()],
+    ),
+    // ========== Paramètres (commun à tous les rôles) ==========
+    GetPage(
+      name: AppRoutes.parametres,
+      page: () => const ParametresView(),
       middlewares: [AuthGuard()],
     ),
   ];

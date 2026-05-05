@@ -60,6 +60,16 @@ enum VenteStatut {
 class VenteArticle {
   final String produitId;
   final String nom;
+
+  /// Id de la variante (sous-collection `produits/{pid}/variantes/{vid}`)
+  /// quand le produit gère des variantes. `null` pour les produits simples.
+  final String? varianteId;
+
+  /// Libellé snapshot de la variante au moment de la vente (ex. "40").
+  /// Conservé même si la variante est renommée / supprimée plus tard,
+  /// pour que l'historique reste lisible.
+  final String? varianteLibelle;
+
   final int quantite;
   final double prixUnitaire;
   final double remise;
@@ -69,15 +79,24 @@ class VenteArticle {
     required this.nom,
     required this.quantite,
     required this.prixUnitaire,
+    this.varianteId,
+    this.varianteLibelle,
     this.remise = 0,
   });
 
   double get sousTotal => (prixUnitaire * quantite) - remise;
 
+  /// Libellé pour affichage : "Veste — 40" si variante, sinon "Veste".
+  String get nomComplet => varianteLibelle != null && varianteLibelle!.isNotEmpty
+      ? '$nom — $varianteLibelle'
+      : nom;
+
   factory VenteArticle.fromMap(Map<String, dynamic> map) {
     return VenteArticle(
       produitId: (map['produitId'] ?? '') as String,
       nom: (map['nom'] ?? '') as String,
+      varianteId: map['varianteId'] as String?,
+      varianteLibelle: map['varianteLibelle'] as String?,
       quantite: (map['quantite'] as num?)?.toInt() ?? 0,
       prixUnitaire: (map['prixUnitaire'] as num?)?.toDouble() ?? 0,
       remise: (map['remise'] as num?)?.toDouble() ?? 0,
@@ -87,6 +106,8 @@ class VenteArticle {
   Map<String, dynamic> toMap() => {
         'produitId': produitId,
         'nom': nom,
+        if (varianteId != null) 'varianteId': varianteId,
+        if (varianteLibelle != null) 'varianteLibelle': varianteLibelle,
         'quantite': quantite,
         'prixUnitaire': prixUnitaire,
         'remise': remise,

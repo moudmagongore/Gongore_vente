@@ -150,7 +150,7 @@ class RapportsView extends GetView<RapportsController> {
       Get.snackbar(
         'Erreur',
         'Export PDF impossible : $e',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
     }
   }

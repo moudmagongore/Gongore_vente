@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/services/user_controller.dart';
+import '../../../../core/utils/bottom_sheet_helpers.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../core/widgets/admin_drawer.dart';
 import '../../../../core/widgets/vendeur_drawer.dart';
@@ -100,9 +101,9 @@ class ReglementsListView extends GetView<ReglementsController> {
   void _showFilterSheet(BuildContext context) {
     Get.bottomSheet(
       isScrollControlled: true,
-      SafeArea(
-        top: false,
-        child: Container(
+      wrapBottomSheet(
+        context,
+        Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: Theme.of(context).cardTheme.color,

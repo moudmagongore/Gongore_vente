@@ -39,7 +39,7 @@ class ApproDetailView extends GetView<ApproDetailController> {
                   Get.snackbar(
                     'Erreur',
                     'Impression impossible : $e',
-                    snackPosition: SnackPosition.BOTTOM,
+                    snackPosition: SnackPosition.TOP,
                   );
                 }
               },
@@ -398,7 +398,7 @@ class _ArticleLine extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      article.nom,
+                      article.nomComplet,
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 13,

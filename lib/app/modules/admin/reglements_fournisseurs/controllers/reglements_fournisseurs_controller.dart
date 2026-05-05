@@ -147,13 +147,13 @@ class ReglementsFournisseursController extends GetxController {
       Get.snackbar(
         'Règlement supprimé',
         'Le solde du fournisseur a été réajusté.',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
     } catch (e) {
       Get.snackbar(
         'Erreur',
         'Suppression impossible : $e',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
     }
   }
@@ -166,7 +166,7 @@ class ReglementsFournisseursController extends GetxController {
       Get.snackbar(
         'Erreur',
         'Fournisseur introuvable.',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
       return;
     }
@@ -176,7 +176,7 @@ class ReglementsFournisseursController extends GetxController {
       Get.snackbar(
         'Erreur',
         'Boutique introuvable.',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
       return;
     }
@@ -193,7 +193,7 @@ class ReglementsFournisseursController extends GetxController {
       Get.snackbar(
         'Erreur',
         'Impression impossible : $e',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
     }
   }

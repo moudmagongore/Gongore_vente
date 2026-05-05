@@ -20,17 +20,31 @@ class LigneAppro {
   int quantite;
   double prixAchatUnitaire;
 
+  /// Variante reçue (uniquement quand `produit.hasVariantes`).
+  final String? varianteId;
+  final String? varianteLibelle;
+
   LigneAppro({
     required this.produit,
     required this.quantite,
     required this.prixAchatUnitaire,
+    this.varianteId,
+    this.varianteLibelle,
   });
 
   double get sousTotal => prixAchatUnitaire * quantite;
 
+  /// Libellé combiné "Veste — 40" si variante, sinon "Veste".
+  String get nomComplet =>
+      varianteLibelle != null && varianteLibelle!.isNotEmpty
+          ? '${produit.nom} — $varianteLibelle'
+          : produit.nom;
+
   ApproArticle toApproArticle() => ApproArticle(
         produitId: produit.id,
         nom: produit.nom,
+        varianteId: varianteId,
+        varianteLibelle: varianteLibelle,
         quantite: quantite,
         prixAchatUnitaire: prixAchatUnitaire,
       );
@@ -226,11 +240,14 @@ class ApproFormController extends GetxController {
   // ===== Lignes =====
   /// Ajoute une nouvelle ligne. Le PA peut être différent du PA actuel
   /// du produit (le fournisseur facture parfois différemment) — c'est ce
-  /// PA qui entrera dans le calcul du CMUP.
+  /// PA qui entrera dans le calcul du CMUP. Pour un produit à variantes,
+  /// passer `varianteId` + `varianteLibelle`.
   bool addLigne({
     required ProduitModel produit,
     required int quantite,
     required double prixAchatUnitaire,
+    String? varianteId,
+    String? varianteLibelle,
   }) {
     if (quantite <= 0) {
       _snackError('Quantité invalide');
@@ -240,10 +257,20 @@ class ApproFormController extends GetxController {
       _snackError('Prix d\'achat invalide');
       return false;
     }
-    final dejaPresent = lignes.any((l) => l.produit.id == produit.id);
+    if (produit.hasVariantes && (varianteId == null || varianteId.isEmpty)) {
+      _snackError('Sélectionnez une variante (pointure / taille).');
+      return false;
+    }
+    // Dédoublonnage par (produitId, varianteId)
+    final dejaPresent = lignes.any(
+      (l) => l.produit.id == produit.id && l.varianteId == varianteId,
+    );
     if (dejaPresent) {
+      final lib = varianteLibelle == null || varianteLibelle.isEmpty
+          ? produit.nom
+          : '${produit.nom} — $varianteLibelle';
       _snackError(
-        '${produit.nom} est déjà dans cet appro. Modifiez la quantité ou '
+        '$lib est déjà dans cet appro. Modifiez la quantité ou '
         'le prix sur la ligne existante.',
       );
       return false;
@@ -252,6 +279,8 @@ class ApproFormController extends GetxController {
       produit: produit,
       quantite: quantite,
       prixAchatUnitaire: prixAchatUnitaire,
+      varianteId: varianteId,
+      varianteLibelle: varianteLibelle,
     ));
     return true;
   }
@@ -350,7 +379,7 @@ class ApproFormController extends GetxController {
       Get.snackbar(
         'Appro enregistré',
         'Total : ${appro.total.toStringAsFixed(0)} $devise',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         duration: const Duration(seconds: 2),
       );
       await Future.delayed(const Duration(milliseconds: 200));
@@ -366,7 +395,7 @@ class ApproFormController extends GetxController {
     Get.snackbar(
       'Erreur',
       msg,
-      snackPosition: SnackPosition.BOTTOM,
+      snackPosition: SnackPosition.TOP,
       backgroundColor: Colors.red.shade50,
       colorText: Colors.red.shade900,
       margin: const EdgeInsets.all(12),

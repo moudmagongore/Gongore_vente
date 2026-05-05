@@ -55,7 +55,7 @@ class CategoriesController extends GetxController {
         'Suppression impossible',
         'Cette catégorie est utilisée par au moins un produit. '
         'Réaffectez ou supprimez d\'abord les produits concernés.',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.red.shade50,
         colorText: Colors.red.shade900,
         duration: const Duration(seconds: 4),
@@ -87,12 +87,12 @@ class CategoriesController extends GetxController {
 
     try {
       await _repo.delete(c.id);
-      Get.snackbar('Supprimée', c.nom, snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Supprimée', c.nom, snackPosition: SnackPosition.TOP);
     } catch (e) {
       Get.snackbar(
         'Erreur',
         'Suppression impossible : $e',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.red.shade50,
         colorText: Colors.red.shade900,
       );

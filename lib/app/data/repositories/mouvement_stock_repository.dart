@@ -72,6 +72,8 @@ class MouvementStockRepository {
     required MouvementStockType type,
     required int quantite,
     String? motif,
+    String? varianteId,
+    String? varianteLibelle,
   }) async {
     if (produitId.isEmpty || boutiqueId.isEmpty) {
       throw ArgumentError('produitId et boutiqueId requis');
@@ -88,8 +90,44 @@ class MouvementStockRepository {
       }
 
       final data = produitSnap.data() ?? {};
-      final qteAvant = (data['quantiteStock'] as num?)?.toInt() ?? 0;
+      final hasVar = (data['hasVariantes'] ?? false) as bool;
       final nom = (data['nom'] ?? '?') as String;
+
+      // Si le produit a des variantes, le mouvement DOIT cibler une
+      // variante (sinon le stock total et la somme des variantes
+      // divergeraient). Si le produit est simple, refuser un varianteId.
+      if (hasVar &&
+          (varianteId == null || varianteId.isEmpty)) {
+        throw Exception(
+          '« $nom » a des variantes : sélectionnez celle à ajuster.',
+        );
+      }
+      if (!hasVar && varianteId != null && varianteId.isNotEmpty) {
+        throw Exception(
+          '« $nom » n\'a pas de variantes : aucune variante à cibler.',
+        );
+      }
+
+      // Stock avant (variante si présente, sinon total).
+      final int qteAvant;
+      DocumentSnapshot<Map<String, dynamic>>? varianteSnap;
+      if (varianteId != null && varianteId.isNotEmpty) {
+        varianteSnap =
+            await tx.get(_fs.variantesOf(produitId).doc(varianteId));
+        if (!varianteSnap.exists) {
+          throw Exception('Variante introuvable.');
+        }
+        qteAvant =
+            ((varianteSnap.data() ?? {})['stock'] as num?)?.toInt() ?? 0;
+      } else {
+        qteAvant = (data['quantiteStock'] as num?)?.toInt() ?? 0;
+      }
+
+      // Libellé d'erreur plus parlant ("Veste — 40").
+      final nomAffiche =
+          varianteLibelle == null || varianteLibelle.isEmpty
+              ? nom
+              : '$nom — $varianteLibelle';
 
       // Calcul de la quantité après mouvement
       final int qteApres;
@@ -102,7 +140,7 @@ class MouvementStockRepository {
         case MouvementStockType.casse:
           if (qteAvant < quantite) {
             throw Exception(
-              'Stock insuffisant pour « $nom » '
+              'Stock insuffisant pour « $nomAffiche » '
               '(actuel $qteAvant, à retirer $quantite).',
             );
           }
@@ -120,6 +158,8 @@ class MouvementStockRepository {
         id: ref.id,
         produitId: produitId,
         produitNom: nom,
+        varianteId: varianteId,
+        varianteLibelle: varianteLibelle,
         boutiqueId: boutiqueId,
         userId: userId,
         type: type,
@@ -131,11 +171,24 @@ class MouvementStockRepository {
       );
       tx.set(ref, mouv.toMap());
 
-      // Mise à jour atomique du stock du produit
-      tx.update(produitRef, {
-        'quantiteStock': qteApres,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      // Mise à jour atomique. Si variante : on touche LA variante ET on
+      // décale le total produit du même delta pour rester cohérent.
+      if (varianteSnap != null) {
+        final delta = qteApres - qteAvant;
+        tx.update(varianteSnap.reference, {
+          'stock': qteApres,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        tx.update(produitRef, {
+          'quantiteStock': FieldValue.increment(delta),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        tx.update(produitRef, {
+          'quantiteStock': qteApres,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
 
       return mouv;
     });

@@ -30,6 +30,11 @@ class ApproArticle {
   /// Snapshot du nom au moment de l'appro (préserve l'historique même
   /// si le produit est renommé ou supprimé).
   final String nom;
+
+  /// Variante reçue (uniquement si le produit a `hasVariantes`).
+  final String? varianteId;
+  final String? varianteLibelle;
+
   final int quantite;
   final double prixAchatUnitaire;
 
@@ -38,14 +43,23 @@ class ApproArticle {
     required this.nom,
     required this.quantite,
     required this.prixAchatUnitaire,
+    this.varianteId,
+    this.varianteLibelle,
   });
 
   double get sousTotal => prixAchatUnitaire * quantite;
+
+  /// Libellé combiné "Veste — 40" si variante, sinon "Veste".
+  String get nomComplet => varianteLibelle != null && varianteLibelle!.isNotEmpty
+      ? '$nom — $varianteLibelle'
+      : nom;
 
   factory ApproArticle.fromMap(Map<String, dynamic> map) {
     return ApproArticle(
       produitId: (map['produitId'] ?? '') as String,
       nom: (map['nom'] ?? '') as String,
+      varianteId: map['varianteId'] as String?,
+      varianteLibelle: map['varianteLibelle'] as String?,
       quantite: (map['quantite'] as num?)?.toInt() ?? 0,
       prixAchatUnitaire:
           (map['prixAchatUnitaire'] as num?)?.toDouble() ?? 0,
@@ -55,6 +69,8 @@ class ApproArticle {
   Map<String, dynamic> toMap() => {
         'produitId': produitId,
         'nom': nom,
+        if (varianteId != null) 'varianteId': varianteId,
+        if (varianteLibelle != null) 'varianteLibelle': varianteLibelle,
         'quantite': quantite,
         'prixAchatUnitaire': prixAchatUnitaire,
       };

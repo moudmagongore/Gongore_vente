@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/utils/bottom_sheet_helpers.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../data/models/produit_model.dart';
+import '../../../../data/models/variante_model.dart';
 import '../../../../data/models/vente_model.dart';
+import '../../../../data/repositories/produit_repository.dart';
 import '../../../../theme/app_colors.dart';
 import '../controllers/vente_form_controller.dart';
 
@@ -194,7 +197,7 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
     return DraggableScrollableSheet(
       initialChildSize: 0.85,
       minChildSize: 0.5,
-      maxChildSize: 0.95,
+      maxChildSize: 0.85,
       expand: false,
       builder: (_, scrollController) {
         return Container(
@@ -203,9 +206,8 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
             borderRadius:
                 const BorderRadius.vertical(top: Radius.circular(24)),
           ),
-          child: SafeArea(
-            top: false,
-            child: Column(
+          child: androidOnlySafeArea(
+            Column(
             children: [
               const SizedBox(height: 8),
               Container(
@@ -536,7 +538,7 @@ class _LigneTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        l.produit.nom,
+                        l.nomComplet,
                         style: const TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
@@ -841,7 +843,7 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
     return DraggableScrollableSheet(
       initialChildSize: 0.85,
       minChildSize: 0.5,
-      maxChildSize: 0.95,
+      maxChildSize: 0.85,
       expand: false,
       builder: (_, scrollController) {
         return Container(
@@ -850,9 +852,8 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
             borderRadius:
                 const BorderRadius.vertical(top: Radius.circular(24)),
           ),
-          child: SafeArea(
-            top: false,
-            child: Column(
+          child: androidOnlySafeArea(
+            Column(
             children: [
               const SizedBox(height: 8),
               Container(
@@ -1081,6 +1082,18 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
   }
 
   void _openAjoutLigneDialog(BuildContext rootContext, ProduitModel produit) {
+    // Produit avec variantes : on passe d'abord par un picker de variante.
+    if (produit.hasVariantes) {
+      Get.bottomSheet(
+        _VariantePickerSheet(
+          controller: widget.controller,
+          produit: produit,
+        ),
+        isScrollControlled: true,
+        backgroundColor: Theme.of(rootContext).cardTheme.color,
+      );
+      return;
+    }
     Get.bottomSheet(
       _AjoutLigneSheet(
         controller: widget.controller,
@@ -1088,6 +1101,199 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
       ),
       isScrollControlled: true,
       backgroundColor: Theme.of(rootContext).cardTheme.color,
+    );
+  }
+}
+
+// ============================================================================
+// Variante picker : liste les variantes d'un produit (libellé + stock).
+// Quand on tape une variante, ferme ce sheet et ouvre `_AjoutLigneSheet`
+// avec la variante préchoisie.
+// ============================================================================
+
+class _VariantePickerSheet extends StatelessWidget {
+  final VenteFormController controller;
+  final ProduitModel produit;
+  const _VariantePickerSheet({
+    required this.controller,
+    required this.produit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final repo = ProduitRepository();
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.4,
+      maxChildSize: 0.85,
+      expand: false,
+      builder: (_, scrollController) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardTheme.color,
+          borderRadius:
+              const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: androidOnlySafeArea(
+          Column(
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.style_rounded,
+                          color: AppColors.primary, size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Choisir une variante',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          Text(
+                            produit.nom,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Get.back(),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: StreamBuilder<List<VarianteModel>>(
+                  stream: repo.watchVariantes(produit.id),
+                  builder: (context, snap) {
+                    if (snap.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                          child: CircularProgressIndicator());
+                    }
+                    final list = snap.data ?? const <VarianteModel>[];
+                    if (list.isEmpty) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(
+                            'Ce produit n\'a aucune variante.',
+                            textAlign: TextAlign.center,
+                            style:
+                                TextStyle(color: Colors.grey.shade600),
+                          ),
+                        ),
+                      );
+                    }
+                    return ListView.separated(
+                      controller: scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      itemCount: list.length,
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(height: 4),
+                      itemBuilder: (_, i) {
+                        final v = list[i];
+                        final rupture = v.stock <= 0;
+                        final low = v.stock <= produit.seuilAlerte;
+                        final color = rupture
+                            ? Colors.red
+                            : (low
+                                ? AppColors.warning
+                                : AppColors.success);
+                        return ListTile(
+                          enabled: !rupture,
+                          leading: CircleAvatar(
+                            backgroundColor:
+                                AppColors.primary.withValues(alpha: 0.12),
+                            child: Text(
+                              v.libelle.isEmpty
+                                  ? '?'
+                                  : v.libelle.substring(
+                                      0,
+                                      v.libelle.length > 2
+                                          ? 2
+                                          : v.libelle.length),
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          title: Text(v.libelleAffichage),
+                          subtitle: Text(
+                            rupture ? 'Rupture' : 'Stock : ${v.stock}',
+                            style: TextStyle(fontSize: 12, color: color),
+                          ),
+                          trailing: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              rupture ? '0' : '${v.stock}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: color,
+                              ),
+                            ),
+                          ),
+                          onTap: rupture
+                              ? null
+                              : () {
+                                  Navigator.of(context).pop();
+                                  Get.bottomSheet(
+                                    _AjoutLigneSheet(
+                                      controller: controller,
+                                      produit: produit,
+                                      variante: v,
+                                    ),
+                                    isScrollControlled: true,
+                                    backgroundColor:
+                                        Theme.of(context).cardTheme.color,
+                                  );
+                                },
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1143,9 +1349,15 @@ class _CatPill extends StatelessWidget {
 class _AjoutLigneSheet extends StatefulWidget {
   final VenteFormController controller;
   final ProduitModel produit;
+
+  /// Variante préchoisie (uniquement quand `produit.hasVariantes`).
+  /// `null` pour les produits simples.
+  final VarianteModel? variante;
+
   const _AjoutLigneSheet({
     required this.controller,
     required this.produit,
+    this.variante,
   });
 
   @override
@@ -1182,20 +1394,29 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
   @override
   Widget build(BuildContext context) {
     final p = widget.produit;
+    final v = widget.variante;
     final devise = widget.controller.devise;
-    // Stock dispo en live (basé sur le stream produits du controller).
-    final dispo = widget.controller.stockDispoUi(p.id) ?? p.quantiteStock;
+    // Stock dispo : sur la variante si présente, sinon stock total live.
+    final dispo = v != null
+        ? v.stock
+        : (widget.controller.stockDispoUi(p.id) ?? p.quantiteStock);
     final sousTotalBrut = p.prixVente * _quantite;
     final sousTotal = sousTotalBrut - _remise;
 
-    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
-    final viewPadding = MediaQuery.of(context).viewPadding.bottom;
-    return SafeArea(
-      top: false,
-      bottom: false,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-            20, 20, 20, (viewInsets > 0 ? viewInsets : viewPadding) + 20),
+    final mq = MediaQuery.of(context);
+    final viewInsets = mq.viewInsets.bottom;
+    final viewPadding = mq.viewPadding.bottom;
+    // Plafond basé sur la hauteur VISIBLE (écran - clavier) pour toujours
+    // laisser un espace en haut quand le clavier est ouvert.
+    final maxH = (mq.size.height - viewInsets) * kBottomSheetMaxHeightRatio;
+    return ConstrainedBox(
+      // Empêche le sheet de prendre tout l'écran quand le clavier s'ouvre
+      // sur le focus du champ remise. L'AppBar reste visible.
+      constraints: BoxConstraints(maxHeight: maxH),
+      child: SingleChildScrollView(
+        // Get.bottomSheet décale déjà le sheet au-dessus du clavier ;
+        // on ajoute juste viewPadding (home indicator iOS / barre Android).
+        padding: EdgeInsets.fromLTRB(20, 20, 20, viewPadding + 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1231,7 +1452,7 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        p.nom,
+                        v != null ? '${p.nom} — ${v.libelleAffichage}' : p.nom,
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -1265,6 +1486,11 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
                       color: dispo <= 0 ? Colors.red : AppColors.success,
                     ),
                   ),
+                ),
+                IconButton(
+                  onPressed: () => Get.back(),
+                  icon: const Icon(Icons.close_rounded),
+                  visualDensity: VisualDensity.compact,
                 ),
               ],
             ),
@@ -1369,6 +1595,9 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
                         produit: p,
                         quantite: _quantite,
                         remise: _remise,
+                        varianteId: v?.id,
+                        varianteLibelle: v?.libelleAffichage,
+                        varianteStock: v?.stock,
                       );
                       if (ok) Get.back();
                     },
@@ -1579,39 +1808,45 @@ class _PaiementSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
-    final viewPadding = MediaQuery.of(context).viewPadding.bottom;
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: SafeArea(
-        top: false,
-        bottom: false,
-        child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(
-              16, 8, 16, (viewInsets > 0 ? viewInsets : viewPadding) + 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade400,
-                    borderRadius: BorderRadius.circular(2),
+    final mq = MediaQuery.of(context);
+    final viewInsets = mq.viewInsets.bottom;
+    final viewPadding = mq.viewPadding.bottom;
+    // Plafond basé sur la hauteur VISIBLE (écran - clavier) pour toujours
+    // laisser un espace en haut quand le clavier est ouvert.
+    final maxH = (mq.size.height - viewInsets) * kBottomSheetMaxHeightRatio;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxH),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardTheme.color,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          top: false,
+          bottom: false,
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+                16, 8, 16, (viewInsets > 0 ? viewInsets : viewPadding) + 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade400,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-              ),
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Paiement & options',
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Paiement & options',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
@@ -1715,6 +1950,7 @@ class _PaiementSheet extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -2249,7 +2485,7 @@ class _PanierCompact extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              '${l.quantite}× ${l.produit.nom}',
+                              '${l.quantite}× ${l.nomComplet}',
                               style: const TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w600,

@@ -104,7 +104,7 @@ class VenteDetailController extends GetxController {
                 Get.snackbar(
                   'Erreur',
                   'Le motif est obligatoire',
-                  snackPosition: SnackPosition.BOTTOM,
+                  snackPosition: SnackPosition.TOP,
                 );
                 return;
               }
@@ -131,13 +131,13 @@ class VenteDetailController extends GetxController {
       Get.snackbar(
         'Vente annulée',
         'L\'effet sur le solde client a été inversé.',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
     } catch (e) {
       Get.snackbar(
         'Erreur',
         'Annulation impossible : $e',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.red.shade50,
         colorText: Colors.red.shade900,
       );

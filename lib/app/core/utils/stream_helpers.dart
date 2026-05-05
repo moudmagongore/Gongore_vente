@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Helpers pour les streams Firestore.
@@ -18,6 +20,26 @@ extension FirestoreSafeStream<T> on Stream<T> {
       },
       test: (dynamic error) =>
           error is FirebaseException && error.code == 'permission-denied',
+    );
+  }
+
+  /// Émet [fallback] (ex. liste vide) à la place quand une erreur
+  /// `permission-denied` survient. Utile pour les `StreamBuilder` qui
+  /// resteraient sinon bloqués en `waiting` quand les rules Firestore
+  /// refusent l'accès — au lieu de ça, on affiche un état vide propre.
+  Stream<T> permissionDeniedAsValue(T fallback) {
+    return transform(
+      StreamTransformer<T, T>.fromHandlers(
+        handleData: (data, sink) => sink.add(data),
+        handleError: (error, stackTrace, sink) {
+          if (error is FirebaseException &&
+              error.code == 'permission-denied') {
+            sink.add(fallback);
+          } else {
+            sink.addError(error, stackTrace);
+          }
+        },
+      ),
     );
   }
 }

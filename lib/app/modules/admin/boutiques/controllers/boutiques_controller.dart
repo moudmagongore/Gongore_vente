@@ -75,7 +75,7 @@ class BoutiquesController extends GetxController {
       Get.snackbar(
         b.active ? 'Boutique désactivée' : 'Boutique activée',
         b.nom,
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         duration: const Duration(seconds: 2),
       );
     } catch (e) {
@@ -128,7 +128,7 @@ class BoutiquesController extends GetxController {
         'Boutique supprimée',
         '${res.users} users, ${res.produits} produits, '
         '${res.ventes} ventes, ${res.clients} clients.',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         duration: const Duration(seconds: 4),
       );
     } catch (e) {
@@ -141,7 +141,7 @@ class BoutiquesController extends GetxController {
     Get.snackbar(
       'Erreur',
       msg,
-      snackPosition: SnackPosition.BOTTOM,
+      snackPosition: SnackPosition.TOP,
       backgroundColor: Colors.red.shade50,
       colorText: Colors.red.shade900,
       margin: const EdgeInsets.all(12),

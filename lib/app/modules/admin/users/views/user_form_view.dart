@@ -36,30 +36,46 @@ class UserFormView extends GetView<UserFormController> {
             ),
             const SizedBox(height: 14),
             Obx(
-              () => TextFormField(
-                controller: controller.emailCtrl,
-                enabled: !controller.isEdit,
-                decoration: InputDecoration(
-                  labelText: 'Email *',
-                  prefixIcon: const Icon(Icons.mail_outline_rounded),
-                  helperText: controller.isEdit
-                      ? 'L\'email ne peut pas être modifié'
-                      : null,
-                ),
-                keyboardType: TextInputType.emailAddress,
-                autocorrect: false,
-                validator: controller.validateEmail,
-              ),
+              () {
+                // Email modifiable seulement à la création OU en self-edit
+                // pour le super-admin. Verrouillé pour tous les autres
+                // (synchro Firebase Auth non gérée).
+                final emailEnabled = !controller.isEdit ||
+                    (controller.isSelfEdit &&
+                        !controller.isSelfEditRestricted);
+                return TextFormField(
+                  controller: controller.emailCtrl,
+                  enabled: emailEnabled,
+                  decoration: InputDecoration(
+                    labelText: 'Email *',
+                    prefixIcon: const Icon(Icons.mail_outline_rounded),
+                    helperText: emailEnabled
+                        ? null
+                        : 'L\'email ne peut pas être modifié',
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
+                  validator: controller.validateEmail,
+                );
+              },
             ),
             const SizedBox(height: 14),
-            TextFormField(
-              controller: controller.telephoneCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Téléphone',
-                prefixIcon: Icon(Icons.phone_outlined),
-                hintText: '+224 ...',
+            Obx(
+              () => TextFormField(
+                controller: controller.telephoneCtrl,
+                // Téléphone : verrouillé pour un user qui édite son propre
+                // profil (sauf super-admin qui peut tout modifier).
+                enabled: !controller.isSelfEditRestricted,
+                decoration: InputDecoration(
+                  labelText: 'Téléphone',
+                  prefixIcon: const Icon(Icons.phone_outlined),
+                  hintText: '+224 ...',
+                  helperText: controller.isSelfEditRestricted
+                      ? 'Le téléphone ne peut pas être modifié'
+                      : null,
+                ),
+                keyboardType: TextInputType.phone,
               ),
-              keyboardType: TextInputType.phone,
             ),
             const SizedBox(height: 24),
 
@@ -70,8 +86,16 @@ class UserFormView extends GetView<UserFormController> {
                   : 'Affectation',
             ),
             const SizedBox(height: 12),
-            // Sélection du rôle uniquement pour le super-admin
-            if (controller.canCreateAdmin) ...[
+            // Self-edit : on n'autorise jamais le changement de rôle (même
+            // pour le super-admin). On affiche le rôle en lecture seule.
+            if (controller.isSelfEdit)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: _RoleReadOnly(role: controller.role.value),
+              )
+            // Sinon, sélection du rôle uniquement pour le super-admin créant
+            // ou éditant un autre utilisateur.
+            else if (controller.canCreateAdmin) ...[
               Obx(
                 () => Row(
                   children: [
@@ -137,9 +161,13 @@ class UserFormView extends GetView<UserFormController> {
                 ),
               );
             }),
-            // Sélecteur boutique : visible pour super-admin uniquement.
-            // Pour admin de boutique, la boutique est verrouillée sur la sienne.
-            if (controller.canPickBoutique)
+            // Sélecteur boutique :
+            // - super-admin self-edit : caché (super-admin n'est lié à aucune boutique)
+            // - super-admin sur autre user : picker éditable
+            // - admin/vendeur : boutique verrouillée sur la sienne (lecture seule)
+            if (controller.hideBoutiqueField)
+              const SizedBox.shrink()
+            else if (controller.canPickBoutique)
               Obx(() {
                 if (controller.boutiques.isEmpty) {
                   return Container(
@@ -356,6 +384,83 @@ class _SectionTitle extends StatelessWidget {
         fontWeight: FontWeight.w700,
         letterSpacing: 0.4,
         color: AppColors.lightTextMuted,
+      ),
+    );
+  }
+}
+
+/// Affichage lecture seule du rôle (utilisé en mode "Mon compte" — le rôle
+/// n'est jamais modifiable par l'utilisateur lui-même, même super-admin).
+class _RoleReadOnly extends StatelessWidget {
+  final UserRole role;
+  const _RoleReadOnly({required this.role});
+
+  @override
+  Widget build(BuildContext context) {
+    final IconData icon;
+    final Color color;
+    switch (role) {
+      case UserRole.superAdmin:
+        icon = Icons.shield_rounded;
+        color = const Color(0xFF6A1B9A);
+        break;
+      case UserRole.admin:
+        icon = Icons.admin_panel_settings_rounded;
+        color = AppColors.primary;
+        break;
+      case UserRole.vendeur:
+        icon = Icons.point_of_sale_rounded;
+        color = AppColors.secondary;
+        break;
+    }
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Rôle',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                Text(
+                  role.label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            Icons.lock_outline_rounded,
+            size: 16,
+            color: Colors.grey.shade500,
+          ),
+        ],
       ),
     );
   }

@@ -71,7 +71,7 @@ class BoutiqueFormController extends GetxController {
         Get.snackbar(
           'Modifications enregistrées',
           updated.nom,
-          snackPosition: SnackPosition.BOTTOM,
+          snackPosition: SnackPosition.TOP,
         );
       } else {
         final newBoutique = BoutiqueModel(
@@ -91,14 +91,14 @@ class BoutiqueFormController extends GetxController {
         Get.snackbar(
           'Boutique créée',
           newBoutique.nom,
-          snackPosition: SnackPosition.BOTTOM,
+          snackPosition: SnackPosition.TOP,
         );
       }
     } catch (e) {
       Get.snackbar(
         'Erreur',
         'Enregistrement impossible : $e',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.red.shade50,
         colorText: Colors.red.shade900,
       );

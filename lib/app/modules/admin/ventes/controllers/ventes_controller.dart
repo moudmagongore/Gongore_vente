@@ -251,7 +251,7 @@ class VentesController extends GetxController {
     Get.snackbar(
       'Erreur',
       msg,
-      snackPosition: SnackPosition.BOTTOM,
+      snackPosition: SnackPosition.TOP,
       backgroundColor: Colors.red.shade50,
       colorText: Colors.red.shade900,
       margin: const EdgeInsets.all(12),

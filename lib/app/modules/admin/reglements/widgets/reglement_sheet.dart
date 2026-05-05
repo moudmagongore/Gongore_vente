@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import '../../../../core/services/reglement_receipt_service.dart';
 import '../../../../core/services/user_controller.dart';
+import '../../../../core/utils/bottom_sheet_helpers.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../data/models/client_model.dart';
 import '../../../../data/models/reglement_model.dart';
@@ -82,14 +83,14 @@ class _ReglementSheetState extends State<ReglementSheet> {
       Get.snackbar(
         'Règlement enregistré',
         '${Fmt.number(montant)} encaissé sur ${widget.client.nom}',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
       await _proposerImpression(saved);
     } catch (e) {
       Get.snackbar(
         'Erreur',
         'Enregistrement impossible : $e',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.red.shade50,
         colorText: Colors.red.shade900,
       );
@@ -129,7 +130,7 @@ class _ReglementSheetState extends State<ReglementSheet> {
         Get.snackbar(
           'Erreur',
           'Boutique introuvable pour le reçu.',
-          snackPosition: SnackPosition.BOTTOM,
+          snackPosition: SnackPosition.TOP,
         );
         return;
       }
@@ -149,7 +150,7 @@ class _ReglementSheetState extends State<ReglementSheet> {
       Get.snackbar(
         'Erreur',
         'Impression impossible : $e',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.red.shade50,
         colorText: Colors.red.shade900,
       );
@@ -159,19 +160,23 @@ class _ReglementSheetState extends State<ReglementSheet> {
   @override
   Widget build(BuildContext context) {
     final c = widget.client;
-    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
-    final viewPadding = MediaQuery.of(context).viewPadding.bottom;
-    return SafeArea(
-      top: false,
-      bottom: false,
-      child: Padding(
-        // viewInsets = clavier ; viewPadding = barre de gestes Android.
-        // On garde le max des deux pour ne pas masquer le contenu.
-        padding: EdgeInsets.fromLTRB(
-            20, 20, 20, (viewInsets > 0 ? viewInsets : viewPadding) + 20),
-        child: Form(
-          key: _formKey,
-          child: Column(
+    final mq = MediaQuery.of(context);
+    final viewInsets = mq.viewInsets.bottom;
+    final viewPadding = mq.viewPadding.bottom;
+    // Plafond basé sur la hauteur VISIBLE (écran - clavier) pour toujours
+    // laisser un espace en haut quand le clavier est ouvert.
+    final maxH = (mq.size.height - viewInsets) * kBottomSheetMaxHeightRatio;
+    return ConstrainedBox(
+      // Évite que le sheet remplisse tout l'écran quand le clavier s'ouvre.
+      constraints: BoxConstraints(maxHeight: maxH),
+      child: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          // viewInsets = clavier ; viewPadding = barre de gestes Android.
+          // On garde le max des deux pour ne pas masquer le contenu.
+          padding: EdgeInsets.fromLTRB(
+              20, 20, 20, (viewInsets > 0 ? viewInsets : viewPadding) + 20),
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -225,6 +230,11 @@ class _ReglementSheetState extends State<ReglementSheet> {
                         ),
                       ],
                     ),
+                  ),
+                  IconButton(
+                    onPressed: () => Get.back(),
+                    icon: const Icon(Icons.close_rounded),
+                    visualDensity: VisualDensity.compact,
                   ),
                 ],
               ),

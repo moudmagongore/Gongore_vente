@@ -119,7 +119,7 @@ class ApproDetailController extends GetxController {
                 Get.snackbar(
                   'Erreur',
                   'Le motif est obligatoire',
-                  snackPosition: SnackPosition.BOTTOM,
+                  snackPosition: SnackPosition.TOP,
                 );
                 return;
               }
@@ -146,14 +146,14 @@ class ApproDetailController extends GetxController {
       Get.snackbar(
         'Appro annulé',
         'Le stock et le solde fournisseur ont été réajustés.',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
       await _load();
     } catch (e) {
       Get.snackbar(
         'Annulation impossible',
         '$e',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.red.shade50,
         colorText: Colors.red.shade900,
         duration: const Duration(seconds: 5),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/services/user_controller.dart';
+import '../../../../core/utils/bottom_sheet_helpers.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../core/widgets/admin_drawer.dart';
 import '../../../../data/models/vente_model.dart';
@@ -31,9 +32,8 @@ class AdminHomeView extends StatelessWidget {
         ],
       ),
       drawer: const AdminDrawer(currentRoute: AppRoutes.adminHome),
-      body: SafeArea(
-        top: false,
-        child: Obx(() {
+      body: androidOnlySafeArea(
+        Obx(() {
         if (c.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -41,7 +41,7 @@ class AdminHomeView extends StatelessWidget {
           onRefresh: () async => await Future.delayed(
               const Duration(milliseconds: 400)),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
               _GreetingCard(name: user?.nom ?? ''),
               const SizedBox(height: 16),

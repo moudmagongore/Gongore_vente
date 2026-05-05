@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import '../../../../core/services/reglement_fournisseur_receipt_service.dart';
 import '../../../../core/services/user_controller.dart';
+import '../../../../core/utils/bottom_sheet_helpers.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../data/models/fournisseur_model.dart';
 import '../../../../data/models/reglement_fournisseur_model.dart';
@@ -92,14 +93,14 @@ class _ReglementFournisseurSheetState
       Get.snackbar(
         'Règlement enregistré',
         '${Fmt.number(montant)} versé à ${widget.fournisseur.nom}',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
       await _proposerImpression(saved);
     } catch (e) {
       Get.snackbar(
         'Erreur',
         'Enregistrement impossible : $e',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.red.shade50,
         colorText: Colors.red.shade900,
       );
@@ -138,7 +139,7 @@ class _ReglementFournisseurSheetState
         Get.snackbar(
           'Erreur',
           'Boutique introuvable pour le reçu.',
-          snackPosition: SnackPosition.BOTTOM,
+          snackPosition: SnackPosition.TOP,
         );
         return;
       }
@@ -158,7 +159,7 @@ class _ReglementFournisseurSheetState
       Get.snackbar(
         'Erreur',
         'Impression impossible : $e',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.red.shade50,
         colorText: Colors.red.shade900,
       );
@@ -168,16 +169,19 @@ class _ReglementFournisseurSheetState
   @override
   Widget build(BuildContext context) {
     final f = widget.fournisseur;
-    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
-    final viewPadding = MediaQuery.of(context).viewPadding.bottom;
-    return SafeArea(
-      top: false,
-      bottom: false,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-            20, 20, 20, (viewInsets > 0 ? viewInsets : viewPadding) + 20),
-        child: Form(
-          key: _formKey,
+    final mq = MediaQuery.of(context);
+    final viewInsets = mq.viewInsets.bottom;
+    final viewPadding = mq.viewPadding.bottom;
+    // Plafond basé sur la hauteur VISIBLE (écran - clavier) pour toujours
+    // laisser un espace en haut quand le clavier est ouvert.
+    final maxH = (mq.size.height - viewInsets) * kBottomSheetMaxHeightRatio;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxH),
+      child: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+              20, 20, 20, (viewInsets > 0 ? viewInsets : viewPadding) + 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -234,6 +238,11 @@ class _ReglementFournisseurSheetState
                         ),
                       ],
                     ),
+                  ),
+                  IconButton(
+                    onPressed: () => Get.back(),
+                    icon: const Icon(Icons.close_rounded),
+                    visualDensity: VisualDensity.compact,
                   ),
                 ],
               ),

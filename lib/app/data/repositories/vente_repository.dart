@@ -82,18 +82,38 @@ class VenteRepository {
     return _fs.db.runTransaction<String>((tx) async {
       // ===== Étape 1 : tous les reads d'abord =====
 
-      // Agrège les qtés par produit (au cas où plusieurs lignes du même
-      // produit, même si on bloque ce cas en UI).
+      // Agrège les qtés par produit (total) et par (produit, variante).
       final qteParProduit = <String, int>{};
+      final qteParVariante = <String, Map<String, int>>{}; // pid -> {vid: qte}
       for (final a in vente.articles) {
         qteParProduit[a.produitId] =
             (qteParProduit[a.produitId] ?? 0) + a.quantite;
+        if (a.varianteId != null && a.varianteId!.isNotEmpty) {
+          final byV = qteParVariante.putIfAbsent(
+            a.produitId,
+            () => <String, int>{},
+          );
+          byV[a.varianteId!] = (byV[a.varianteId!] ?? 0) + a.quantite;
+        }
       }
 
       final produitSnaps =
           <String, DocumentSnapshot<Map<String, dynamic>>>{};
       for (final pid in qteParProduit.keys) {
         produitSnaps[pid] = await tx.get(_produits.doc(pid));
+      }
+
+      // Reads variantes
+      final varianteSnaps = <String,
+          Map<String, DocumentSnapshot<Map<String, dynamic>>>>{};
+      for (final entry in qteParVariante.entries) {
+        final pid = entry.key;
+        final byV = entry.value;
+        final m = <String, DocumentSnapshot<Map<String, dynamic>>>{};
+        for (final vid in byV.keys) {
+          m[vid] = await tx.get(_fs.variantesOf(pid).doc(vid));
+        }
+        varianteSnaps[pid] = m;
       }
 
       // Compteur séquentiel pour le numéro de vente
@@ -109,20 +129,49 @@ class VenteRepository {
           'V-$year-${nextCount.toString().padLeft(5, '0')}';
 
       // ===== Étape 1b : vérification du stock =====
-      // On lit la qté courante en base (et non pas celle vue par l'UI),
-      // pour gérer les concurrences (autre vente en parallèle).
+      // Pour les produits SANS variantes : check sur quantiteStock total.
+      // Pour les produits AVEC variantes : check par variante (le total est
+      // déjà la somme des variantes, donc pas besoin de double check).
       qteParProduit.forEach((pid, qteDemandee) {
         final snap = produitSnaps[pid];
         if (snap == null || !snap.exists) return; // produit supprimé : skip
         final data = snap.data() ?? {};
-        final qteEnStock =
-            (data['quantiteStock'] as num?)?.toInt() ?? 0;
-        if (qteEnStock < qteDemandee) {
-          final nom = (data['nom'] ?? '?') as String;
-          throw StockInsuffisantException(
-            'Stock insuffisant pour « $nom » : '
-            'disponible $qteEnStock, demandé $qteDemandee.',
-          );
+        final hasVar = (data['hasVariantes'] ?? false) as bool;
+        final nom = (data['nom'] ?? '?') as String;
+        if (hasVar) {
+          final byV = qteParVariante[pid] ?? const <String, int>{};
+          if (byV.isEmpty) {
+            throw StockInsuffisantException(
+              '« $nom » nécessite une variante (pointure / taille).',
+            );
+          }
+          byV.forEach((vid, qte) {
+            final vsnap = varianteSnaps[pid]?[vid];
+            if (vsnap == null || !vsnap.exists) {
+              throw StockInsuffisantException(
+                'Variante introuvable pour « $nom ».',
+              );
+            }
+            final vstock =
+                ((vsnap.data() ?? {})['stock'] as num?)?.toInt() ?? 0;
+            if (vstock < qte) {
+              final lib =
+                  ((vsnap.data() ?? {})['libelle'] ?? '?') as String;
+              throw StockInsuffisantException(
+                'Stock insuffisant pour « $nom — $lib » : '
+                'disponible $vstock, demandé $qte.',
+              );
+            }
+          });
+        } else {
+          final qteEnStock =
+              (data['quantiteStock'] as num?)?.toInt() ?? 0;
+          if (qteEnStock < qteDemandee) {
+            throw StockInsuffisantException(
+              'Stock insuffisant pour « $nom » : '
+              'disponible $qteEnStock, demandé $qteDemandee.',
+            );
+          }
         }
       });
 
@@ -130,7 +179,9 @@ class VenteRepository {
 
       // 2a. Décrémente le stock des produits existants (skip silencieusement
       // ceux supprimés — l'historique de vente reste cohérent grâce au
-      // snapshot du nom dans l'article).
+      // snapshot du nom dans l'article). Pour les produits à variantes,
+      // décrémente AUSSI le stock de chaque variante touchée. Le total
+      // produit reste la somme des variantes par construction.
       qteParProduit.forEach((pid, qte) {
         final snap = produitSnaps[pid];
         if (snap == null || !snap.exists) return;
@@ -138,6 +189,17 @@ class VenteRepository {
           'quantiteStock': FieldValue.increment(-qte),
           'updatedAt': FieldValue.serverTimestamp(),
         });
+        final byV = qteParVariante[pid];
+        if (byV != null) {
+          byV.forEach((vid, vqte) {
+            final vsnap = varianteSnaps[pid]?[vid];
+            if (vsnap == null || !vsnap.exists) return;
+            tx.update(vsnap.reference, {
+              'stock': FieldValue.increment(-vqte),
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          });
+        }
       });
 
       // 2b. Création du document vente avec numéro séquentiel injecté
@@ -201,19 +263,37 @@ class VenteRepository {
       }
 
       final qteParProduit = <String, int>{};
+      final qteParVariante = <String, Map<String, int>>{};
       for (final a in vente.articles) {
         qteParProduit[a.produitId] =
             (qteParProduit[a.produitId] ?? 0) + a.quantite;
+        if (a.varianteId != null && a.varianteId!.isNotEmpty) {
+          final byV = qteParVariante.putIfAbsent(
+            a.produitId,
+            () => <String, int>{},
+          );
+          byV[a.varianteId!] = (byV[a.varianteId!] ?? 0) + a.quantite;
+        }
       }
       final produitSnaps =
           <String, DocumentSnapshot<Map<String, dynamic>>>{};
       for (final pid in qteParProduit.keys) {
         produitSnaps[pid] = await tx.get(_produits.doc(pid));
       }
+      final varianteSnaps = <String,
+          Map<String, DocumentSnapshot<Map<String, dynamic>>>>{};
+      for (final entry in qteParVariante.entries) {
+        final pid = entry.key;
+        final m = <String, DocumentSnapshot<Map<String, dynamic>>>{};
+        for (final vid in entry.value.keys) {
+          m[vid] = await tx.get(_fs.variantesOf(pid).doc(vid));
+        }
+        varianteSnaps[pid] = m;
+      }
 
       // ===== Writes =====
 
-      // Restitue le stock
+      // Restitue le stock total + le stock par variante.
       qteParProduit.forEach((pid, qte) {
         final snap = produitSnaps[pid];
         if (snap == null || !snap.exists) return;
@@ -221,6 +301,17 @@ class VenteRepository {
           'quantiteStock': FieldValue.increment(qte),
           'updatedAt': FieldValue.serverTimestamp(),
         });
+        final byV = qteParVariante[pid];
+        if (byV != null) {
+          byV.forEach((vid, vqte) {
+            final vsnap = varianteSnaps[pid]?[vid];
+            if (vsnap == null || !vsnap.exists) return;
+            tx.update(vsnap.reference, {
+              'stock': FieldValue.increment(vqte),
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          });
+        }
       });
 
       // Marquer la vente comme annulée

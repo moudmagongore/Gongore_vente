@@ -99,7 +99,7 @@ class UsersController extends GetxController {
       Get.snackbar(
         u.active ? 'Compte désactivé' : 'Compte activé',
         u.nom,
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
     } catch (e) {
       _snackError('Erreur : $e');
@@ -112,7 +112,7 @@ class UsersController extends GetxController {
       Get.snackbar(
         'Email envoyé',
         'Un lien de réinitialisation a été envoyé à ${u.email}',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         duration: const Duration(seconds: 3),
       );
     } catch (e) {
@@ -148,7 +148,7 @@ class UsersController extends GetxController {
 
     try {
       await _userRepo.deleteDoc(u.id);
-      Get.snackbar('Supprimé', u.nom, snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Supprimé', u.nom, snackPosition: SnackPosition.TOP);
     } catch (e) {
       _snackError('Suppression impossible : $e');
     }
@@ -158,7 +158,7 @@ class UsersController extends GetxController {
     Get.snackbar(
       'Erreur',
       msg,
-      snackPosition: SnackPosition.BOTTOM,
+      snackPosition: SnackPosition.TOP,
       backgroundColor: Colors.red.shade50,
       colorText: Colors.red.shade900,
       margin: const EdgeInsets.all(12),

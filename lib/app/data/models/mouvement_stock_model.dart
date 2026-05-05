@@ -68,6 +68,11 @@ class MouvementStockModel {
   final String produitId;
   /// Snapshot du nom au moment du mouvement.
   final String produitNom;
+
+  /// Variante touchée (uniquement pour les produits à variantes).
+  final String? varianteId;
+  final String? varianteLibelle;
+
   final String boutiqueId;
   final String userId;
 
@@ -77,7 +82,8 @@ class MouvementStockModel {
   /// Pour `ajustement` : nouvelle quantité cible (valeur absolue).
   final int quantite;
 
-  /// Quantité avant le mouvement (snapshot pour audit).
+  /// Quantité avant le mouvement (snapshot pour audit). Quand le mouvement
+  /// porte sur une variante, c'est le stock de la variante avant.
   final int qteAvant;
   /// Quantité après le mouvement (snapshot pour audit).
   final int qteApres;
@@ -98,8 +104,16 @@ class MouvementStockModel {
     required this.qteAvant,
     required this.qteApres,
     required this.date,
+    this.varianteId,
+    this.varianteLibelle,
     this.motif,
   });
+
+  /// Libellé combiné "Veste — 40" si variante, sinon "Veste".
+  String get nomComplet =>
+      varianteLibelle != null && varianteLibelle!.isNotEmpty
+          ? '$produitNom — $varianteLibelle'
+          : produitNom;
 
   factory MouvementStockModel.fromMap(
     Map<String, dynamic> map,
@@ -109,6 +123,8 @@ class MouvementStockModel {
       id: id,
       produitId: (map['produitId'] ?? '') as String,
       produitNom: (map['produitNom'] ?? '') as String,
+      varianteId: map['varianteId'] as String?,
+      varianteLibelle: map['varianteLibelle'] as String?,
       boutiqueId: (map['boutiqueId'] ?? '') as String,
       userId: (map['userId'] ?? '') as String,
       type: MouvementStockType.fromString(map['type'] as String?),
@@ -128,6 +144,8 @@ class MouvementStockModel {
   Map<String, dynamic> toMap() => {
         'produitId': produitId,
         'produitNom': produitNom,
+        if (varianteId != null) 'varianteId': varianteId,
+        if (varianteLibelle != null) 'varianteLibelle': varianteLibelle,
         'boutiqueId': boutiqueId,
         'userId': userId,
         'type': type.name,

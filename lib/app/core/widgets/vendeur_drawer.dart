@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -64,7 +66,7 @@ class VendeurDrawer extends StatelessWidget {
                       ],
                     ),
                     _ExpansionGroup(
-                      icon: Icons.local_shipping_rounded,
+                      icon: Icons.local_shipping_outlined,
                       title: 'Achats',
                       currentRoute: currentRoute,
                       childrenRoutes: const [
@@ -94,7 +96,7 @@ class VendeurDrawer extends StatelessWidget {
                       ],
                     ),
                     _ExpansionGroup(
-                      icon: Icons.inventory_2_rounded,
+                      icon: Icons.inventory_2_outlined,
                       title: 'Catalogue',
                       currentRoute: currentRoute,
                       childrenRoutes: const [
@@ -129,6 +131,30 @@ class VendeurDrawer extends StatelessWidget {
                       route: AppRoutes.adminRapports,
                       currentRoute: currentRoute,
                     ),
+                    _Item(
+                      icon: Icons.settings_rounded,
+                      label: 'Paramètres',
+                      route: AppRoutes.parametres,
+                      currentRoute: currentRoute,
+                    ),
+                    Builder(
+                      builder: (ctx) => ListTile(
+                        leading:
+                            const Icon(Icons.account_circle_outlined),
+                        title: const Text(
+                          'Mon compte',
+                          style: TextStyle(fontFamily: AppTheme.fontFamily),
+                        ),
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          final me = UserController.to.user;
+                          if (me != null) {
+                            Get.toNamed(AppRoutes.adminUserForm,
+                                arguments: me);
+                          }
+                        },
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -144,7 +170,12 @@ class VendeurDrawer extends StatelessWidget {
                 onTap: () => confirmSignOut(ctx),
               ),
             ),
-            SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
+            // Marge basse uniquement sur Android (iOS gère son home indicator).
+            SizedBox(
+              height: Platform.isAndroid
+                  ? MediaQuery.of(context).padding.bottom + 8
+                  : 8,
+            ),
           ],
         );
       }),

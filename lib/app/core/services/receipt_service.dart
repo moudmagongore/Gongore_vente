@@ -122,7 +122,7 @@ class ReceiptService {
                         pw.Expanded(
                           flex: 5,
                           child: pw.Text(
-                            a.nom,
+                            a.nomComplet,
                             style: const pw.TextStyle(fontSize: 9),
                           ),
                         ),

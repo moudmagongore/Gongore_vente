@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/services/user_controller.dart';
+import '../../../../core/utils/bottom_sheet_helpers.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../core/widgets/admin_drawer.dart';
 import '../../../../core/widgets/vendeur_drawer.dart';
@@ -58,9 +59,8 @@ class VentesListView extends GetView<VentesController> {
       drawer: controller.isAnyAdmin
           ? const AdminDrawer(currentRoute: AppRoutes.adminVentes)
           : const VendeurDrawer(currentRoute: AppRoutes.vendeurVentes),
-      body: SafeArea(
-        top: false,
-        child: Column(
+      body: androidOnlySafeArea(
+        Column(
         children: [
           const SizedBox(height: 12),
           _PeriodeBar(controller: controller),
@@ -93,7 +93,7 @@ class VentesListView extends GetView<VentesController> {
                 );
               }
               return ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
                 itemCount: list.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 8),
                 itemBuilder: (_, i) => _VenteTile(vente: list[i]),
@@ -120,9 +120,9 @@ class VentesListView extends GetView<VentesController> {
 
   void _showFilterSheet(BuildContext context) {
     Get.bottomSheet(
-      SafeArea(
-        top: false,
-        child: Container(
+      wrapBottomSheet(
+        context,
+        Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: Theme.of(context).cardTheme.color,
@@ -674,7 +674,7 @@ class _VenteTile extends StatelessWidget {
                         Get.snackbar(
                           'Impossible',
                           'Le règlement nécessite un client identifié.',
-                          snackPosition: SnackPosition.BOTTOM,
+                          snackPosition: SnackPosition.TOP,
                         );
                       } else {
                         ReglementSheet.open(context, client);

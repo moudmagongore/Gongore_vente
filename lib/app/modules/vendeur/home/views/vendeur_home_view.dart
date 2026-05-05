@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/utils/bottom_sheet_helpers.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../core/widgets/vendeur_drawer.dart';
 import '../../../../routes/app_routes.dart';
@@ -30,9 +31,8 @@ class VendeurHomeView extends GetView<VendeurHomeController> {
             )),
       ),
       drawer: const VendeurDrawer(currentRoute: AppRoutes.vendeurHome),
-      body: SafeArea(
-        top: false,
-        child: RefreshIndicator(
+      body: androidOnlySafeArea(
+        RefreshIndicator(
         onRefresh: () async {
           // bindStream est déjà live, juste un petit délai cosmétique
           await Future.delayed(const Duration(milliseconds: 400));
@@ -194,7 +194,7 @@ class _StatsBar extends StatelessWidget {
         children: [
           // Hero : chiffre d'affaires du jour (pleine largeur)
           _HeroStatCard(
-            icon: Icons.attach_money_rounded,
+            icon: Icons.money,
             value: Fmt.number(controller.caJour),
             label: 'Chiffre d\'affaires du jour',
             color: AppColors.success,

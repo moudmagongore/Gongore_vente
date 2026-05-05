@@ -166,7 +166,7 @@ class ApproReceiptService {
                 ...appro.articles.map(
                   (a) => pw.TableRow(
                     children: [
-                      _td(a.nom),
+                      _td(a.nomComplet),
                       _td('${a.quantite}', alignRight: true),
                       _td(Fmt.money(a.prixAchatUnitaire, currency: devise),
                           alignRight: true),

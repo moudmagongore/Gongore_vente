@@ -116,7 +116,7 @@ class ClientDetailController extends GetxController {
       Get.snackbar(
         'Erreur',
         'Boutique introuvable.',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
       return;
     }
@@ -134,7 +134,7 @@ class ClientDetailController extends GetxController {
       Get.snackbar(
         'Erreur',
         'Impression impossible : $e',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
     }
   }
@@ -167,13 +167,13 @@ class ClientDetailController extends GetxController {
       Get.snackbar(
         'Règlement supprimé',
         'Le solde a été réajusté.',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
     } catch (e) {
       Get.snackbar(
         'Erreur',
         'Suppression impossible : $e',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.red.shade50,
         colorText: Colors.red.shade900,
       );

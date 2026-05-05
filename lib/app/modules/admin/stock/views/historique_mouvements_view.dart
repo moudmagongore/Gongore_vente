@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/utils/bottom_sheet_helpers.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../data/models/mouvement_stock_model.dart';
 import '../../../../theme/app_colors.dart';
@@ -87,9 +88,9 @@ class HistoriqueMouvementsView
 
   void _showFilterSheet(BuildContext context) {
     Get.bottomSheet(
-      SafeArea(
-        top: false,
-        child: Container(
+      wrapBottomSheet(
+        context,
+        Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: Theme.of(context).cardTheme.color,
@@ -449,7 +450,7 @@ class _MouvementTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  m.produitNom,
+                  m.nomComplet,
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 13,

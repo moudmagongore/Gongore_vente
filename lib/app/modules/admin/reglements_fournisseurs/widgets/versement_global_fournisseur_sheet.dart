@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/services/user_controller.dart';
+import '../../../../core/utils/bottom_sheet_helpers.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../data/models/fournisseur_model.dart';
 import '../../../../data/repositories/fournisseur_repository.dart';
@@ -55,7 +56,7 @@ class _VersementGlobalFournisseurSheetState
     return DraggableScrollableSheet(
       initialChildSize: 0.85,
       minChildSize: 0.5,
-      maxChildSize: 0.95,
+      maxChildSize: 0.85,
       expand: false,
       builder: (_, scrollController) => Container(
         decoration: BoxDecoration(
@@ -63,9 +64,8 @@ class _VersementGlobalFournisseurSheetState
           borderRadius:
               const BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        child: SafeArea(
-          top: false,
-          child: Column(
+        child: androidOnlySafeArea(
+          Column(
             children: [
               const SizedBox(height: 8),
               Container(

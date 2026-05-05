@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/utils/bottom_sheet_helpers.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../data/models/produit_model.dart';
+import '../../../../data/models/variante_model.dart';
 import '../../../../data/models/vente_model.dart' show ModePaiement;
+import '../../../../data/repositories/produit_repository.dart';
 import '../../../../theme/app_colors.dart';
 import '../controllers/appro_form_controller.dart';
 
@@ -245,7 +248,7 @@ class _FournisseurPickerSheetState extends State<_FournisseurPickerSheet> {
     return DraggableScrollableSheet(
       initialChildSize: 0.85,
       minChildSize: 0.5,
-      maxChildSize: 0.95,
+      maxChildSize: 0.85,
       expand: false,
       builder: (_, scrollController) {
         return Container(
@@ -254,9 +257,8 @@ class _FournisseurPickerSheetState extends State<_FournisseurPickerSheet> {
             borderRadius:
                 const BorderRadius.vertical(top: Radius.circular(24)),
           ),
-          child: SafeArea(
-            top: false,
-            child: Column(
+          child: androidOnlySafeArea(
+            Column(
             children: [
               const SizedBox(height: 8),
               Container(
@@ -619,7 +621,7 @@ class _LigneTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    l.produit.nom,
+                    l.nomComplet,
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 13.5,
@@ -772,7 +774,7 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
     return DraggableScrollableSheet(
       initialChildSize: 0.85,
       minChildSize: 0.5,
-      maxChildSize: 0.95,
+      maxChildSize: 0.85,
       expand: false,
       builder: (_, scrollController) => Container(
         decoration: BoxDecoration(
@@ -780,9 +782,8 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
           borderRadius:
               const BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        child: SafeArea(
-          top: false,
-          child: Column(
+        child: androidOnlySafeArea(
+          Column(
             children: [
               const SizedBox(height: 8),
               Container(
@@ -918,6 +919,15 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
   }
 
   void _openLigneSheet(BuildContext rootContext, ProduitModel produit) {
+    // Produit avec variantes : on passe d'abord par un picker.
+    if (produit.hasVariantes) {
+      Get.bottomSheet(
+        _ApproVariantePickerSheet(c: widget.c, produit: produit),
+        isScrollControlled: true,
+        backgroundColor: Theme.of(rootContext).cardTheme.color,
+      );
+      return;
+    }
     Get.bottomSheet(
       _AjoutLigneSheet(c: widget.c, produit: produit),
       isScrollControlled: true,
@@ -926,10 +936,184 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
   }
 }
 
+// ============================================================================
+// Picker variante côté appro : liste les variantes du produit + permet d'en
+// choisir une avant d'ouvrir `_AjoutLigneSheet`. Pas de blocage en rupture
+// (un appro PEUT viser une variante actuellement à 0).
+// ============================================================================
+
+class _ApproVariantePickerSheet extends StatelessWidget {
+  final ApproFormController c;
+  final ProduitModel produit;
+  const _ApproVariantePickerSheet({required this.c, required this.produit});
+
+  @override
+  Widget build(BuildContext context) {
+    final repo = ProduitRepository();
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.4,
+      maxChildSize: 0.85,
+      expand: false,
+      builder: (_, scrollController) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardTheme.color,
+          borderRadius:
+              const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: androidOnlySafeArea(
+          Column(
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.style_rounded,
+                          color: AppColors.primary, size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Choisir une variante',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          Text(
+                            produit.nom,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Get.back(),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: StreamBuilder<List<VarianteModel>>(
+                  stream: repo.watchVariantes(produit.id),
+                  builder: (context, snap) {
+                    if (snap.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                          child: CircularProgressIndicator());
+                    }
+                    final list = snap.data ?? const <VarianteModel>[];
+                    if (list.isEmpty) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(
+                            'Ce produit n\'a aucune variante.',
+                            textAlign: TextAlign.center,
+                            style:
+                                TextStyle(color: Colors.grey.shade600),
+                          ),
+                        ),
+                      );
+                    }
+                    return ListView.separated(
+                      controller: scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      itemCount: list.length,
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(height: 4),
+                      itemBuilder: (_, i) {
+                        final v = list[i];
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor:
+                                AppColors.primary.withValues(alpha: 0.12),
+                            child: Text(
+                              v.libelle.isEmpty
+                                  ? '?'
+                                  : v.libelle.substring(
+                                      0,
+                                      v.libelle.length > 2
+                                          ? 2
+                                          : v.libelle.length),
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          title: Text(v.libelleAffichage),
+                          subtitle: Text(
+                            'Stock actuel : ${v.stock}',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600),
+                          ),
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            Get.bottomSheet(
+                              _AjoutLigneSheet(
+                                c: c,
+                                produit: produit,
+                                variante: v,
+                              ),
+                              isScrollControlled: true,
+                              backgroundColor:
+                                  Theme.of(context).cardTheme.color,
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _AjoutLigneSheet extends StatefulWidget {
   final ApproFormController c;
   final ProduitModel produit;
-  const _AjoutLigneSheet({required this.c, required this.produit});
+
+  /// Variante préchoisie (uniquement quand `produit.hasVariantes`).
+  final VarianteModel? variante;
+
+  const _AjoutLigneSheet({
+    required this.c,
+    required this.produit,
+    this.variante,
+  });
 
   @override
   State<_AjoutLigneSheet> createState() => _AjoutLigneSheetState();
@@ -968,14 +1152,18 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
     final p = widget.produit;
     final devise = widget.c.devise;
     final sousTotal = _pa * _quantite;
-    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
-    final viewPadding = MediaQuery.of(context).viewPadding.bottom;
-    return SafeArea(
-      top: false,
-      bottom: false,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-            20, 20, 20, (viewInsets > 0 ? viewInsets : viewPadding) + 20),
+    final mq = MediaQuery.of(context);
+    final viewInsets = mq.viewInsets.bottom;
+    final viewPadding = mq.viewPadding.bottom;
+    // Plafond basé sur la hauteur VISIBLE (écran - clavier) pour toujours
+    // laisser un espace en haut quand le clavier est ouvert.
+    final maxH = (mq.size.height - viewInsets) * kBottomSheetMaxHeightRatio;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxH),
+      child: SingleChildScrollView(
+        // Get.bottomSheet décale déjà le sheet au-dessus du clavier ;
+        // on ajoute juste viewPadding (home indicator iOS / barre Android).
+        padding: EdgeInsets.fromLTRB(20, 20, 20, viewPadding + 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1009,7 +1197,9 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        p.nom,
+                        widget.variante != null
+                            ? '${p.nom} — ${widget.variante!.libelleAffichage}'
+                            : p.nom,
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -1018,8 +1208,11 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        'PA actuel : ${Fmt.money(p.prixAchat, currency: devise)}'
-                        '  •  Stock : ${p.quantiteStock}',
+                        widget.variante != null
+                            ? 'PA actuel : ${Fmt.money(p.prixAchat, currency: devise)}'
+                                '  •  Stock variante : ${widget.variante!.stock}'
+                            : 'PA actuel : ${Fmt.money(p.prixAchat, currency: devise)}'
+                                '  •  Stock : ${p.quantiteStock}',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey.shade700,
@@ -1027,6 +1220,11 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
                       ),
                     ],
                   ),
+                ),
+                IconButton(
+                  onPressed: () => Get.back(),
+                  icon: const Icon(Icons.close_rounded),
+                  visualDensity: VisualDensity.compact,
                 ),
               ],
             ),
@@ -1116,6 +1314,8 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
                         produit: p,
                         quantite: _quantite,
                         prixAchatUnitaire: _pa,
+                        varianteId: widget.variante?.id,
+                        varianteLibelle: widget.variante?.libelleAffichage,
                       );
                       if (ok) Get.back();
                     },
@@ -1315,40 +1515,46 @@ class _PaiementSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
-    final viewPadding = MediaQuery.of(context).viewPadding.bottom;
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
-        borderRadius:
-            const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: SafeArea(
-        top: false,
-        bottom: false,
-        child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(
-              16, 8, 16, (viewInsets > 0 ? viewInsets : viewPadding) + 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade400,
-                    borderRadius: BorderRadius.circular(2),
+    final mq = MediaQuery.of(context);
+    final viewInsets = mq.viewInsets.bottom;
+    final viewPadding = mq.viewPadding.bottom;
+    // Plafond basé sur la hauteur VISIBLE (écran - clavier) pour toujours
+    // laisser un espace en haut quand le clavier est ouvert.
+    final maxH = (mq.size.height - viewInsets) * kBottomSheetMaxHeightRatio;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxH),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardTheme.color,
+          borderRadius:
+              const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          top: false,
+          bottom: false,
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+                16, 8, 16, (viewInsets > 0 ? viewInsets : viewPadding) + 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade400,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-              ),
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Paiement & options',
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Paiement & options',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
@@ -1450,6 +1656,7 @@ class _PaiementSheet extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }

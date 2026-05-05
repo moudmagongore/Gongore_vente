@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/services/user_controller.dart';
+import '../../../../core/utils/bottom_sheet_helpers.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../core/widgets/admin_drawer.dart';
 import '../../../../core/widgets/vendeur_drawer.dart';
 import '../../../../data/models/produit_model.dart';
+import '../../../../data/models/variante_model.dart';
+import '../../../../data/repositories/produit_repository.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../../theme/app_colors.dart';
 import '../controllers/stock_controller.dart';
@@ -16,6 +19,9 @@ class StockListView extends GetView<StockController> {
 
   @override
   Widget build(BuildContext context) {
+    // Seul l'admin peut modifier le stock manuellement (mouvements).
+    // Le gestionnaire est en lecture seule : il consulte mais n'agit pas.
+    final canEdit = UserController.to.isAdmin;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Stock'),
@@ -44,9 +50,8 @@ class StockListView extends GetView<StockController> {
       drawer: UserController.to.isAnyAdmin
           ? const AdminDrawer(currentRoute: AppRoutes.adminStock)
           : const VendeurDrawer(currentRoute: AppRoutes.adminStock),
-      body: SafeArea(
-        top: false,
-        child: Column(
+      body: androidOnlySafeArea(
+        Column(
           children: [
             const SizedBox(height: 12),
             _StatsRow(c: controller),
@@ -67,7 +72,10 @@ class StockListView extends GetView<StockController> {
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
                   itemCount: list.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 8),
-                  itemBuilder: (_, i) => _ProduitStockTile(produit: list[i]),
+                  itemBuilder: (_, i) => _ProduitStockTile(
+                    produit: list[i],
+                    canEdit: canEdit,
+                  ),
                 );
               }),
             ),
@@ -355,9 +363,23 @@ class _CategorieDropdown extends StatelessWidget {
 // Tile : un produit dans la liste stock
 // ============================================================================
 
-class _ProduitStockTile extends StatelessWidget {
+class _ProduitStockTile extends StatefulWidget {
   final ProduitModel produit;
-  const _ProduitStockTile({required this.produit});
+  final bool canEdit;
+  const _ProduitStockTile({
+    required this.produit,
+    required this.canEdit,
+  });
+
+  @override
+  State<_ProduitStockTile> createState() => _ProduitStockTileState();
+}
+
+class _ProduitStockTileState extends State<_ProduitStockTile> {
+  bool _showVariantes = false;
+
+  ProduitModel get produit => widget.produit;
+  bool get canEdit => widget.canEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -373,13 +395,17 @@ class _ProduitStockTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border),
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onLongPress: () => MouvementSheet.open(context, produit),
-        onTap: () => MouvementSheet.open(context, produit),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
+      child: Column(
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onLongPress:
+                canEdit ? () => MouvementSheet.open(context, produit) : null,
+            onTap:
+                canEdit ? () => MouvementSheet.open(context, produit) : null,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
         children: [
           // Indicateur d'état (barre verticale colorée)
           Container(
@@ -500,7 +526,7 @@ class _ProduitStockTile extends StatelessWidget {
                 ),
               ),
               Text(
-                produit.unite ?? 'unité(s)',
+                'unité(s)',
                 style: TextStyle(
                   fontSize: 10,
                   color: Colors.grey.shade600,
@@ -518,9 +544,136 @@ class _ProduitStockTile extends StatelessWidget {
             ],
           ),
         ],
+              ),
+            ),
           ),
-        ),
+          // Pied cliquable + panneau variantes (uniquement si le produit
+          // a des variantes ; lazy-loadé via stream à l'expansion).
+          if (produit.hasVariantes) ...[
+            const Divider(height: 1),
+            InkWell(
+              onTap: () =>
+                  setState(() => _showVariantes = !_showVariantes),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.style_rounded,
+                      size: 14,
+                      color: AppColors.primary.withValues(alpha: 0.8),
+                    ),
+                    const SizedBox(width: 6),
+                    const Text(
+                      'Voir variantes',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      _showVariantes
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.keyboard_arrow_down_rounded,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (_showVariantes) _StockVariantesPanel(produit: produit),
+          ],
+        ],
       ),
+    );
+  }
+}
+
+/// Panneau qui charge en live les variantes d'un produit et les affiche
+/// sous forme de chips compactes (libellé + stock + couleur seuil).
+class _StockVariantesPanel extends StatelessWidget {
+  final ProduitModel produit;
+  const _StockVariantesPanel({required this.produit});
+
+  @override
+  Widget build(BuildContext context) {
+    final repo = ProduitRepository();
+    return StreamBuilder<List<VarianteModel>>(
+      stream: repo.watchVariantes(produit.id),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.all(12),
+            child: SizedBox(
+              height: 16,
+              width: 16,
+              child:
+                  Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
+          );
+        }
+        final variantes = snap.data ?? const <VarianteModel>[];
+        if (variantes.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(
+              'Aucune variante.',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          );
+        }
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: variantes.map((v) {
+              final low = v.stock <= produit.seuilAlerte;
+              final color = v.stock <= 0
+                  ? Colors.red
+                  : (low ? AppColors.warning : AppColors.success);
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: color.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      v.libelleAffichage,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      ': ${v.stock}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: color,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      },
     );
   }
 }

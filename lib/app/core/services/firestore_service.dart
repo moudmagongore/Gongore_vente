@@ -21,6 +21,11 @@ class FirestoreService extends GetxService {
   CollectionReference<Map<String, dynamic>> get produits =>
       _db.collection(FirestoreKeys.produits);
 
+  /// Sous-collection des variantes d'un produit (pointures, tailles, ...).
+  /// Path : `produits/{produitId}/variantes`.
+  CollectionReference<Map<String, dynamic>> variantesOf(String produitId) =>
+      produits.doc(produitId).collection('variantes');
+
   CollectionReference<Map<String, dynamic>> get categories =>
       _db.collection(FirestoreKeys.categories);
 

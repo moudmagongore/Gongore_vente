@@ -112,7 +112,7 @@ class ClientFormController extends GetxController {
         Get.snackbar(
           'Modifications enregistrées',
           updated.nom,
-          snackPosition: SnackPosition.BOTTOM,
+          snackPosition: SnackPosition.TOP,
         );
       } else {
         final newClient = ClientModel(
@@ -130,7 +130,7 @@ class ClientFormController extends GetxController {
         Get.snackbar(
           'Client créé',
           newClient.nom,
-          snackPosition: SnackPosition.BOTTOM,
+          snackPosition: SnackPosition.TOP,
         );
       }
     } catch (e) {
@@ -144,7 +144,7 @@ class ClientFormController extends GetxController {
     Get.snackbar(
       'Erreur',
       msg,
-      snackPosition: SnackPosition.BOTTOM,
+      snackPosition: SnackPosition.TOP,
       backgroundColor: Colors.red.shade50,
       colorText: Colors.red.shade900,
       margin: const EdgeInsets.all(12),

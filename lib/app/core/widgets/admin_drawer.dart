@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -21,7 +23,6 @@ class AdminDrawer extends StatelessWidget {
         // (ex. admin coche/décoche `alsoGestionnaire` sur son propre profil).
         final user = UserController.to.user;
         final isSuper = UserController.to.isSuperAdmin;
-        final isAdmin = UserController.to.isAdmin;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -56,7 +57,7 @@ class AdminDrawer extends StatelessWidget {
                       currentRoute: currentRoute,
                     ),
                     _ExpansionGroup(
-                      icon: Icons.inventory_2_rounded,
+                      icon: Icons.inventory_2_outlined,
                       title: 'Catalogue',
                       currentRoute: currentRoute,
                       childrenRoutes: const [
@@ -86,7 +87,7 @@ class AdminDrawer extends StatelessWidget {
                       ],
                     ),
                     _ExpansionGroup(
-                      icon: Icons.local_shipping_rounded,
+                      icon: Icons.local_shipping_outlined,
                       title: 'Achats',
                       currentRoute: currentRoute,
                       childrenRoutes: const [
@@ -151,27 +152,34 @@ class AdminDrawer extends StatelessWidget {
                       route: AppRoutes.adminRapports,
                       currentRoute: currentRoute,
                     ),
-                    // Mon compte : visible uniquement pour admin de boutique
-                    // (super-admin n'a pas besoin, vendeur n'utilise pas ce drawer).
-                    // Permet à l'admin d'activer le cumul "Aussi gestionnaire".
-                    if (isAdmin)
-                      Builder(
-                        builder: (ctx) => ListTile(
-                          leading: const Icon(Icons.account_circle_outlined),
-                          title: const Text(
-                            'Mon compte',
-                            style: TextStyle(fontFamily: AppTheme.fontFamily),
-                          ),
-                          onTap: () {
-                            Navigator.of(ctx).pop();
-                            final me = UserController.to.user;
-                            if (me != null) {
-                              Get.toNamed(AppRoutes.adminUserForm,
-                                  arguments: me);
-                            }
-                          },
+                    _Item(
+                      icon: Icons.settings_rounded,
+                      label: 'Paramètres',
+                      route: AppRoutes.parametres,
+                      currentRoute: currentRoute,
+                    ),
+                    // Mon compte : visible pour tous les rôles.
+                    // - Admin de boutique : modifie ses infos + active le cumul
+                    //   « Aussi gestionnaire ».
+                    // - Super-admin : peut tout modifier sauf son propre rôle.
+                    Builder(
+                      builder: (ctx) => ListTile(
+                        leading:
+                            const Icon(Icons.account_circle_outlined),
+                        title: const Text(
+                          'Mon compte',
+                          style: TextStyle(fontFamily: AppTheme.fontFamily),
                         ),
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          final me = UserController.to.user;
+                          if (me != null) {
+                            Get.toNamed(AppRoutes.adminUserForm,
+                                arguments: me);
+                          }
+                        },
                       ),
+                    ),
                   ],
                 ),
               ),
@@ -187,7 +195,12 @@ class AdminDrawer extends StatelessWidget {
                 onTap: () => confirmSignOut(ctx),
               ),
             ),
-            SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
+            // Marge basse uniquement sur Android (iOS gère son home indicator).
+            SizedBox(
+              height: Platform.isAndroid
+                  ? MediaQuery.of(context).padding.bottom + 8
+                  : 8,
+            ),
           ],
         );
       }),

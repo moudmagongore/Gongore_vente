@@ -42,11 +42,23 @@ class UserFormController extends GetxController {
 
   bool get isEdit => editing.value != null;
 
-  /// Édition de son propre profil (admin de boutique éditant son user).
-  /// Utilisé pour limiter ce qui est éditable (pas de rôle / boutique /
-  /// statut actif modifiables — voir aussi les rules Firestore).
+  /// Édition de son propre profil. Utilisé pour limiter ce qui est éditable
+  /// (pas de rôle / statut actif modifiables — voir aussi les rules
+  /// Firestore).
   bool get isSelfEdit =>
       isEdit && editing.value!.id == UserController.to.user?.id;
+
+  /// Self-edit avec restrictions (admin / gestionnaire). Dans ce cas,
+  /// l'email + le téléphone sont aussi en lecture seule.
+  /// Le super-admin self-edit n'a PAS ces restrictions (il peut tout
+  /// modifier sauf son rôle).
+  bool get isSelfEditRestricted =>
+      isSelfEdit && !UserController.to.isSuperAdmin;
+
+  /// En self-edit, le super-admin n'est pas lié à une boutique : on cache
+  /// complètement la section affectation boutique pour lui.
+  bool get hideBoutiqueField =>
+      isSelfEdit && UserController.to.isSuperAdmin;
 
   String get title => isSelfEdit
       ? 'Mon compte'
@@ -186,7 +198,7 @@ class UserFormController extends GetxController {
             'définition de mot de passe n\'a pas pu partir : '
             '${result.emailError ?? "erreur inconnue"}. '
             'Vous pouvez le renvoyer depuis la liste des utilisateurs.',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         duration: const Duration(seconds: 6),
         backgroundColor: Colors.orange.shade50,
         colorText: Colors.orange.shade900,
@@ -197,7 +209,7 @@ class UserFormController extends GetxController {
         sendResetEmail.value
             ? 'Un email de définition de mot de passe a été envoyé à ${emailCtrl.text.trim()}.'
             : nomCtrl.text.trim(),
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         duration: const Duration(seconds: 4),
       );
     }
@@ -224,7 +236,7 @@ class UserFormController extends GetxController {
     Get.snackbar(
       'Modifications enregistrées',
       updated.nom,
-      snackPosition: SnackPosition.BOTTOM,
+      snackPosition: SnackPosition.TOP,
     );
   }
 
@@ -232,7 +244,7 @@ class UserFormController extends GetxController {
     Get.snackbar(
       'Erreur',
       msg,
-      snackPosition: SnackPosition.BOTTOM,
+      snackPosition: SnackPosition.TOP,
       backgroundColor: Colors.red.shade50,
       colorText: Colors.red.shade900,
       margin: const EdgeInsets.all(12),

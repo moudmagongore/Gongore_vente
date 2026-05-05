@@ -79,7 +79,7 @@ class ProduitsController extends GetxController {
       Get.snackbar(
         p.active ? 'Produit désactivé' : 'Produit activé',
         p.nom,
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
     } catch (e) {
       _snackError('Erreur : $e');
@@ -120,7 +120,7 @@ class ProduitsController extends GetxController {
 
     try {
       await _repo.delete(p.id);
-      Get.snackbar('Supprimé', p.nom, snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Supprimé', p.nom, snackPosition: SnackPosition.TOP);
     } catch (e) {
       _snackError('Suppression impossible : $e');
     }
@@ -130,7 +130,7 @@ class ProduitsController extends GetxController {
     Get.snackbar(
       'Erreur',
       msg,
-      snackPosition: SnackPosition.BOTTOM,
+      snackPosition: SnackPosition.TOP,
       backgroundColor: Colors.red.shade50,
       colorText: Colors.red.shade900,
       margin: const EdgeInsets.all(12),

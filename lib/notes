@@ -10,3 +10,27 @@ firebase deploy --only firestore:rules
 
 2-Et aussi je veux qu'on donne la possiblité a un utilisateur d'etre à la fois admin et gestionnaire d'une boutique a fin qu'il ai tous les accès que le gestionnaire detients deja en plus de tout les acces qu'il as comme admin d'une boutique
 l'admin lui meme peut ajouter son compte comme gestionnaire et le super admin pouras faire sa aussi pour l'admin de la boutique 
+
+
+
+FACE ID, BIOMETRIC AUTHENTICATION
+Oui, possible avec le package local_auth qui détecte automatiquement Face ID / Touch ID (iOS) ou empreinte / Face Unlock (Android). Le flow standard : l'utilisateur se connecte d'abord avec email+mot de passe, puis on lui propose d'activer la biométrie ; les identifiants chiffrés sont stockés via flutter_secure_storage et déverrouillés à l'ouverture suivante par l'auth biométrique.
+
+Travail estimé : ajout de 2 packages, config iOS (NSFaceIDUsageDescription) + Android (USE_BIOMETRIC permission), un service BiometricService, un toggle dans les paramètres, et modif du LoginController pour le flow auto-login. Tu veux que je l'implémente ?
+
+
+Mot de passe changé ailleurs → l'auth biométrique se désactive automatiquement avec un message clair
+
+
+
+
+
+
+
+
+
+
+
+
+je veux que tu m'aide en ajoutant un produit tu donne la possibitlité d'ajouter plusieurs variantes par ligne libellé, stock et un button +ligne pour ajouté d'autre ligne et sur chaque ligne il poura retirer, ce qui veut dire un produit peut avoir des variante(libellé, et stock)  je te fais une capture d'ecran pour que tu puisse comprendre avec sa c'est plus simple je trouve je prend un exampl quand j'ajoute une veste il peut avoir plusieurs pointure donc en enregistrant on met le nom et puis les pointures et leurs stocks  
+donc au final on donne la possibilité d'ajouter le produit simple comme ce qu'on as oubien il coche avec variante pour lui donner la possiblité d'ajouter avec variante que je prefer avoir comme sur les screen et tu adapte bien partout, et aussi noublie pas lors du vente d'un produit qui as des variante on lui donne la possibilité de selectionnér les variantes aussi et de duire le stock de la variante vendu et le stock du produit simple donc le produit son stock total doit etre la somme de tous les stock des variantes et lors de la vente on reduit le stock de la variante vendu et aussi le stock du produit simple pour que le stock total soit tjr a jour et aussi dans la page de vente on affiche les variantes pour les produits qui en ont et on lui donne la possibilité de selectionner la variante vendu et aussi dans la page de gestion des produits on affiche les variantes pour les produits qui en ont et on lui donne la possibilité de modifier ou supprimer les variantes

@@ -148,13 +148,13 @@ class ReglementsController extends GetxController {
       Get.snackbar(
         'Règlement supprimé',
         'Le solde du client a été réajusté.',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
     } catch (e) {
       Get.snackbar(
         'Erreur',
         'Suppression impossible : $e',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
     }
   }
@@ -168,7 +168,7 @@ class ReglementsController extends GetxController {
       Get.snackbar(
         'Erreur',
         'Client introuvable.',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
       return;
     }
@@ -178,7 +178,7 @@ class ReglementsController extends GetxController {
       Get.snackbar(
         'Erreur',
         'Boutique introuvable.',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
       return;
     }
@@ -195,7 +195,7 @@ class ReglementsController extends GetxController {
       Get.snackbar(
         'Erreur',
         'Impression impossible : $e',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
     }
   }

@@ -6,6 +6,8 @@ import '../../../../core/utils/format_helpers.dart';
 import '../../../../core/widgets/admin_drawer.dart';
 import '../../../../core/widgets/vendeur_drawer.dart';
 import '../../../../data/models/produit_model.dart';
+import '../../../../data/models/variante_model.dart';
+import '../../../../data/repositories/produit_repository.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../../theme/app_colors.dart';
 import '../controllers/produits_controller.dart';
@@ -175,10 +177,20 @@ class _DropdownChip extends StatelessWidget {
   }
 }
 
-class _ProduitTile extends StatelessWidget {
+class _ProduitTile extends StatefulWidget {
   final ProduitModel produit;
   final bool canEdit;
   const _ProduitTile({required this.produit, required this.canEdit});
+
+  @override
+  State<_ProduitTile> createState() => _ProduitTileState();
+}
+
+class _ProduitTileState extends State<_ProduitTile> {
+  bool _showVariantes = false;
+
+  ProduitModel get produit => widget.produit;
+  bool get canEdit => widget.canEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -187,17 +199,19 @@ class _ProduitTile extends StatelessWidget {
     final devise = controller.deviseDe(produit.boutiqueId);
 
     return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: canEdit
-            ? () => Get.toNamed(
-                  AppRoutes.adminProduitForm,
-                  arguments: produit,
-                )
-            : null,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
+      child: Column(
+        children: [
+          InkWell(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+            onTap: canEdit
+                ? () => Get.toNamed(
+                      AppRoutes.adminProduitForm,
+                      arguments: produit,
+                    )
+                : null,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
             children: [
               _ProductIcon(),
               const SizedBox(width: 12),
@@ -394,6 +408,134 @@ class _ProduitTile extends StatelessWidget {
           ),
         ),
       ),
+          // Footer cliquable + panneau variantes (uniquement si le produit
+          // a des variantes ; lazy-loadé via stream à l'expansion).
+          if (produit.hasVariantes) ...[
+            const Divider(height: 1),
+            InkWell(
+              onTap: () =>
+                  setState(() => _showVariantes = !_showVariantes),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(14),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.style_rounded,
+                      size: 14,
+                      color: AppColors.primary.withValues(alpha: 0.8),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Variantes (stock total : ${produit.quantiteStock})',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      _showVariantes
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.keyboard_arrow_down_rounded,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (_showVariantes)
+              _VariantesPanel(produit: produit),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Panneau qui charge en live les variantes d'un produit et les affiche
+/// sous forme de chips compactes (libellé + stock + état seuil).
+class _VariantesPanel extends StatelessWidget {
+  final ProduitModel produit;
+  const _VariantesPanel({required this.produit});
+
+  @override
+  Widget build(BuildContext context) {
+    final repo = ProduitRepository();
+    return StreamBuilder<List<VarianteModel>>(
+      stream: repo.watchVariantes(produit.id),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.all(12),
+            child: SizedBox(
+              height: 16,
+              width: 16,
+              child:
+                  Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
+          );
+        }
+        final variantes = snap.data ?? const <VarianteModel>[];
+        if (variantes.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(
+              'Aucune variante.',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          );
+        }
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: variantes.map((v) {
+              final low = v.stock <= produit.seuilAlerte;
+              final color = v.stock <= 0
+                  ? Colors.red
+                  : (low ? AppColors.warning : AppColors.success);
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: color.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      v.libelleAffichage,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      ': ${v.stock}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: color,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      },
     );
   }
 }

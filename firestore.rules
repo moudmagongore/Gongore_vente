@@ -96,12 +96,23 @@ service cloud.firestore {
                         && createBoutiqueIdMatches());
 
       // Update :
-      //   • superAdmin : tout sauf promouvoir vers superAdmin
+      //   • superAdmin :
+      //       - peut modifier n'importe quel user (y compris se modifier
+      //         lui-même)
+      //       - on bloque uniquement la PROMOTION/DÉPROMOTION vers/depuis
+      //         le rôle superAdmin (impossibilité de devenir superAdmin via
+      //         l'API ou de rétrograder un superAdmin existant)
       //   • admin : vendeurs de sa boutique (sans changer rôle/boutique)
       //   • admin : SOI-MÊME, uniquement pour basculer `alsoGestionnaire`
       //     (et `updatedAt`) — permet de s'auto-promouvoir gestionnaire
       //     sans pouvoir modifier role/boutiqueId/active
+      //   • vendeur : SOI-MÊME (nom / téléphone), pas de changement
+      //     role / boutiqueId / active
       allow update: if (isSuperAdmin()
+                        && request.resource.data.role
+                            == resource.data.role)
+                    || (isSuperAdmin()
+                        && resource.data.role != 'superAdmin'
                         && request.resource.data.role != 'superAdmin')
                     || (isAdmin()
                         && resource.data.role == 'vendeur'
@@ -112,6 +123,11 @@ service cloud.firestore {
                         && request.auth.uid == userId
                         && resource.data.role == 'admin'
                         && request.resource.data.role == 'admin'
+                        && boutiqueIdNotChanged()
+                        && request.resource.data.active == resource.data.active)
+                    || (isVendeur()
+                        && request.auth.uid == userId
+                        && request.resource.data.role == resource.data.role
                         && boutiqueIdNotChanged()
                         && request.resource.data.active == resource.data.active);
 
@@ -180,6 +196,36 @@ service cloud.firestore {
                             .hasOnly(['quantiteStock', 'prixAchat', 'updatedAt']));
 
       allow delete: if isAdmin() && resourceBoutiqueIdMatches();
+    }
+
+    // ================== Variantes (sous-collection produits) ==================
+    // Politique : alignée sur celle de la fiche produit, mais on doit lire
+    // le `boutiqueId` du produit parent (la variante elle-même ne le stocke
+    // pas — c'est volontaire pour éviter la dénormalisation).
+    //
+    // - read : superAdmin OU user de la même boutique que le produit
+    // - create/delete : admin de la boutique
+    // - update : admin (tout) ou vendeur (uniquement stock + updatedAt,
+    //   pour les transactions vente / appro / mouvement)
+    match /produits/{pid}/variantes/{vid} {
+      function parentBoutiqueId() {
+        return get(/databases/$(database)/documents/produits/$(pid)).data.boutiqueId;
+      }
+
+      allow read: if isSuperAdmin()
+                  || (isAuthed() && parentBoutiqueId() == userBoutiqueId());
+
+      allow create: if isAdmin() && parentBoutiqueId() == userBoutiqueId();
+
+      allow update: if (isAdmin()
+                        && parentBoutiqueId() == userBoutiqueId())
+                    || (isVendeur()
+                        && parentBoutiqueId() == userBoutiqueId()
+                        && request.resource.data.diff(resource.data)
+                            .affectedKeys()
+                            .hasOnly(['stock', 'updatedAt']));
+
+      allow delete: if isAdmin() && parentBoutiqueId() == userBoutiqueId();
     }
 
     // ================== Ventes ==================
@@ -326,9 +372,9 @@ service cloud.firestore {
       allow read: if isSuperAdmin()
                   || (isAuthed() && resource.data.boutiqueId == userBoutiqueId());
 
-      // Création par tout user actif de la boutique (vendeur compris).
-      allow create: if isSuperAdmin()
-                    || (isActive() && createBoutiqueIdMatches());
+      // Création réservée à l'ADMIN de la boutique. Le gestionnaire est
+      // en lecture seule (consultation de l'historique uniquement).
+      allow create: if isAdmin() && createBoutiqueIdMatches();
 
       // Pas d'update / delete (audit trail), sauf super-admin pour
       // correction exceptionnelle.

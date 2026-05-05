@@ -19,7 +19,6 @@ class ProduitModel {
   final double prixAchat;
   final double prixVente;
   final String? categorieId;
-  final String? unite;
   final String boutiqueId;
 
   /// Quantité actuellement en stock dans la boutique. Maintenue
@@ -33,7 +32,18 @@ class ProduitModel {
 
   /// Seuil en-dessous duquel le produit est considéré comme « stock bas »
   /// (alerte visuelle dans la liste stock). Default 5.
+  ///
+  /// Quand [hasVariantes] est true, ce seuil s'applique **par variante**
+  /// (alerte si une variante < seuil), et non sur le total.
   final int seuilAlerte;
+
+  /// Indique si le produit gère des variantes (pointures, tailles, ...).
+  /// Quand true :
+  /// - Les variantes sont en sous-collection `produits/{id}/variantes`
+  /// - `quantiteStock` est un miroir maintenu par transactions = somme
+  ///   des stocks des variantes.
+  /// - Les ventes / appros / mouvements doivent référencer une variante.
+  final bool hasVariantes;
 
   final bool active;
   final DateTime? createdAt;
@@ -47,9 +57,9 @@ class ProduitModel {
     this.description,
     this.prixAchat = 0,
     this.categorieId,
-    this.unite,
     this.quantiteStock = 0,
     this.seuilAlerte = 5,
+    this.hasVariantes = false,
     this.active = true,
     this.createdAt,
     this.updatedAt,
@@ -63,10 +73,10 @@ class ProduitModel {
       prixAchat: (map['prixAchat'] as num?)?.toDouble() ?? 0,
       prixVente: (map['prixVente'] as num?)?.toDouble() ?? 0,
       categorieId: map['categorieId'] as String?,
-      unite: map['unite'] as String?,
       boutiqueId: (map['boutiqueId'] ?? '') as String,
       quantiteStock: (map['quantiteStock'] as num?)?.toInt() ?? 0,
       seuilAlerte: (map['seuilAlerte'] as num?)?.toInt() ?? 5,
+      hasVariantes: (map['hasVariantes'] ?? false) as bool,
       active: (map['active'] ?? true) as bool,
       createdAt: (map['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
@@ -85,11 +95,13 @@ class ProduitModel {
         'prixAchat': prixAchat,
         'prixVente': prixVente,
         'categorieId': categorieId,
-        'unite': unite,
         'boutiqueId': boutiqueId,
         'quantiteStock': quantiteStock,
         'seuilAlerte': seuilAlerte,
+        'hasVariantes': hasVariantes,
         'active': active,
+        // Le champ legacy `unite` n'est plus géré par l'app. Les anciens
+        // documents Firestore qui en ont un seront ignorés à la lecture.
         if (createdAt != null) 'createdAt': Timestamp.fromDate(createdAt!),
         'updatedAt': FieldValue.serverTimestamp(),
       };
@@ -105,10 +117,10 @@ class ProduitModel {
     double? prixAchat,
     double? prixVente,
     String? categorieId,
-    String? unite,
     String? boutiqueId,
     int? quantiteStock,
     int? seuilAlerte,
+    bool? hasVariantes,
     bool? active,
   }) {
     return ProduitModel(
@@ -118,10 +130,10 @@ class ProduitModel {
       prixAchat: prixAchat ?? this.prixAchat,
       prixVente: prixVente ?? this.prixVente,
       categorieId: categorieId ?? this.categorieId,
-      unite: unite ?? this.unite,
       boutiqueId: boutiqueId ?? this.boutiqueId,
       quantiteStock: quantiteStock ?? this.quantiteStock,
       seuilAlerte: seuilAlerte ?? this.seuilAlerte,
+      hasVariantes: hasVariantes ?? this.hasVariantes,
       active: active ?? this.active,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
