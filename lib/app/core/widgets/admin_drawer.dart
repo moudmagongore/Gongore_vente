@@ -152,23 +152,22 @@ class AdminDrawer extends StatelessWidget {
                       route: AppRoutes.adminRapports,
                       currentRoute: currentRoute,
                     ),
-                    _Item(
-                      icon: Icons.settings_rounded,
-                      label: 'Paramètres',
-                      route: AppRoutes.parametres,
-                      currentRoute: currentRoute,
-                    ),
                     // Mon compte : visible pour tous les rôles.
-                    // - Admin de boutique : modifie ses infos + active le cumul
-                    //   « Aussi gestionnaire ».
-                    // - Super-admin : peut tout modifier sauf son propre rôle.
+                    // Style aligné sur les autres `_Item` (shape plate,
+                    // typographie identique).
                     Builder(
                       builder: (ctx) => ListTile(
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.zero,
+                        ),
                         leading:
                             const Icon(Icons.account_circle_outlined),
                         title: const Text(
                           'Mon compte',
-                          style: TextStyle(fontFamily: AppTheme.fontFamily),
+                          style: TextStyle(
+                            fontFamily: AppTheme.fontFamily,
+                            fontWeight: FontWeight.normal,
+                          ),
                         ),
                         onTap: () {
                           Navigator.of(ctx).pop();
@@ -179,6 +178,12 @@ class AdminDrawer extends StatelessWidget {
                           }
                         },
                       ),
+                    ),
+                    _Item(
+                      icon: Icons.settings_rounded,
+                      label: 'Paramètres',
+                      route: AppRoutes.parametres,
+                      currentRoute: currentRoute,
                     ),
                   ],
                 ),

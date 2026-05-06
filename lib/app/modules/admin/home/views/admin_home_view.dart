@@ -18,7 +18,6 @@ class AdminHomeView extends StatelessWidget {
   Widget build(BuildContext context) {
     // On instancie ici si pas déjà fait (pas via binding pour rester simple)
     final c = Get.put(DashboardController(), permanent: false);
-    final user = UserController.to.user;
 
     return Scaffold(
       appBar: AppBar(
@@ -43,7 +42,7 @@ class AdminHomeView extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
-              _GreetingCard(name: user?.nom ?? ''),
+              _GreetingCard(name: UserController.to.user?.nom ?? ''),
               const SizedBox(height: 16),
               const _SectionTitle('Aujourd\'hui'),
               const SizedBox(height: 10),

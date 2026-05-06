@@ -131,19 +131,19 @@ class VendeurDrawer extends StatelessWidget {
                       route: AppRoutes.adminRapports,
                       currentRoute: currentRoute,
                     ),
-                    _Item(
-                      icon: Icons.settings_rounded,
-                      label: 'Paramètres',
-                      route: AppRoutes.parametres,
-                      currentRoute: currentRoute,
-                    ),
                     Builder(
                       builder: (ctx) => ListTile(
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.zero,
+                        ),
                         leading:
                             const Icon(Icons.account_circle_outlined),
                         title: const Text(
                           'Mon compte',
-                          style: TextStyle(fontFamily: AppTheme.fontFamily),
+                          style: TextStyle(
+                            fontFamily: AppTheme.fontFamily,
+                            fontWeight: FontWeight.normal,
+                          ),
                         ),
                         onTap: () {
                           Navigator.of(ctx).pop();
@@ -154,6 +154,12 @@ class VendeurDrawer extends StatelessWidget {
                           }
                         },
                       ),
+                    ),
+                    _Item(
+                      icon: Icons.settings_rounded,
+                      label: 'Paramètres',
+                      route: AppRoutes.parametres,
+                      currentRoute: currentRoute,
                     ),
                   ],
                 ),

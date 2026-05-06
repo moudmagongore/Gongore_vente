@@ -108,7 +108,11 @@ class AppPages {
       name: AppRoutes.adminUserForm,
       page: () => const UserFormView(),
       binding: UserFormBinding(),
-      middlewares: [AdminGuard()],
+      // AuthGuard (et non AdminGuard) car la route sert aussi de page
+      // « Mon compte » accessible aux gestionnaires en self-edit. Le form
+      // + les rules Firestore garantissent que chacun ne peut modifier que
+      // ce qui le concerne.
+      middlewares: [AuthGuard()],
     ),
 
     GetPage(

@@ -25,14 +25,21 @@ class UserFormView extends GetView<UserFormController> {
             // ============ Identité ============
             _SectionTitle('Identité'),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: controller.nomCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Nom complet *',
-                prefixIcon: Icon(Icons.person_outline_rounded),
+            Obx(
+              () => _LabeledField(
+                label: 'Nom complet *',
+                child: TextFormField(
+                  controller: controller.nomCtrl,
+                  // En self-edit non-super, le nom est grisé. Seul le
+                  // super-admin peut modifier ses propres infos.
+                  enabled: !controller.isSelfEditRestricted,
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.person_outline_rounded),
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                  validator: controller.validateNom,
+                ),
               ),
-              textCapitalization: TextCapitalization.words,
-              validator: controller.validateNom,
             ),
             const SizedBox(height: 14),
             Obx(
@@ -43,38 +50,35 @@ class UserFormView extends GetView<UserFormController> {
                 final emailEnabled = !controller.isEdit ||
                     (controller.isSelfEdit &&
                         !controller.isSelfEditRestricted);
-                return TextFormField(
-                  controller: controller.emailCtrl,
-                  enabled: emailEnabled,
-                  decoration: InputDecoration(
-                    labelText: 'Email *',
-                    prefixIcon: const Icon(Icons.mail_outline_rounded),
-                    helperText: emailEnabled
-                        ? null
-                        : 'L\'email ne peut pas être modifié',
+                return _LabeledField(
+                  label: 'Email *',
+                  child: TextFormField(
+                    controller: controller.emailCtrl,
+                    enabled: emailEnabled,
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.mail_outline_rounded),
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                    autocorrect: false,
+                    validator: controller.validateEmail,
                   ),
-                  keyboardType: TextInputType.emailAddress,
-                  autocorrect: false,
-                  validator: controller.validateEmail,
                 );
               },
             ),
             const SizedBox(height: 14),
             Obx(
-              () => TextFormField(
-                controller: controller.telephoneCtrl,
-                // Téléphone : verrouillé pour un user qui édite son propre
-                // profil (sauf super-admin qui peut tout modifier).
-                enabled: !controller.isSelfEditRestricted,
-                decoration: InputDecoration(
-                  labelText: 'Téléphone',
-                  prefixIcon: const Icon(Icons.phone_outlined),
-                  hintText: '+224 ...',
-                  helperText: controller.isSelfEditRestricted
-                      ? 'Le téléphone ne peut pas être modifié'
-                      : null,
+              () => _LabeledField(
+                label: 'Téléphone',
+                child: TextFormField(
+                  controller: controller.telephoneCtrl,
+                  // Téléphone : verrouillé pour un user qui édite son propre
+                  // profil (sauf super-admin qui peut tout modifier).
+                  enabled: !controller.isSelfEditRestricted,
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.phone_outlined),
+                  ),
+                  keyboardType: TextInputType.phone,
                 ),
-                keyboardType: TextInputType.phone,
               ),
             ),
             const SizedBox(height: 24),
@@ -196,22 +200,24 @@ class UserFormView extends GetView<UserFormController> {
                         .any((b) => b.id == controller.boutiqueId.value)
                     ? controller.boutiqueId.value
                     : null;
-                return DropdownButtonFormField<String>(
-                  initialValue: safeId,
-                  decoration: const InputDecoration(
-                    labelText: 'Boutique *',
-                    prefixIcon: Icon(Icons.store_outlined),
+                return _LabeledField(
+                  label: 'Boutique *',
+                  child: DropdownButtonFormField<String>(
+                    initialValue: safeId,
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.store_outlined),
+                    ),
+                    items: controller.boutiques
+                        .map(
+                          (b) => DropdownMenuItem<String>(
+                            value: b.id,
+                            child: Text(b.nom),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) => controller.boutiqueId.value = v,
+                    validator: controller.validateBoutique,
                   ),
-                  items: controller.boutiques
-                      .map(
-                        (b) => DropdownMenuItem<String>(
-                          value: b.id,
-                          child: Text(b.nom),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (v) => controller.boutiqueId.value = v,
-                  validator: controller.validateBoutique,
                 );
               })
             else
@@ -253,36 +259,40 @@ class UserFormView extends GetView<UserFormController> {
                   _SectionTitle('Mot de passe'),
                   const SizedBox(height: 12),
                   Obx(
-                    () => TextFormField(
-                      controller: controller.passwordCtrl,
-                      obscureText: controller.obscurePassword.value,
-                      decoration: InputDecoration(
-                        labelText: 'Mot de passe initial *',
-                        prefixIcon: const Icon(Icons.lock_outline_rounded),
-                        suffixIcon: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              tooltip: 'Générer',
-                              onPressed: controller.generatePassword,
-                              icon: const Icon(Icons.refresh_rounded),
-                            ),
-                            IconButton(
-                              onPressed: controller.obscurePassword.toggle,
-                              icon: Icon(
-                                controller.obscurePassword.value
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
+                    () => _LabeledField(
+                      label: 'Mot de passe initial *',
+                      child: TextFormField(
+                        controller: controller.passwordCtrl,
+                        obscureText: controller.obscurePassword.value,
+                        decoration: InputDecoration(
+                          prefixIcon:
+                              const Icon(Icons.lock_outline_rounded),
+                          suffixIcon: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                tooltip: 'Générer',
+                                onPressed: controller.generatePassword,
+                                icon: const Icon(Icons.refresh_rounded),
                               ),
-                            ),
-                          ],
+                              IconButton(
+                                onPressed:
+                                    controller.obscurePassword.toggle,
+                                icon: Icon(
+                                  controller.obscurePassword.value
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                ),
+                              ),
+                            ],
+                          ),
+                          helperText: 'Au moins 6 caractères',
                         ),
-                        helperText: 'Au moins 6 caractères',
+                        inputFormatters: [
+                          LengthLimitingTextInputFormatter(50),
+                        ],
+                        validator: controller.validatePassword,
                       ),
-                      inputFormatters: [
-                        LengthLimitingTextInputFormatter(50),
-                      ],
-                      validator: controller.validatePassword,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -310,9 +320,8 @@ class UserFormView extends GetView<UserFormController> {
             }),
 
             // ============ Statut ============
-            // En self-edit (admin éditant son propre profil), le switch est
-            // masqué pour éviter qu'il se désactive lui-même par erreur
-            // (les rules le bloqueraient de toute façon).
+            // En self-edit, le switch est masqué (l'utilisateur ne peut pas
+            // se désactiver lui-même).
             if (!controller.isSelfEdit) ...[
               _SectionTitle('Statut'),
               const SizedBox(height: 6),
@@ -331,36 +340,49 @@ class UserFormView extends GetView<UserFormController> {
                 ),
               ),
               const SizedBox(height: 32),
-            ] else
-              const SizedBox(height: 16),
+            ] else ...[
+              // Section changement de mot de passe : visible UNIQUEMENT en
+              // self-edit (chaque user peut changer son propre mot de passe).
+              const SizedBox(height: 8),
+              _ChangePasswordSection(),
+              const SizedBox(height: 24),
+            ],
 
             // ============ Actions ============
-            Obx(
-              () => ElevatedButton.icon(
-                onPressed: controller.isSaving.value ? null : controller.save,
-                icon: controller.isSaving.value
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.4,
-                          valueColor: AlwaysStoppedAnimation(Colors.white),
-                        ),
-                      )
-                    : Icon(controller.isEdit
-                        ? Icons.check_rounded
-                        : Icons.person_add_alt_1_rounded),
-                label: Text(
-                  controller.isEdit
-                      ? 'Enregistrer'
-                      : 'Créer l\'utilisateur',
+            // Bouton "Enregistrer" : caché en self-edit pour un user
+            // restreint (non-super) — il ne peut rien modifier sauf son
+            // mot de passe, qui a son propre bouton dédié.
+            if (!controller.isSelfEditRestricted)
+              Obx(
+                () => ElevatedButton.icon(
+                  onPressed:
+                      controller.isSaving.value ? null : controller.save,
+                  icon: controller.isSaving.value
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.4,
+                            valueColor:
+                                AlwaysStoppedAnimation(Colors.white),
+                          ),
+                        )
+                      : Icon(controller.isEdit
+                          ? Icons.check_rounded
+                          : Icons.person_add_alt_1_rounded),
+                  label: Text(
+                    controller.isEdit
+                        ? 'Enregistrer'
+                        : 'Créer l\'utilisateur',
+                  ),
                 ),
               ),
-            ),
             const SizedBox(height: 8),
             TextButton(
               onPressed: () => Get.back(),
-              child: const Text('Annuler'),
+              child: Text(
+                controller.isSelfEditRestricted ? 'Fermer' : 'Annuler',
+              ),
             ),
           ],
         ),
@@ -385,6 +407,122 @@ class _SectionTitle extends StatelessWidget {
         letterSpacing: 0.4,
         color: AppColors.lightTextMuted,
       ),
+    );
+  }
+}
+
+/// Champ avec un petit label texte au-dessus (au lieu d'un labelText flottant
+/// qui surcharge visuellement le formulaire).
+class _LabeledField extends StatelessWidget {
+  final String label;
+  final Widget child;
+  const _LabeledField({required this.label, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 6),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Colors.grey.shade700,
+            ),
+          ),
+        ),
+        child,
+      ],
+    );
+  }
+}
+
+/// Section "Changer mon mot de passe" affichée uniquement en self-edit.
+/// Demande le mot de passe actuel + nouveau (avec confirmation), puis
+/// re-authentifie l'utilisateur via Firebase Auth avant de mettre à jour
+/// son mot de passe.
+class _ChangePasswordSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final c = Get.find<UserFormController>();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _SectionTitle('Changer mon mot de passe'),
+        const SizedBox(height: 12),
+        Obx(
+          () => _LabeledField(
+            label: 'Mot de passe actuel',
+            child: TextField(
+              controller: c.currentPwdCtrl,
+              obscureText: c.obscureCurrent.value,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.lock_outline_rounded),
+                suffixIcon: IconButton(
+                  onPressed: c.obscureCurrent.toggle,
+                  icon: Icon(
+                    c.obscureCurrent.value
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Obx(
+          () => _LabeledField(
+            label: 'Nouveau mot de passe',
+            child: TextField(
+              controller: c.newPwdCtrl,
+              obscureText: c.obscureNew.value,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.lock_outline_rounded),
+                suffixIcon: IconButton(
+                  onPressed: c.obscureNew.toggle,
+                  icon: Icon(
+                    c.obscureNew.value
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                ),
+                helperText: 'Au moins 6 caractères',
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Obx(
+          () => SizedBox(
+            height: 46,
+            child: ElevatedButton.icon(
+              onPressed:
+                  c.isChangingPassword.value ? null : c.changeMyPassword,
+              icon: c.isChangingPassword.value
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        valueColor: AlwaysStoppedAnimation(Colors.white),
+                      ),
+                    )
+                  : const Icon(Icons.check_rounded, size: 18),
+              label: const Text('Mettre à jour le mot de passe'),
+              style: ElevatedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

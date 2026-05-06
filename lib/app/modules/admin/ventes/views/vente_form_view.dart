@@ -1122,62 +1122,85 @@ class _VariantePickerSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final repo = ProduitRepository();
+    final theme = Theme.of(context);
     return DraggableScrollableSheet(
       initialChildSize: 0.7,
-      minChildSize: 0.4,
-      maxChildSize: 0.85,
+      minChildSize: 0.45,
+      maxChildSize: 0.9,
       expand: false,
       builder: (_, scrollController) => Container(
         decoration: BoxDecoration(
-          color: Theme.of(context).cardTheme.color,
+          color: theme.cardTheme.color ?? theme.colorScheme.surface,
           borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(24)),
+              const BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: androidOnlySafeArea(
           Column(
             children: [
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Container(
-                width: 44,
+                width: 42,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade400,
+                  color: theme.dividerColor,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
+              // ----- Header avec gradient subtil -----
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
+                padding: const EdgeInsets.fromLTRB(20, 18, 12, 14),
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            AppColors.primary,
+                            AppColors.primary.withValues(alpha: 0.7),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      child: const Icon(Icons.style_rounded,
-                          color: AppColors.primary, size: 18),
+                      child: const Icon(
+                        Icons.style_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
+                          const Text(
                             'Choisir une variante',
-                            style: const TextStyle(
-                              fontSize: 16,
+                            style: TextStyle(
+                              fontSize: 17,
                               fontWeight: FontWeight.w800,
+                              letterSpacing: 0.2,
                             ),
                           ),
+                          const SizedBox(height: 2),
                           Text(
                             produit.nom,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade700,
+                              fontSize: 13,
+                              color: theme.textTheme.bodyMedium?.color
+                                  ?.withValues(alpha: 0.65),
                             ),
                           ),
                         ],
@@ -1190,7 +1213,21 @@ class _VariantePickerSheet extends StatelessWidget {
                   ],
                 ),
               ),
-              const Divider(height: 1),
+              // ----- Légende stock -----
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                child: Row(
+                  children: [
+                    _LegendDot(
+                        color: AppColors.success, label: 'Disponible'),
+                    const SizedBox(width: 14),
+                    _LegendDot(color: AppColors.warning, label: 'Bas'),
+                    const SizedBox(width: 14),
+                    _LegendDot(color: Colors.red, label: 'Rupture'),
+                  ],
+                ),
+              ),
+              // ----- Grille des variantes -----
               Expanded(
                 child: StreamBuilder<List<VarianteModel>>(
                   stream: repo.watchVariantes(produit.id),
@@ -1204,25 +1241,43 @@ class _VariantePickerSheet extends StatelessWidget {
                       return Center(
                         child: Padding(
                           padding: const EdgeInsets.all(24),
-                          child: Text(
-                            'Ce produit n\'a aucune variante.',
-                            textAlign: TextAlign.center,
-                            style:
-                                TextStyle(color: Colors.grey.shade600),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.inbox_outlined,
+                                size: 48,
+                                color: theme.disabledColor,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Aucune variante disponible',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: theme.textTheme.bodyMedium?.color
+                                      ?.withValues(alpha: 0.6),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       );
                     }
                     return ListView.separated(
                       controller: scrollController,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      padding:
+                          const EdgeInsets.fromLTRB(8, 4, 8, 16),
                       itemCount: list.length,
-                      separatorBuilder: (_, _) =>
-                          const SizedBox(height: 4),
+                      separatorBuilder: (_, _) => Divider(
+                        height: 1,
+                        thickness: 0.5,
+                        color: theme.dividerColor.withValues(alpha: 0.35),
+                      ),
                       itemBuilder: (_, i) {
                         final v = list[i];
                         final rupture = v.stock <= 0;
-                        final low = v.stock <= produit.seuilAlerte;
+                        final low =
+                            !rupture && v.stock <= produit.seuilAlerte;
                         final color = rupture
                             ? Colors.red
                             : (low
@@ -1230,6 +1285,8 @@ class _VariantePickerSheet extends StatelessWidget {
                                 : AppColors.success);
                         return ListTile(
                           enabled: !rupture,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 4),
                           leading: CircleAvatar(
                             backgroundColor:
                                 AppColors.primary.withValues(alpha: 0.12),
@@ -1248,22 +1305,27 @@ class _VariantePickerSheet extends StatelessWidget {
                               ),
                             ),
                           ),
-                          title: Text(v.libelleAffichage),
+                          title: Text(
+                            v.libelleAffichage,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                           subtitle: Text(
                             rupture ? 'Rupture' : 'Stock : ${v.stock}',
                             style: TextStyle(fontSize: 12, color: color),
                           ),
                           trailing: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
+                                horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: color.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(8),
+                              color: color.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
                               rupture ? '0' : '${v.stock}',
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w800,
                                 color: color,
                               ),
@@ -1294,6 +1356,39 @@ class _VariantePickerSheet extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Petit point coloré + label utilisé dans la légende du picker variante.
+class _LegendDot extends StatelessWidget {
+  final Color color;
+  final String label;
+  const _LegendDot({required this.color, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.color
+                ?.withValues(alpha: 0.65),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1435,6 +1530,7 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
             ),
             // Header produit
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
                   padding: const EdgeInsets.all(10),
@@ -1457,7 +1553,7 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
                         ),
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
@@ -1467,24 +1563,26 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
                           color: Colors.grey.shade700,
                         ),
                       ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: (dispo <= 0 ? Colors.red : AppColors.success)
+                              .withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          dispo <= 0 ? 'Rupture' : 'Dispo $dispo',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color:
+                                dispo <= 0 ? Colors.red : AppColors.success,
+                          ),
+                        ),
+                      ),
                     ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: (dispo <= 0 ? Colors.red : AppColors.success)
-                        .withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    dispo <= 0 ? 'Rupture' : 'Dispo $dispo',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: dispo <= 0 ? Colors.red : AppColors.success,
-                    ),
                   ),
                 ),
                 IconButton(
@@ -1501,35 +1599,13 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                _QtyStepper(
-                  quantite: _quantite,
-                  onMinus: () => _setQuantite(_quantite - 1),
-                  onPlus: () {
-                    if (_quantite >= dispo) return;
-                    _setQuantite(_quantite + 1);
-                  },
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _qteCtrl,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                    ],
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      hintText: '1',
-                    ),
-                    onChanged: (v) {
-                      final n = int.tryParse(v) ?? 1;
-                      _setQuantite(n > dispo ? dispo : n);
-                    },
-                  ),
-                ),
-              ],
+            _QtyStepper(
+              quantite: _quantite,
+              onMinus: () => _setQuantite(_quantite - 1),
+              onPlus: () {
+                if (_quantite >= dispo) return;
+                _setQuantite(_quantite + 1);
+              },
             ),
             const SizedBox(height: 18),
             // Remise

@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/services/biometric_service.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../core/services/user_creation_service.dart';
 import '../../../../data/models/boutique_model.dart';
@@ -49,7 +50,8 @@ class UserFormController extends GetxController {
       isEdit && editing.value!.id == UserController.to.user?.id;
 
   /// Self-edit avec restrictions (admin / gestionnaire). Dans ce cas,
-  /// l'email + le téléphone sont aussi en lecture seule.
+  /// TOUS les champs identité (nom, email, téléphone, rôle) sont en lecture
+  /// seule. Seul le mot de passe peut être modifié.
   /// Le super-admin self-edit n'a PAS ces restrictions (il peut tout
   /// modifier sauf son rôle).
   bool get isSelfEditRestricted =>
@@ -59,6 +61,16 @@ class UserFormController extends GetxController {
   /// complètement la section affectation boutique pour lui.
   bool get hideBoutiqueField =>
       isSelfEdit && UserController.to.isSuperAdmin;
+
+  // ============== Changement de mot de passe (self-edit) ==============
+
+  /// Mot de passe actuel + nouveau, utilisés uniquement en self-edit pour
+  /// que l'utilisateur change son propre mot de passe via Firebase Auth.
+  final currentPwdCtrl = TextEditingController();
+  final newPwdCtrl = TextEditingController();
+  final RxBool obscureCurrent = true.obs;
+  final RxBool obscureNew = true.obs;
+  final RxBool isChangingPassword = false.obs;
 
   String get title => isSelfEdit
       ? 'Mon compte'
@@ -102,7 +114,68 @@ class UserFormController extends GetxController {
     emailCtrl.dispose();
     telephoneCtrl.dispose();
     passwordCtrl.dispose();
+    currentPwdCtrl.dispose();
+    newPwdCtrl.dispose();
     super.onClose();
+  }
+
+  /// Change le mot de passe de l'utilisateur connecté via Firebase Auth.
+  /// Re-authentifie d'abord avec le mot de passe actuel (Firebase exige
+  /// une session récente pour cette opération).
+  Future<void> changeMyPassword() async {
+    final current = currentPwdCtrl.text;
+    final newPwd = newPwdCtrl.text;
+
+    if (current.isEmpty) {
+      _snackError('Mot de passe actuel requis.');
+      return;
+    }
+    if (newPwd.length < 6) {
+      _snackError('Nouveau mot de passe : au moins 6 caractères.');
+      return;
+    }
+    if (newPwd == current) {
+      _snackError(
+          'Le nouveau mot de passe doit être différent de l\'actuel.');
+      return;
+    }
+
+    isChangingPassword.value = true;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null || user.email == null) {
+        throw FirebaseAuthException(code: 'user-not-found');
+      }
+      final cred = EmailAuthProvider.credential(
+        email: user.email!,
+        password: current,
+      );
+      await user.reauthenticateWithCredential(cred);
+      await user.updatePassword(newPwd);
+
+      // Si la biométrie est activée, on rafraîchit les identifiants
+      // chiffrés stockés (sinon le prochain Face ID / empreinte échouerait
+      // avec l'ancien mot de passe et désactiverait la biométrie).
+      final bio = BiometricService.to;
+      if (await bio.isEnabled()) {
+        await bio.enable(email: user.email!, password: newPwd);
+      }
+
+      currentPwdCtrl.clear();
+      newPwdCtrl.clear();
+
+      Get.snackbar(
+        'Mot de passe modifié',
+        'Votre nouveau mot de passe est actif.',
+        snackPosition: SnackPosition.TOP,
+      );
+    } on FirebaseAuthException catch (e) {
+      _snackError(_mapAuthError(e));
+    } catch (e) {
+      _snackError('Erreur : $e');
+    } finally {
+      isChangingPassword.value = false;
+    }
   }
 
   String? validateNom(String? v) {
@@ -259,6 +332,11 @@ class UserFormController extends GetxController {
         return 'Email invalide';
       case 'weak-password':
         return 'Mot de passe trop faible (min. 6 caractères)';
+      case 'wrong-password':
+      case 'invalid-credential':
+        return 'Mot de passe actuel incorrect';
+      case 'requires-recent-login':
+        return 'Reconnectez-vous pour changer votre mot de passe.';
       case 'network-request-failed':
         return 'Pas de connexion internet';
       default:

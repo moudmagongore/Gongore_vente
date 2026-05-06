@@ -156,14 +156,16 @@ class _GreetingCard extends StatelessWidget {
                     fontSize: 13,
                   ),
                 ),
-                Text(
-                  controller.nomVendeur,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+                Obx(
+                  () => Text(
+                    controller.nomVendeur,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -453,26 +455,31 @@ class _RecentList extends StatelessWidget {
       }
       final list = controller.ventesAujourdhui.take(5).toList();
       if (list.isEmpty) {
+        final theme = Theme.of(context);
+        final muted = theme.textTheme.bodyMedium?.color
+                ?.withValues(alpha: 0.6) ??
+            Colors.grey;
         return Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Colors.grey.shade50,
+            color: theme.cardTheme.color ?? theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border, width: 1),
           ),
           child: Column(
             children: [
               Icon(Icons.inbox_outlined,
-                  size: 48, color: Colors.grey.shade400),
+                  size: 48, color: muted.withValues(alpha: 0.3)),
               const SizedBox(height: 8),
               Text(
                 'Aucune vente aujourd\'hui',
-                style: TextStyle(color: Colors.grey.shade600),
+                style: TextStyle( color: muted.withValues(alpha: 0.3),),
               ),
               const SizedBox(height: 4),
               Text(
                 'Appuyez sur « Vendre » pour commencer.',
                 style: TextStyle(
-                  color: Colors.grey.shade500,
+                  color: muted.withValues(alpha: 0.3),
                   fontSize: 12,
                 ),
               ),
