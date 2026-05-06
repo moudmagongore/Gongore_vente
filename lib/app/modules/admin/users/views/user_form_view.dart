@@ -344,12 +344,16 @@ class UserFormView extends GetView<UserFormController> {
 
             // ============ Bouton "Enregistrer" identité ============
             // Placé juste après les sections identité / rôle / boutique /
-            // statut — il sauvegarde ces informations. Caché pour les users
-            // restreints en self-edit (non-super), qui ne peuvent rien
-            // modifier ici à part leur mot de passe.
-            if (!controller.isSelfEditRestricted) ...[
-              Obx(
-                () => ElevatedButton.icon(
+            // statut — il sauvegarde ces informations. En self-edit
+            // restreint (admin/vendeur), le bouton n'apparaît que pour un
+            // admin (pour persister l'interrupteur « Aussi gestionnaire »).
+            Obx(() {
+              final showSave = !controller.isSelfEditRestricted ||
+                  controller.role.value == UserRole.admin;
+              if (!showSave) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 24),
+                child: ElevatedButton.icon(
                   onPressed:
                       controller.isSaving.value ? null : controller.save,
                   icon: controller.isSaving.value
@@ -371,9 +375,8 @@ class UserFormView extends GetView<UserFormController> {
                         : 'Créer l\'utilisateur',
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
-            ],
+              );
+            }),
 
             // ============ Section changement de mot de passe ============
             // Visible UNIQUEMENT en self-edit. Possède son propre bouton
