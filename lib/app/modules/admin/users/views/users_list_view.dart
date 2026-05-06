@@ -396,8 +396,22 @@ class _RoleBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isAdmin = role == UserRole.admin;
-    final color = isAdmin ? AppColors.primary : AppColors.secondary;
+    final String label;
+    final Color color;
+    switch (role) {
+      case UserRole.superAdmin:
+        label = 'SUPER ADMIN';
+        color = const Color(0xFF6A1B9A);
+        break;
+      case UserRole.admin:
+        label = 'ADMIN';
+        color = AppColors.primary;
+        break;
+      case UserRole.vendeur:
+        label = 'GESTIONNAIRE';
+        color = AppColors.secondary;
+        break;
+    }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
@@ -405,7 +419,7 @@ class _RoleBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        isAdmin ? 'ADMIN' : 'GESTIONNAIRE',
+        label,
         style: TextStyle(
           color: color,
           fontSize: 10,
