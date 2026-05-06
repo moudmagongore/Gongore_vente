@@ -79,9 +79,10 @@ class VenteDetailView extends GetView<VenteDetailController> {
                 ),
                 if (controller.peutAnnuler) ...[
                   const SizedBox(height: 10),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red, width: 1.4),
                       minimumSize: const Size.fromHeight(50),
                     ),
                     onPressed: controller.isCanceling.value
@@ -94,7 +95,7 @@ class VenteDetailView extends GetView<VenteDetailController> {
                             child: CircularProgressIndicator(
                               strokeWidth: 2.4,
                               valueColor:
-                                  AlwaysStoppedAnimation(Colors.white),
+                                  AlwaysStoppedAnimation(Colors.red),
                             ),
                           )
                         : const Icon(Icons.cancel_outlined),
@@ -272,6 +273,7 @@ class _DetailBody extends StatelessWidget {
                   label: 'TOTAL',
                   value: Fmt.money(vente.total, currency: controller.devise),
                   big: true,
+                  strikethrough: annulee,
                 ),
                 const SizedBox(height: 8),
                 Divider(height: 1, color: Colors.grey.shade200),
@@ -399,14 +401,36 @@ class _ArticleLine extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      article.nomComplet,
+                      article.nom,
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
                       ),
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (article.varianteLibelle != null &&
+                        article.varianteLibelle!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          article.varianteLibelle!,
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 2),
                     Text(
                       '${Fmt.money(article.prixUnitaire, currency: devise)} x ${article.quantite}'
                       '${article.remise > 0 ? '  • remise ${Fmt.money(article.remise, currency: devise)}' : ''}',
@@ -439,12 +463,14 @@ class _TotalLine extends StatelessWidget {
   final String value;
   final bool big;
   final Color? color;
+  final bool strikethrough;
 
   const _TotalLine({
     required this.label,
     required this.value,
     this.big = false,
     this.color,
+    this.strikethrough = false,
   });
 
   @override
@@ -467,7 +493,12 @@ class _TotalLine extends StatelessWidget {
             style: TextStyle(
               fontSize: big ? 22 : 14,
               fontWeight: big ? FontWeight.w800 : FontWeight.w600,
-              color: color ?? (big ? AppColors.primary : null),
+              color: strikethrough
+                  ? Colors.grey
+                  : (color ?? (big ? AppColors.primary : null)),
+              decoration: strikethrough
+                  ? TextDecoration.lineThrough
+                  : TextDecoration.none,
             ),
           ),
         ],

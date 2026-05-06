@@ -36,7 +36,9 @@ class VentesController extends GetxController {
   final RxnString filterClientId = RxnString();
   final RxnString filterProduitId = RxnString();
   final Rxn<ModePaiement> filterModePaiement = Rxn<ModePaiement>();
-  final RxBool inclureAnnulees = false.obs;
+  // Par défaut, on affiche les ventes annulées dans la liste (avec badge
+  // "ANNULÉE" et prix barré). Un filtre permet de les masquer si besoin.
+  final RxBool inclureAnnulees = true.obs;
   /// false = toutes, true = uniquement ventes partiellement payées (crédit)
   final RxBool onlyAvecCredit = false.obs;
   final RxString search = ''.obs;

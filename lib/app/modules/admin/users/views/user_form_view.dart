@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/utils/bottom_sheet_helpers.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../theme/app_colors.dart';
 import '../controllers/user_form_controller.dart';
@@ -15,9 +16,8 @@ class UserFormView extends GetView<UserFormController> {
       appBar: AppBar(
         title: Obx(() => Text(controller.title)),
       ),
-      body: SafeArea(
-        top: false,
-        child: Form(
+      body: androidOnlySafeArea(
+        Form(
         key: controller.formKey,
         child: ListView(
           padding: const EdgeInsets.all(20),
@@ -339,20 +339,15 @@ class UserFormView extends GetView<UserFormController> {
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
-              const SizedBox(height: 32),
-            ] else ...[
-              // Section changement de mot de passe : visible UNIQUEMENT en
-              // self-edit (chaque user peut changer son propre mot de passe).
-              const SizedBox(height: 8),
-              _ChangePasswordSection(),
               const SizedBox(height: 24),
             ],
 
-            // ============ Actions ============
-            // Bouton "Enregistrer" : caché en self-edit pour un user
-            // restreint (non-super) — il ne peut rien modifier sauf son
-            // mot de passe, qui a son propre bouton dédié.
-            if (!controller.isSelfEditRestricted)
+            // ============ Bouton "Enregistrer" identité ============
+            // Placé juste après les sections identité / rôle / boutique /
+            // statut — il sauvegarde ces informations. Caché pour les users
+            // restreints en self-edit (non-super), qui ne peuvent rien
+            // modifier ici à part leur mot de passe.
+            if (!controller.isSelfEditRestricted) ...[
               Obx(
                 () => ElevatedButton.icon(
                   onPressed:
@@ -377,11 +372,32 @@ class UserFormView extends GetView<UserFormController> {
                   ),
                 ),
               ),
-            const SizedBox(height: 8),
-            TextButton(
+              const SizedBox(height: 24),
+            ],
+
+            // ============ Section changement de mot de passe ============
+            // Visible UNIQUEMENT en self-edit. Possède son propre bouton
+            // « Mettre à jour le mot de passe » à la fin.
+            if (controller.isSelfEdit) ...[
+              _ChangePasswordSection(),
+              const SizedBox(height: 16),
+            ],
+
+            // ============ Bouton Annuler / Fermer ============
+            OutlinedButton(
               onPressed: () => Get.back(),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(
+                    color: AppColors.primary, width: 1.4),
+                minimumSize: const Size.fromHeight(48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
               child: Text(
                 controller.isSelfEditRestricted ? 'Fermer' : 'Annuler',
+                style: const TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
           ],

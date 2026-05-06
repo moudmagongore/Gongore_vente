@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../theme/app_colors.dart';
 import '../controllers/boutique_form_controller.dart';
 
 class BoutiqueFormView extends GetView<BoutiqueFormController> {
@@ -85,9 +86,21 @@ class BoutiqueFormView extends GetView<BoutiqueFormController> {
               ),
             ),
             const SizedBox(height: 8),
-            TextButton(
+            OutlinedButton(
               onPressed: () => Get.back(),
-              child: const Text('Annuler'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(
+                    color: AppColors.primary, width: 1.4),
+                minimumSize: const Size.fromHeight(48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Annuler',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
             ),
           ],
         ),

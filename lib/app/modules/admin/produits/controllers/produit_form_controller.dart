@@ -233,14 +233,21 @@ class ProduitFormController extends GetxController {
         _snackError('Ajoutez au moins une variante.');
         return;
       }
-      final libelles = <String>{};
+      // Dédoublonnage par (libellé + couleur) : un même libellé peut
+      // exister plusieurs fois s'il a une couleur différente (ex. T40
+      // Rouge et T40 Bleu sont deux variantes valides).
+      final keys = <String>{};
       for (final v in variantes) {
         if (v.libelle.isEmpty) {
           _snackError('Chaque variante doit avoir un libellé.');
           return;
         }
-        if (!libelles.add(v.libelle.toLowerCase())) {
-          _snackError('Libellé en double : ${v.libelle}');
+        final key = '${v.libelle.toLowerCase()}|${v.couleur.toLowerCase()}';
+        if (!keys.add(key)) {
+          final lib = v.couleur.isEmpty
+              ? v.libelle
+              : '${v.libelle} (${v.couleur})';
+          _snackError('Variante en double : $lib');
           return;
         }
       }

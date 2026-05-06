@@ -517,10 +517,22 @@ class ProduitFormView extends GetView<ProduitFormController> {
                   ),
                 ),
               ),
-              const SizedBox(height: 4),
-              TextButton(
+              const SizedBox(height: 8),
+              OutlinedButton(
                 onPressed: () => Get.back(),
-                child: const Text('Annuler'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(
+                      color: AppColors.primary, width: 1.4),
+                  minimumSize: const Size.fromHeight(48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Annuler',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
             ],
           ),

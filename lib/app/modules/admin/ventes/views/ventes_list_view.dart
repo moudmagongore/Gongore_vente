@@ -578,22 +578,15 @@ class _VenteTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Text(
-                          vente.numeroAffichage,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 13,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        if (annulee)
-                          _Badge(label: 'ANNULÉE', color: Colors.red)
-                        else if (hasCredit)
-                          _Badge(label: 'CRÉDIT', color: AppColors.warning),
-                      ],
+                    Text(
+                      vente.numeroAffichage,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                        color: AppColors.primary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Row(
@@ -623,6 +616,18 @@ class _VenteTile extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (annulee || hasCredit) ...[
+                      const SizedBox(height: 6),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: annulee
+                            ? _Badge(label: 'ANNULÉE', color: Colors.red)
+                            : _Badge(
+                                label: 'CRÉDIT',
+                                color: AppColors.warning,
+                              ),
+                      ),
+                    ],
                   ],
                 ),
               ),
