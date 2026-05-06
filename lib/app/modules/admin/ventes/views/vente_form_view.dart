@@ -878,19 +878,19 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
                     // Bouton « Terminer » visible dès qu'au moins un article
                     // a été ajouté — permet de fermer le picker sans avoir à
                     // scroller chercher la croix.
-                    Obx(() {
-                      if (widget.controller.lignes.isEmpty) {
-                        return const SizedBox.shrink();
-                      }
-                      return TextButton.icon(
-                        onPressed: () => Get.back(),
-                        icon: const Icon(Icons.check_rounded, size: 18),
-                        label: const Text('Terminer'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.success,
-                        ),
-                      );
-                    }),
+                    // Obx(() {
+                    //   if (widget.controller.lignes.isEmpty) {
+                    //     return const SizedBox.shrink();
+                    //   }
+                    //   return TextButton.icon(
+                    //     onPressed: () => Get.back(),
+                    //     icon: const Icon(Icons.check_rounded, size: 18),
+                    //     label: const Text('Terminer'),
+                    //     style: TextButton.styleFrom(
+                    //       foregroundColor: AppColors.success,
+                    //     ),
+                    //   );
+                    // }),
                     IconButton(
                       onPressed: () => Get.back(),
                       icon: const Icon(Icons.close_rounded),
@@ -2189,7 +2189,7 @@ class _EncaissementSectionState extends State<_EncaissementSection> {
                     size: 18, color: AppColors.primary),
                 const SizedBox(width: 6),
                 const Text(
-                  'Montant payé (cash)',
+                  'Montant payé',
                   style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
@@ -2494,6 +2494,8 @@ class _PanierCompact extends StatelessWidget {
       final devise = controller.devise;
       final nbArticles = controller.nbArticles;
       final total = controller.total;
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      final fg = isDark ? Colors.white : AppColors.primary;
       return Container(
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
         padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
@@ -2510,24 +2512,23 @@ class _PanierCompact extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.shopping_basket_rounded,
-                    size: 14, color: AppColors.primary),
+                Icon(Icons.shopping_basket_rounded, size: 14, color: fg),
                 const SizedBox(width: 6),
                 Text(
                   '$nbArticles article${nbArticles > 1 ? 's' : ''} au panier',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
+                    color: fg,
                   ),
                 ),
                 const Spacer(),
                 Text(
                   Fmt.money(total, currency: devise),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.primary,
+                    color: fg,
                     letterSpacing: -0.2,
                   ),
                 ),
@@ -2542,8 +2543,12 @@ class _PanierCompact extends StatelessWidget {
                 separatorBuilder: (_, _) => const SizedBox(width: 6),
                 itemBuilder: (_, i) {
                   final l = controller.lignes[i];
+                  final theme = Theme.of(context);
+                  final isDark = theme.brightness == Brightness.dark;
+                  final fg = isDark ? Colors.white : AppColors.primary;
                   return Material(
-                    color: Colors.white,
+                    color: theme.cardTheme.color ??
+                        theme.colorScheme.surface,
                     borderRadius: BorderRadius.circular(20),
                     child: InkWell(
                       onTap: () => controller.removeLigne(i),
@@ -2562,16 +2567,17 @@ class _PanierCompact extends StatelessWidget {
                           children: [
                             Text(
                               '${l.quantite}× ${l.nomComplet}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w600,
+                                color: fg,
                               ),
                             ),
                             const SizedBox(width: 6),
                             Icon(
                               Icons.close_rounded,
                               size: 14,
-                              color: Colors.grey.shade600,
+                              color: fg.withValues(alpha: 0.7),
                             ),
                           ],
                         ),
