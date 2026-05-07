@@ -132,7 +132,7 @@ class _VersementGlobalFournisseurSheetState
                         size: 14,
                         color: _onlyDettes
                             ? AppColors.warning
-                            : Colors.grey.shade600,
+                            : AppColors.greyText(context, 600),
                       ),
                       selected: _onlyDettes,
                       onSelected: (v) => setState(() => _onlyDettes = v),
@@ -159,7 +159,7 @@ class _VersementGlobalFournisseurSheetState
                               ? 'Aucun fournisseur avec dette en cours.'
                               : 'Aucun fournisseur.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey.shade600),
+                          style: TextStyle(color: AppColors.greyText(context, 600)),
                         ),
                       ),
                     );
@@ -176,11 +176,11 @@ class _VersementGlobalFournisseurSheetState
                       return ListTile(
                         leading: CircleAvatar(
                           backgroundColor:
-                              AppColors.primary.withValues(alpha: 0.12),
+                              AppColors.primary(context).withValues(alpha: 0.12),
                           child: Text(
                             f.nom.isEmpty ? '?' : f.nom[0].toUpperCase(),
-                            style: const TextStyle(
-                              color: AppColors.primary,
+                            style: TextStyle(
+                              color: AppColors.primary(context),
                               fontWeight: FontWeight.w700,
                             ),
                           ),

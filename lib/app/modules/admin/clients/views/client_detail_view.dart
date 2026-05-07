@@ -100,11 +100,11 @@ class _ClientHeader extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 26,
-                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                backgroundColor: AppColors.primary(context).withValues(alpha: 0.12),
                 child: Text(
                   client.nom.isEmpty ? '?' : client.nom[0].toUpperCase(),
-                  style: const TextStyle(
-                    color: AppColors.primary,
+                  style: TextStyle(
+                    color: AppColors.primary(context),
                     fontWeight: FontWeight.w800,
                     fontSize: 20,
                   ),
@@ -130,12 +130,12 @@ class _ClientHeader extends StatelessWidget {
                       Row(
                         children: [
                           Icon(Icons.phone_outlined,
-                              size: 12, color: Colors.grey.shade500),
+                              size: 12, color: AppColors.greyText(context, 500)),
                           const SizedBox(width: 4),
                           Text(
                             client.telephone!,
                             style: TextStyle(
-                                fontSize: 12, color: Colors.grey.shade700),
+                                fontSize: 12, color: AppColors.greyText(context, 700)),
                           ),
                         ],
                       ),
@@ -172,7 +172,7 @@ class _ClientHeader extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 10,
                         color:
-                            hasDette ? AppColors.warning : Colors.grey.shade600,
+                            hasDette ? AppColors.warning : AppColors.greyText(context, 600),
                       ),
                     ),
                   ],
@@ -253,10 +253,10 @@ class _StatChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.06),
+          color: AppColors.primary(context).withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: AppColors.primary.withValues(alpha: 0.15),
+            color: AppColors.primary(context).withValues(alpha: 0.15),
           ),
         ),
         child: Column(
@@ -265,14 +265,14 @@ class _StatChip extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(icon, size: 12, color: AppColors.primary),
+                Icon(icon, size: 12, color: AppColors.primary(context)),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     label,
                     style: TextStyle(
                       fontSize: 10,
-                      color: Colors.grey.shade700,
+                      color: AppColors.greyText(context, 700),
                       fontWeight: FontWeight.w600,
                     ),
                     maxLines: 1,
@@ -286,10 +286,10 @@ class _StatChip extends StatelessWidget {
               value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w800,
                 fontSize: 13,
-                color: AppColors.primary,
+                color: AppColors.primary(context),
                 letterSpacing: -0.2,
               ),
             ),
@@ -340,7 +340,7 @@ class _VenteTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderOf(context)),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
@@ -354,7 +354,7 @@ class _VenteTile extends StatelessWidget {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: (annulee ? Colors.grey : AppColors.primary)
+                  color: (annulee ? Colors.grey : AppColors.primary(context))
                       .withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -362,7 +362,7 @@ class _VenteTile extends StatelessWidget {
                   annulee
                       ? Icons.cancel_outlined
                       : Icons.receipt_long_rounded,
-                  color: annulee ? Colors.grey : AppColors.primary,
+                  color: annulee ? Colors.grey : AppColors.primary(context),
                   size: 18,
                 ),
               ),
@@ -375,10 +375,10 @@ class _VenteTile extends StatelessWidget {
                       children: [
                         Text(
                           vente.numeroAffichage,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 12.5,
-                            color: AppColors.primary,
+                            color: AppColors.primary(context),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -399,7 +399,7 @@ class _VenteTile extends StatelessWidget {
                     Text(
                       Fmt.dateTime(vente.date),
                       style: TextStyle(
-                          fontSize: 11, color: Colors.grey.shade600),
+                          fontSize: 11, color: AppColors.greyText(context, 600)),
                     ),
                     if (hasCredit) ...[
                       const SizedBox(height: 2),
@@ -420,7 +420,7 @@ class _VenteTile extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 14,
-                  color: annulee ? Colors.grey : AppColors.primary,
+                  color: annulee ? Colors.grey : AppColors.primary(context),
                   decoration:
                       annulee ? TextDecoration.lineThrough : TextDecoration.none,
                   letterSpacing: -0.2,
@@ -510,7 +510,7 @@ class _ReglementTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderOf(context)),
       ),
       padding: const EdgeInsets.all(12),
       child: Row(
@@ -544,7 +544,7 @@ class _ReglementTile extends StatelessWidget {
                 Text(
                   Fmt.dateTime(reglement.date),
                   style:
-                      TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      TextStyle(fontSize: 11, color: AppColors.greyText(context, 600)),
                 ),
                 if (reglement.imputations.isNotEmpty) ...[
                   const SizedBox(height: 2),
@@ -552,7 +552,7 @@ class _ReglementTile extends StatelessWidget {
                     _imputationsLabel(reglement),
                     style: TextStyle(
                       fontSize: 10.5,
-                      color: Colors.grey.shade600,
+                      color: AppColors.greyText(context, 600),
                       height: 1.3,
                     ),
                     maxLines: 2,
@@ -563,9 +563,9 @@ class _ReglementTile extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     'Avance : ${Fmt.number(reglement.surplus)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10.5,
-                      color: AppColors.primary,
+                      color: AppColors.primary(context),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -576,7 +576,7 @@ class _ReglementTile extends StatelessWidget {
                     reglement.note!,
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.grey.shade700,
+                      color: AppColors.greyText(context, 700),
                       fontStyle: FontStyle.italic,
                     ),
                   ),
@@ -597,7 +597,7 @@ class _ReglementTile extends StatelessWidget {
             visualDensity: VisualDensity.compact,
             tooltip: 'Imprimer le reçu',
             icon: Icon(Icons.print_outlined,
-                size: 18, color: Colors.grey.shade700),
+                size: 18, color: AppColors.greyText(context, 700)),
             onPressed: () => controller.reimprimerRecu(reglement),
           ),
           // Suppression : VENDEUR uniquement (admin/super-admin lecture seule).
@@ -653,7 +653,7 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               message,
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(color: AppColors.greyText(context, 600)),
               textAlign: TextAlign.center,
             ),
           ],

@@ -150,14 +150,14 @@ class _Chip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: selected
-              ? AppColors.primary
-              : AppColors.primary.withValues(alpha: 0.08),
+              ? AppColors.primary(context)
+              : AppColors.primary(context).withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Colors.white : AppColors.primary,
+            color: selected ? Colors.white : AppColors.primary(context),
             fontSize: 12,
             fontWeight: FontWeight.w600,
           ),
@@ -177,7 +177,7 @@ class _BoutiqueDropdown extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderOf(context)),
         borderRadius: BorderRadius.circular(20),
       ),
       child: DropdownButton<String?>(
@@ -211,7 +211,7 @@ class _UserTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<UsersController>();
-    final color = user.isAdmin ? AppColors.primary : AppColors.secondary;
+    final color = user.isAdmin ? AppColors.primary(context) : AppColors.secondary;
 
     return Card(
       child: InkWell(
@@ -254,7 +254,7 @@ class _UserTile extends StatelessWidget {
                     Text(
                       user.email,
                       style: TextStyle(
-                        color: Colors.grey.shade700,
+                        color: AppColors.greyText(context, 700),
                         fontSize: 12,
                       ),
                       maxLines: 1,
@@ -268,7 +268,7 @@ class _UserTile extends StatelessWidget {
                             Icon(
                               Icons.store_outlined,
                               size: 13,
-                              color: Colors.grey.shade500,
+                              color: AppColors.greyText(context, 500),
                             ),
                             const SizedBox(width: 4),
                             Expanded(
@@ -276,7 +276,7 @@ class _UserTile extends StatelessWidget {
                                 controller.boutiqueNom(user.boutiqueId),
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.grey.shade600,
+                                  color: AppColors.greyText(context, 600),
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -411,7 +411,7 @@ class _RoleBadge extends StatelessWidget {
         break;
       case UserRole.admin:
         label = 'ADMIN';
-        color = AppColors.primary;
+        color = AppColors.primary(context);
         break;
       case UserRole.vendeur:
         label = 'GESTIONNAIRE';
@@ -460,7 +460,7 @@ class _Empty extends StatelessWidget {
               hasSearch
                   ? 'Aucun utilisateur ne correspond.'
                   : 'Aucun utilisateur (à part vous).',
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(color: AppColors.greyText(context, 600)),
               textAlign: TextAlign.center,
             ),
           ],

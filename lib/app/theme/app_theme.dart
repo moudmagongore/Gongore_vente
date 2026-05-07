@@ -10,6 +10,11 @@ class AppTheme {
   static const double _radiusSmall = 10;
   static const String fontFamily = 'NunitoSans';
 
+  // Bleu navy en mode clair, teal en mode sombre — synchronisés avec le
+  // getter [AppColors.primary] qui s'adapte au thème courant.
+  static const Color _primaryLightMode = Color(0xFF194565);
+  static const Color _primaryDarkMode = Color(0xFF34A0A7);
+
   static ThemeData get light => _build(
         brightness: Brightness.light,
         scaffoldBg: AppColors.lightBg,
@@ -17,6 +22,7 @@ class AppTheme {
         text: AppColors.lightText,
         textMuted: AppColors.lightTextMuted,
         border: AppColors.border,
+        primary: _primaryLightMode,
         overlay: SystemUiOverlayStyle.dark,
       );
 
@@ -27,6 +33,7 @@ class AppTheme {
         text: AppColors.darkText,
         textMuted: AppColors.darkTextMuted,
         border: AppColors.borderDark,
+        primary: _primaryDarkMode,
         overlay: SystemUiOverlayStyle.light,
       );
 
@@ -37,13 +44,14 @@ class AppTheme {
     required Color text,
     required Color textMuted,
     required Color border,
+    required Color primary,
     required SystemUiOverlayStyle overlay,
   }) {
     final scheme = ColorScheme.fromSeed(
-      seedColor: AppColors.primary,
+      seedColor: primary,
       brightness: brightness,
     ).copyWith(
-      primary: AppColors.primary,
+      primary: primary,
       secondary: AppColors.secondary,
       surface: surface,
       error: AppColors.danger,
@@ -149,9 +157,9 @@ class AppTheme {
             fontFamily: fontFamily, color: textMuted, fontSize: 13.5),
         labelStyle: TextStyle(
             fontFamily: fontFamily, color: textMuted, fontSize: 13.5),
-        floatingLabelStyle: const TextStyle(
+        floatingLabelStyle: TextStyle(
             fontFamily: fontFamily,
-            color: AppColors.primary,
+            color: primary,
             fontWeight: FontWeight.w600),
         prefixIconColor: textMuted,
         suffixIconColor: textMuted,
@@ -165,7 +173,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(_radiusSmall),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+          borderSide: BorderSide(color: primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(_radiusSmall),
@@ -180,14 +188,14 @@ class AppTheme {
       // ===== Boutons =====
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
+          backgroundColor: primary,
           foregroundColor: Colors.white,
           disabledBackgroundColor:
               brightness == Brightness.light ? Colors.grey.shade300 : Colors.grey.shade800,
           disabledForegroundColor: textMuted,
           minimumSize: const Size.fromHeight(50),
           elevation: 0,
-          shadowColor: AppColors.primary.withValues(alpha: 0.3),
+          shadowColor: primary.withValues(alpha: 0.3),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(_radiusSmall + 2),
           ),
@@ -201,9 +209,9 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.primary,
+          foregroundColor: primary,
           minimumSize: const Size.fromHeight(48),
-          side: const BorderSide(color: AppColors.primary, width: 1.4),
+          side: BorderSide(color: primary, width: 1.4),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(_radiusSmall + 2),
           ),
@@ -217,7 +225,7 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.primary,
+          foregroundColor: primary,
           textStyle: const TextStyle(
             fontFamily: fontFamily,
             fontSize: 13.5,
@@ -227,7 +235,7 @@ class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: AppColors.primary,
+          backgroundColor: primary,
           foregroundColor: Colors.white,
           minimumSize: const Size.fromHeight(48),
           shape: RoundedRectangleBorder(
@@ -238,18 +246,18 @@ class AppTheme {
       iconButtonTheme: IconButtonThemeData(
         style: IconButton.styleFrom(
           foregroundColor: text,
-          highlightColor: AppColors.primary.withValues(alpha: 0.08),
+          highlightColor: primary.withValues(alpha: 0.08),
         ),
       ),
 
       // ===== Floating Action Button =====
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: AppColors.primary,
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: primary,
         foregroundColor: Colors.white,
         elevation: 4,
         focusElevation: 4,
         hoverElevation: 6,
-        extendedTextStyle: TextStyle(
+        extendedTextStyle: const TextStyle(
           fontFamily: fontFamily,
           fontSize: 14,
           fontWeight: FontWeight.w600,
@@ -280,19 +288,19 @@ class AppTheme {
         backgroundColor: brightness == Brightness.light
             ? const Color(0xFFEFF1F5)
             : Colors.white.withValues(alpha: 0.05),
-        selectedColor: AppColors.primary.withValues(alpha: 0.15),
-        secondarySelectedColor: AppColors.primary.withValues(alpha: 0.15),
+        selectedColor: primary.withValues(alpha: 0.15),
+        secondarySelectedColor: primary.withValues(alpha: 0.15),
         labelStyle: TextStyle(
           fontFamily: fontFamily,
           fontSize: 12,
           fontWeight: FontWeight.w600,
           color: text,
         ),
-        secondaryLabelStyle: const TextStyle(
+        secondaryLabelStyle: TextStyle(
           fontFamily: fontFamily,
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: AppColors.primary,
+          color: primary,
         ),
         side: BorderSide(color: border, width: 1),
         shape: RoundedRectangleBorder(
@@ -375,7 +383,7 @@ class AppTheme {
       // ===== Bottom navigation =====
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: surface,
-        selectedItemColor: AppColors.primary,
+        selectedItemColor: primary,
         unselectedItemColor: textMuted,
         type: BottomNavigationBarType.fixed,
         showUnselectedLabels: true,
@@ -394,7 +402,7 @@ class AppTheme {
 
       // ===== Tabs =====
       tabBarTheme: TabBarThemeData(
-        labelColor: AppColors.primary,
+        labelColor: primary,
         unselectedLabelColor: textMuted,
         labelStyle: const TextStyle(
           fontFamily: fontFamily,
@@ -408,27 +416,27 @@ class AppTheme {
         ),
         indicatorSize: TabBarIndicatorSize.label,
         dividerColor: Colors.transparent,
-        indicator: const UnderlineTabIndicator(
-          borderSide: BorderSide(color: AppColors.primary, width: 2.5),
+        indicator: UnderlineTabIndicator(
+          borderSide: BorderSide(color: primary, width: 2.5),
         ),
       ),
 
       // ===== Switch / checkbox =====
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return AppColors.primary;
+          if (states.contains(WidgetState.selected)) return primary;
           return Colors.grey.shade400;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return AppColors.primary.withValues(alpha: 0.4);
+            return primary.withValues(alpha: 0.4);
           }
           return Colors.grey.shade300;
         }),
       ),
       checkboxTheme: CheckboxThemeData(
         fillColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return AppColors.primary;
+          if (states.contains(WidgetState.selected)) return primary;
           return Colors.transparent;
         }),
         side: BorderSide(color: textMuted, width: 1.4),
@@ -438,16 +446,16 @@ class AppTheme {
       ),
       radioTheme: RadioThemeData(
         fillColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return AppColors.primary;
+          if (states.contains(WidgetState.selected)) return primary;
           return textMuted;
         }),
       ),
 
       // ===== Progress =====
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: AppColors.primary,
-        linearTrackColor: Color(0xFFE7EAEF),
-        circularTrackColor: Color(0xFFE7EAEF),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: primary,
+        linearTrackColor: const Color(0xFFE7EAEF),
+        circularTrackColor: const Color(0xFFE7EAEF),
       ),
 
       // ===== Scrollbar discrète =====

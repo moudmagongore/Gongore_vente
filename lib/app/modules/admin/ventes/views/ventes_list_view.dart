@@ -85,7 +85,7 @@ class VentesListView extends GetView<VentesController> {
                         const SizedBox(height: 16),
                         Text(
                           'Aucune vente sur cette période.',
-                          style: TextStyle(color: Colors.grey.shade600),
+                          style: TextStyle(color: AppColors.greyText(context, 600)),
                         ),
                       ],
                     ),
@@ -401,9 +401,9 @@ class _PillTab extends StatelessWidget {
           padding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: selected ? AppColors.primary : Colors.transparent,
+            color: selected ? AppColors.primary(context) : Colors.transparent,
             border: Border.all(
-              color: selected ? AppColors.primary : unselectedBorder,
+              color: selected ? AppColors.primary(context) : unselectedBorder,
               width: 1,
             ),
             borderRadius: BorderRadius.circular(20),
@@ -447,7 +447,7 @@ class _StatsBar extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: _StatCard(
-                  color: AppColors.primary,
+                  color: AppColors.primary(context),
                   icon: Icons.receipt_long_rounded,
                   value: controller.nbVentesValidees.toString(),
                   label: 'Ventes',
@@ -481,7 +481,7 @@ class _StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 1),
+        border: Border.all(color: AppColors.borderOf(context), width: 1),
       ),
       child: Row(
         children: [
@@ -516,7 +516,7 @@ class _StatCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: Colors.grey.shade700,
+                    color: AppColors.greyText(context, 700),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -547,7 +547,7 @@ class _VenteTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 1),
+        border: Border.all(color: AppColors.borderOf(context), width: 1),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -580,10 +580,10 @@ class _VenteTile extends StatelessWidget {
                   children: [
                     Text(
                       vente.numeroAffichage,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 13,
-                        color: AppColors.primary,
+                        color: AppColors.primary(context),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -592,14 +592,14 @@ class _VenteTile extends StatelessWidget {
                     Row(
                       children: [
                         Icon(Icons.person_pin_rounded,
-                            size: 12, color: Colors.grey.shade500),
+                            size: 12, color: AppColors.greyText(context, 500)),
                         const SizedBox(width: 3),
                         Expanded(
                           child: Text(
                             c.clientNomVente(vente),
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey.shade800,
+                              color: AppColors.greyText(context, 800),
                               fontWeight: FontWeight.w600,
                             ),
                             maxLines: 1,
@@ -612,7 +612,7 @@ class _VenteTile extends StatelessWidget {
                     Text(
                       '${Fmt.dateTime(vente.date)} · ${vente.nbArticles} art. · ${vente.modePaiement.label}',
                       style: TextStyle(
-                          fontSize: 11, color: Colors.grey.shade600),
+                          fontSize: 11, color: AppColors.greyText(context, 600)),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -642,7 +642,7 @@ class _VenteTile extends StatelessWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 14,
-                      color: annulee ? Colors.grey : AppColors.primary,
+                      color: annulee ? Colors.grey : AppColors.primary(context),
                       decoration: annulee
                           ? TextDecoration.lineThrough
                           : TextDecoration.none,
@@ -663,7 +663,7 @@ class _VenteTile extends StatelessWidget {
               PopupMenuButton<String>(
                 tooltip: 'Plus',
                 icon: Icon(Icons.more_vert_rounded,
-                    color: Colors.grey.shade600, size: 20),
+                    color: AppColors.greyText(context, 600), size: 20),
                 onSelected: (v) {
                   switch (v) {
                     case 'detail':

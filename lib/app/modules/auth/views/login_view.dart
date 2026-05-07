@@ -11,16 +11,16 @@ class LoginView extends GetView<LoginController> {
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
     return Scaffold(
-      backgroundColor: AppColors.primary,
+      backgroundColor: AppColors.primary(context),
       body: Stack(
         children: [
           // ============ Décor de fond : dégradé + cercles flous ============
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [AppColors.primary, AppColors.primaryDark],
+                colors: [AppColors.primary(context), AppColors.primaryDark],
               ),
             ),
           ),
@@ -152,7 +152,7 @@ class LoginView extends GetView<LoginController> {
                                   child: TextButton(
                                     onPressed: controller.sendPasswordReset,
                                     style: TextButton.styleFrom(
-                                      foregroundColor: AppColors.primary,
+                                      foregroundColor: AppColors.primary(context),
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 4),
                                     ),
@@ -174,10 +174,10 @@ class LoginView extends GetView<LoginController> {
                                           ? null
                                           : controller.signIn,
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppColors.primary,
+                                        backgroundColor: AppColors.primary(context),
                                         foregroundColor: Colors.white,
                                         elevation: 4,
-                                        shadowColor: AppColors.primary
+                                        shadowColor: AppColors.primary(context)
                                             .withValues(alpha: 0.4),
                                         shape: RoundedRectangleBorder(
                                           borderRadius:
@@ -229,19 +229,19 @@ class LoginView extends GetView<LoginController> {
                                           isFace
                                               ? Icons.face_rounded
                                               : Icons.fingerprint_rounded,
-                                          color: AppColors.primary,
+                                          color: AppColors.primary(context),
                                         ),
                                         label: Text(
                                           'Se connecter avec $label',
-                                          style: const TextStyle(
-                                            color: AppColors.primary,
+                                          style: TextStyle(
+                                            color: AppColors.primary(context),
                                             fontWeight: FontWeight.w700,
                                             fontSize: 14,
                                           ),
                                         ),
                                         style: OutlinedButton.styleFrom(
                                           side: BorderSide(
-                                            color: AppColors.primary
+                                            color: AppColors.primary(context)
                                                 .withValues(alpha: 0.4),
                                           ),
                                           shape: RoundedRectangleBorder(
@@ -254,14 +254,14 @@ class LoginView extends GetView<LoginController> {
                                   );
                                 }),
                                 const Spacer(),
-                                const Padding(
+                                Padding(
                                   padding: EdgeInsets.only(top: 16),
                                   child: Text(
                                     'L\'inscription est réservée à l\'administrateur.',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: AppColors.lightTextMuted,
+                                      color: AppColors.greyText(context, 700),
                                     ),
                                   ),
                                 ),
@@ -355,7 +355,7 @@ class _LabeledField extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
-              color: Colors.grey.shade700,
+              color: AppColors.greyText(context, 700),
             ),
           ),
         ),

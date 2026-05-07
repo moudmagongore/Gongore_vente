@@ -129,14 +129,14 @@ class _Chip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: selected
-              ? AppColors.primary
-              : AppColors.primary.withValues(alpha: 0.08),
+              ? AppColors.primary(context)
+              : AppColors.primary(context).withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Colors.white : AppColors.primary,
+            color: selected ? Colors.white : AppColors.primary(context),
             fontSize: 12,
             fontWeight: FontWeight.w600,
           ),
@@ -169,12 +169,12 @@ class _BoutiqueTile extends StatelessWidget {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
+                  color: AppColors.primary(context).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.store_rounded,
-                  color: AppColors.primary,
+                  color: AppColors.primary(context),
                 ),
               ),
               const SizedBox(width: 14),
@@ -230,7 +230,7 @@ class _BoutiqueTile extends StatelessWidget {
                             child: Text(
                               boutique.adresse!,
                               style: TextStyle(
-                                color: Colors.grey.shade700,
+                                color: AppColors.greyText(context, 700),
                                 fontSize: 12,
                               ),
                               maxLines: 1,
@@ -251,7 +251,7 @@ class _BoutiqueTile extends StatelessWidget {
                           Text(
                             boutique.telephone!,
                             style: TextStyle(
-                              color: Colors.grey.shade700,
+                              color: AppColors.greyText(context, 700),
                               fontSize: 12,
                             ),
                           ),
@@ -356,7 +356,7 @@ class _EmptyState extends StatelessWidget {
                   ? 'Aucune boutique ne correspond à votre recherche'
                   : 'Aucune boutique pour l\'instant',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(color: AppColors.greyText(context, 600)),
             ),
             if (!hasSearch) ...[
               const SizedBox(height: 8),
@@ -364,7 +364,7 @@ class _EmptyState extends StatelessWidget {
                 'Appuyez sur « Nouvelle boutique » pour commencer.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.grey.shade500,
+                  color: AppColors.greyText(context, 500),
                   fontSize: 12,
                 ),
               ),

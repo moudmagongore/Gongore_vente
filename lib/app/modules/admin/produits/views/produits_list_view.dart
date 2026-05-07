@@ -157,7 +157,7 @@ class _DropdownChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderOf(context)),
         borderRadius: BorderRadius.circular(20),
       ),
       child: DropdownButton<String?>(
@@ -262,23 +262,23 @@ class _ProduitTileState extends State<_ProduitTile> {
                                 horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
                               color:
-                                  AppColors.primary.withValues(alpha: 0.10),
+                                  AppColors.primary(context).withValues(alpha: 0.10),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.store_rounded,
-                                    size: 12, color: AppColors.primary),
+                                Icon(Icons.store_rounded,
+                                    size: 12, color: AppColors.primary(context)),
                                 const SizedBox(width: 4),
                                 Flexible(
                                   child: Text(
                                     controller
                                         .boutiqueNom(produit.boutiqueId),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
-                                      color: AppColors.primary,
+                                      color: AppColors.primary(context),
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -296,13 +296,13 @@ class _ProduitTileState extends State<_ProduitTile> {
                       Row(
                         children: [
                           Icon(Icons.category_outlined,
-                              size: 12, color: Colors.grey.shade500),
+                              size: 12, color: AppColors.greyText(context, 500)),
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
                               cat,
                               style: TextStyle(
-                                  fontSize: 11, color: Colors.grey.shade600),
+                                  fontSize: 11, color: AppColors.greyText(context, 600)),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -320,9 +320,9 @@ class _ProduitTileState extends State<_ProduitTile> {
                                 child: Text(
                                   Fmt.money(produit.prixVente,
                                       currency: devise),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
+                                    color: AppColors.primary(context),
                                     fontSize: 14,
                                   ),
                                   maxLines: 1,
@@ -432,15 +432,15 @@ class _ProduitTileState extends State<_ProduitTile> {
                     Icon(
                       Icons.style_rounded,
                       size: 14,
-                      color: AppColors.primary.withValues(alpha: 0.8),
+                      color: AppColors.primary(context).withValues(alpha: 0.8),
                     ),
                     const SizedBox(width: 6),
                     Text(
                       'Variantes (stock total : ${produit.quantiteStock})',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
+                        color: AppColors.primary(context),
                       ),
                     ),
                     const Spacer(),
@@ -449,7 +449,7 @@ class _ProduitTileState extends State<_ProduitTile> {
                           ? Icons.keyboard_arrow_up_rounded
                           : Icons.keyboard_arrow_down_rounded,
                       size: 18,
-                      color: AppColors.primary,
+                      color: AppColors.primary(context),
                     ),
                   ],
                 ),
@@ -493,7 +493,7 @@ class _VariantesPanel extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             child: Text(
               'Aucune variante.',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: 12, color: AppColors.greyText(context, 600)),
             ),
           );
         }
@@ -554,12 +554,12 @@ class _ProductIcon extends StatelessWidget {
       width: 50,
       height: 50,
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.1),
+        color: AppColors.primary(context).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const Icon(
+      child: Icon(
         Icons.inventory_2_rounded,
-        color: AppColors.primary,
+        color: AppColors.primary(context),
       ),
     );
   }
@@ -589,7 +589,7 @@ class _Empty extends StatelessWidget {
               hasSearch
                   ? 'Aucun produit ne correspond.'
                   : 'Aucun produit pour l\'instant.',
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(color: AppColors.greyText(context, 600)),
               textAlign: TextAlign.center,
             ),
           ],

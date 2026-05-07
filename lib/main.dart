@@ -45,22 +45,28 @@ class GongoreApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeController = Get.find<ThemeController>();
 
-    return GetMaterialApp(
-      title: AppConstants.appName,
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: themeController.currentMode,
-      initialRoute: AppPages.initial,
-      getPages: AppPages.routes,
-      defaultTransition: Transition.cupertino,
-      // Force NunitoSans à hériter sur tous les `Text` avec un TextStyle
-      // custom qui ne précise pas la fontFamily (boutons, sous-titres,
-      // headers de drawer custom, etc.). Sans ce wrap, les TextStyle
-      // construits inline cassent l'héritage du theme.
-      builder: (context, child) => DefaultTextStyle.merge(
-        style: const TextStyle(fontFamily: AppTheme.fontFamily),
-        child: child ?? const SizedBox.shrink(),
+    // Obx() observe themeController.mode : à chaque toggle, GetMaterialApp
+    // est reconstruit avec la nouvelle valeur de themeMode, ce qui force
+    // tout l'arbre de widgets à se rebuilder et donc à re-évaluer les
+    // couleurs adaptatives (AppColors.primary(context), AppColors.greyText…).
+    return Obx(
+      () => GetMaterialApp(
+        title: AppConstants.appName,
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
+        themeMode: themeController.mode.value,
+        initialRoute: AppPages.initial,
+        getPages: AppPages.routes,
+        defaultTransition: Transition.cupertino,
+        // Force NunitoSans à hériter sur tous les `Text` avec un TextStyle
+        // custom qui ne précise pas la fontFamily (boutons, sous-titres,
+        // headers de drawer custom, etc.). Sans ce wrap, les TextStyle
+        // construits inline cassent l'héritage du theme.
+        builder: (context, child) => DefaultTextStyle.merge(
+          style: const TextStyle(fontFamily: AppTheme.fontFamily),
+          child: child ?? const SizedBox.shrink(),
+        ),
       ),
     );
   }

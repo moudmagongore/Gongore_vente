@@ -169,15 +169,15 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: AppColors.primary),
+        Icon(icon, size: 16, color: AppColors.primary(context)),
         const SizedBox(width: 8),
         Text(
           label.toUpperCase(),
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.6,
-            color: AppColors.lightTextMuted,
+            color: AppColors.greyText(context, 700),
           ),
         ),
       ],
@@ -252,9 +252,9 @@ class _PillTab extends StatelessWidget {
           padding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: selected ? AppColors.primary : Colors.transparent,
+            color: selected ? AppColors.primary(context) : Colors.transparent,
             border: Border.all(
-              color: selected ? AppColors.primary : unselectedBorder,
+              color: selected ? AppColors.primary(context) : unselectedBorder,
               width: 1,
             ),
             borderRadius: BorderRadius.circular(20),
@@ -339,7 +339,7 @@ class _DateBtn extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: AppColors.borderOf(context)),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
@@ -353,7 +353,7 @@ class _DateBtn extends StatelessWidget {
                 Text(
                   label,
                   style:
-                      TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                      TextStyle(fontSize: 10, color: AppColors.greyText(context, 600)),
                 ),
                 Text(
                   Fmt.dateShort(date),
@@ -386,6 +386,7 @@ class _FiltresRow extends StatelessWidget {
               Expanded(
                 child: DropdownButtonFormField<String?>(
                   initialValue: c.boutiqueId.value,
+                  isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Boutique',
                     isDense: true,
@@ -396,7 +397,11 @@ class _FiltresRow extends StatelessWidget {
                       child: Text('Toutes'),
                     ),
                     ...c.boutiques.map(
-                      (b) => DropdownMenuItem(value: b.id, child: Text(b.nom)),
+                      (b) => DropdownMenuItem(
+                        value: b.id,
+                        child:
+                            Text(b.nom, overflow: TextOverflow.ellipsis),
+                      ),
                     ),
                   ],
                   onChanged: (v) => c.boutiqueId.value = v,
@@ -407,6 +412,7 @@ class _FiltresRow extends StatelessWidget {
             Expanded(
               child: DropdownButtonFormField<String?>(
                 initialValue: c.vendeurId.value,
+                isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Gestionnaire',
                   isDense: true,
@@ -421,7 +427,11 @@ class _FiltresRow extends StatelessWidget {
                           c.isSuperAdmin ||
                           u.boutiqueId == c.boutiqueId.value)
                       .map(
-                        (u) => DropdownMenuItem(value: u.id, child: Text(u.nom)),
+                        (u) => DropdownMenuItem(
+                          value: u.id,
+                          child:
+                              Text(u.nom, overflow: TextOverflow.ellipsis),
+                        ),
                       ),
                 ],
                 onChanged: (v) => c.vendeurId.value = v,
@@ -469,7 +479,7 @@ class _FinancierSection extends StatelessWidget {
               children: [
                 _Row('Chiffre d\'affaires',
                     Fmt.money(c.caTotal, currency: 'GNF'),
-                    color: AppColors.primary, big: true),
+                    color: AppColors.primary(context), big: true),
                 const Divider(),
                 _Row('Bénéfice estimé',
                     Fmt.money(c.beneficeTotal, currency: 'GNF'),
@@ -512,13 +522,13 @@ class _PaiementsSection extends StatelessWidget {
                                 fontSize: 13, fontWeight: FontWeight.w600)),
                       ),
                       Text(Fmt.money(montant, currency: 'GNF'),
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontWeight: FontWeight.w700,
-                              color: AppColors.primary)),
+                              color: AppColors.primary(context))),
                       const SizedBox(width: 8),
                       Text('${pct.toStringAsFixed(0)} %',
                           style: TextStyle(
-                              fontSize: 11, color: Colors.grey.shade600)),
+                              fontSize: 11, color: AppColors.greyText(context, 600))),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -529,7 +539,7 @@ class _PaiementsSection extends StatelessWidget {
                       minHeight: 6,
                       backgroundColor: Colors.grey.shade200,
                       valueColor:
-                          const AlwaysStoppedAnimation(AppColors.primary),
+                          AlwaysStoppedAnimation(AppColors.primary(context)),
                     ),
                   ),
                 ],
@@ -563,10 +573,10 @@ class _TopProduitsSection extends StatelessWidget {
                 ListTile(
                   leading: CircleAvatar(
                     backgroundColor:
-                        AppColors.primary.withValues(alpha: 0.12),
+                        AppColors.primary(context).withValues(alpha: 0.12),
                     child: Text('${i + 1}',
-                        style: const TextStyle(
-                          color: AppColors.primary,
+                        style: TextStyle(
+                          color: AppColors.primary(context),
                           fontWeight: FontWeight.w700,
                         )),
                   ),
@@ -576,9 +586,9 @@ class _TopProduitsSection extends StatelessWidget {
                       style: const TextStyle(fontSize: 11)),
                   trailing: Text(
                     Fmt.money(t.ca, currency: 'GNF'),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
+                      color: AppColors.primary(context),
                     ),
                   ),
                 ),
@@ -607,7 +617,7 @@ class _AchatsSection extends StatelessWidget {
                 _Row(
                   'Total achats',
                   Fmt.money(c.totalAchats, currency: 'GNF'),
-                  color: AppColors.primary,
+                  color: AppColors.primary(context),
                   big: true,
                 ),
                 const Divider(),
@@ -663,10 +673,10 @@ class _TopFournisseursSection extends StatelessWidget {
                 ListTile(
                   leading: CircleAvatar(
                     backgroundColor:
-                        AppColors.primary.withValues(alpha: 0.12),
+                        AppColors.primary(context).withValues(alpha: 0.12),
                     child: Text('${i + 1}',
-                        style: const TextStyle(
-                          color: AppColors.primary,
+                        style: TextStyle(
+                          color: AppColors.primary(context),
                           fontWeight: FontWeight.w700,
                         )),
                   ),
@@ -676,9 +686,9 @@ class _TopFournisseursSection extends StatelessWidget {
                       style: const TextStyle(fontSize: 11)),
                   trailing: Text(
                     Fmt.money(t.total, currency: 'GNF'),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
+                      color: AppColors.primary(context),
                     ),
                   ),
                 ),
@@ -705,7 +715,7 @@ class _EmptyCard extends StatelessWidget {
         child: Center(
           child: Text(
             message,
-            style: TextStyle(color: Colors.grey.shade600),
+            style: TextStyle(color: AppColors.greyText(context, 600)),
           ),
         ),
       ),
@@ -733,7 +743,7 @@ class _Row extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: big ? 14 : 12,
-                color: Colors.grey.shade700,
+                color: AppColors.greyText(context, 700),
               ),
             ),
           ),

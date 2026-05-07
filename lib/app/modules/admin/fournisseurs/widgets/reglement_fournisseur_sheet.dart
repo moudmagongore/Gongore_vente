@@ -202,11 +202,11 @@ class _ReglementFournisseurSheetState
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.12),
+                      color: AppColors.primary(context).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.payments_rounded,
-                        color: AppColors.primary),
+                    child: Icon(Icons.payments_rounded,
+                        color: AppColors.primary(context)),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -233,7 +233,7 @@ class _ReglementFournisseurSheetState
                             fontSize: 12,
                             color: f.solde > 0
                                 ? AppColors.warning
-                                : Colors.grey.shade700,
+                                : AppColors.greyText(context, 700),
                           ),
                         ),
                       ],

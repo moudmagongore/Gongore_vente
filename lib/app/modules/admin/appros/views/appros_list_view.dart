@@ -71,7 +71,7 @@ class ApprosListView extends GetView<ApprosController> {
                           const SizedBox(height: 16),
                           Text(
                             'Aucun appro sur cette période.',
-                            style: TextStyle(color: Colors.grey.shade600),
+                            style: TextStyle(color: AppColors.greyText(context, 600)),
                           ),
                         ],
                       ),
@@ -341,10 +341,10 @@ class _Pill extends StatelessWidget {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: selected ? AppColors.primary : Colors.transparent,
+            color: selected ? AppColors.primary(context) : Colors.transparent,
             border: Border.all(
               color: selected
-                  ? AppColors.primary
+                  ? AppColors.primary(context)
                   : Theme.of(context).dividerColor,
             ),
             borderRadius: BorderRadius.circular(20),
@@ -383,7 +383,7 @@ class _StatsBar extends StatelessWidget {
                   icon: Icons.shopping_cart_rounded,
                   value: Fmt.number(c.totalAchats),
                   label: 'Total achats',
-                  color: AppColors.primary,
+                  color: AppColors.primary(context),
                 ),
               ),
               const SizedBox(width: 10),
@@ -422,7 +422,7 @@ class _StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 1),
+        border: Border.all(color: AppColors.borderOf(context), width: 1),
       ),
       child: Row(
         children: [
@@ -457,7 +457,7 @@ class _StatCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: Colors.grey.shade700,
+                    color: AppColors.greyText(context, 700),
                   ),
                 ),
               ],
@@ -483,7 +483,7 @@ class _ApproTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderOf(context)),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -496,7 +496,7 @@ class _ApproTile extends StatelessWidget {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: (annulee ? Colors.grey : AppColors.primary)
+                  color: (annulee ? Colors.grey : AppColors.primary(context))
                       .withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -504,7 +504,7 @@ class _ApproTile extends StatelessWidget {
                   annulee
                       ? Icons.cancel_outlined
                       : Icons.local_shipping_rounded,
-                  color: annulee ? Colors.grey : AppColors.primary,
+                  color: annulee ? Colors.grey : AppColors.primary(context),
                   size: 18,
                 ),
               ),
@@ -517,10 +517,10 @@ class _ApproTile extends StatelessWidget {
                       children: [
                         Text(
                           appro.numeroAffichage,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 12.5,
-                            color: AppColors.primary,
+                            color: AppColors.primary(context),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -544,7 +544,7 @@ class _ApproTile extends StatelessWidget {
                     Text(
                       '${Fmt.dateTime(appro.date)} · ${appro.modePaiement.label}',
                       style:
-                          TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                          TextStyle(fontSize: 11, color: AppColors.greyText(context, 600)),
                     ),
                     if (hasCredit) ...[
                       const SizedBox(height: 2),
@@ -566,7 +566,7 @@ class _ApproTile extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 14,
-                  color: annulee ? Colors.grey : AppColors.primary,
+                  color: annulee ? Colors.grey : AppColors.primary(context),
                   decoration: annulee
                       ? TextDecoration.lineThrough
                       : TextDecoration.none,
@@ -577,7 +577,7 @@ class _ApproTile extends StatelessWidget {
                 visualDensity: VisualDensity.compact,
                 tooltip: 'Imprimer le bon',
                 icon: Icon(Icons.print_outlined,
-                    size: 18, color: Colors.grey.shade700),
+                    size: 18, color: AppColors.greyText(context, 700)),
                 onPressed: () => c.reimprimerRecu(appro),
               ),
             ],

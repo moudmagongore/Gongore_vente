@@ -107,18 +107,18 @@ class _StatsRow extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Theme.of(context).cardTheme.color,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: AppColors.borderOf(context)),
               ),
               child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.12),
+                      color: AppColors.primary(context).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.warehouse_rounded,
-                        color: AppColors.primary, size: 20),
+                    child: Icon(Icons.warehouse_rounded,
+                        color: AppColors.primary(context), size: 20),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -130,7 +130,7 @@ class _StatsRow extends StatelessWidget {
                           'Valeur du stock (PA)',
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.grey.shade700,
+                            color: AppColors.greyText(context, 700),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -144,10 +144,10 @@ class _StatsRow extends StatelessWidget {
                                 Fmt.number(c.valeurStock),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 22,
                                   fontWeight: FontWeight.w800,
-                                  color: AppColors.primary,
+                                  color: AppColors.primary(context),
                                   letterSpacing: -0.4,
                                 ),
                               ),
@@ -157,7 +157,7 @@ class _StatsRow extends StatelessWidget {
                               'GNF',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: AppColors.primary
+                                color: AppColors.primary(context)
                                     .withValues(alpha: 0.7),
                                 fontWeight: FontWeight.w600,
                               ),
@@ -209,7 +209,7 @@ class _StatsRow extends StatelessWidget {
                       icon: Icons.inventory_2_rounded,
                       value: '${c.nbProduits}',
                       label: 'Produits',
-                      color: AppColors.primary,
+                      color: AppColors.primary(context),
                     ),
                   ),
                 ],
@@ -241,7 +241,7 @@ class _MiniStat extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderOf(context)),
       ),
       child: Row(
         children: [
@@ -269,7 +269,7 @@ class _MiniStat extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 10,
-                    color: Colors.grey.shade700,
+                    color: AppColors.greyText(context, 700),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -330,7 +330,7 @@ class _CategorieDropdown extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderOf(context)),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Obx(() => DropdownButton<String?>(
@@ -393,7 +393,7 @@ class _ProduitStockTileState extends State<_ProduitStockTile> {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderOf(context)),
       ),
       child: Column(
         children: [
@@ -458,14 +458,14 @@ class _ProduitStockTileState extends State<_ProduitStockTile> {
                   children: [
                     if (cat != null) ...[
                       Icon(Icons.category_outlined,
-                          size: 11, color: Colors.grey.shade500),
+                          size: 11, color: AppColors.greyText(context, 500)),
                       const SizedBox(width: 3),
                       Flexible(
                         child: Text(
                           cat,
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.grey.shade600,
+                            color: AppColors.greyText(context, 600),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -477,7 +477,7 @@ class _ProduitStockTileState extends State<_ProduitStockTile> {
                       'PA ${Fmt.money(produit.prixAchat, currency: devise)}',
                       style: TextStyle(
                         fontSize: 11,
-                        color: Colors.grey.shade600,
+                        color: AppColors.greyText(context, 600),
                       ),
                     ),
                   ],
@@ -505,7 +505,7 @@ class _ProduitStockTileState extends State<_ProduitStockTile> {
                     Text(
                       'Seuil ${produit.seuilAlerte}',
                       style: TextStyle(
-                          fontSize: 10, color: Colors.grey.shade500),
+                          fontSize: 10, color: AppColors.greyText(context, 500)),
                     ),
                   ],
                 ),
@@ -529,16 +529,16 @@ class _ProduitStockTileState extends State<_ProduitStockTile> {
                 'unité(s)',
                 style: TextStyle(
                   fontSize: 10,
-                  color: Colors.grey.shade600,
+                  color: AppColors.greyText(context, 600),
                 ),
               ),
-              const SizedBox(height: 2),
+              SizedBox(height: 2),
               Text(
                 Fmt.money(produit.valeurStock, currency: devise),
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade700,
+                  color: AppColors.greyText(context, 700),
                 ),
               ),
             ],
@@ -564,15 +564,15 @@ class _ProduitStockTileState extends State<_ProduitStockTile> {
                     Icon(
                       Icons.style_rounded,
                       size: 14,
-                      color: AppColors.primary.withValues(alpha: 0.8),
+                      color: AppColors.primary(context).withValues(alpha: 0.8),
                     ),
                     const SizedBox(width: 6),
-                    const Text(
+                    Text(
                       'Voir variantes',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
+                        color: AppColors.primary(context),
                       ),
                     ),
                     const Spacer(),
@@ -581,7 +581,7 @@ class _ProduitStockTileState extends State<_ProduitStockTile> {
                           ? Icons.keyboard_arrow_up_rounded
                           : Icons.keyboard_arrow_down_rounded,
                       size: 18,
-                      color: AppColors.primary,
+                      color: AppColors.primary(context),
                     ),
                   ],
                 ),
@@ -624,7 +624,7 @@ class _StockVariantesPanel extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             child: Text(
               'Aucune variante.',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: 12, color: AppColors.greyText(context, 600)),
             ),
           );
         }
@@ -706,7 +706,7 @@ class _Empty extends StatelessWidget {
               hasSearch
                   ? 'Aucun produit ne correspond.'
                   : 'Aucun produit.',
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(color: AppColors.greyText(context, 600)),
               textAlign: TextAlign.center,
             ),
           ],

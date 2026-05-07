@@ -94,11 +94,11 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 13,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.4,
-        color: AppColors.lightTextMuted,
+        color: AppColors.greyText(context, 700),
       ),
     );
   }
@@ -123,8 +123,8 @@ class _GreetingCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primary, AppColors.primaryDark],
+        gradient: LinearGradient(
+          colors: [AppColors.primary(context), AppColors.primaryDark],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -213,7 +213,7 @@ class _StatsBar extends StatelessWidget {
                     icon: Icons.receipt_long_rounded,
                     value: controller.nbVentesJour.toString(),
                     label: 'Ventes du jour',
-                    color: AppColors.primary,
+                    color: AppColors.primary(context),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -256,7 +256,7 @@ class _HeroStatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border, width: 1),
+        border: Border.all(color: AppColors.borderOf(context), width: 1),
       ),
       child: Row(
         children: [
@@ -278,7 +278,7 @@ class _HeroStatCard extends StatelessWidget {
                   label,
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey.shade700,
+                    color: AppColors.greyText(context, 700),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -340,7 +340,7 @@ class _StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 1),
+        border: Border.all(color: AppColors.borderOf(context), width: 1),
       ),
       child: Row(
         children: [
@@ -377,7 +377,7 @@ class _StatCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: Colors.grey.shade700,
+                    color: AppColors.greyText(context, 700),
                   ),
                 ),
               ],
@@ -415,7 +415,7 @@ class _ActionTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: Theme.of(context).cardTheme.color,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border, width: 1),
+          border: Border.all(color: AppColors.borderOf(context), width: 1),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -464,7 +464,7 @@ class _RecentList extends StatelessWidget {
           decoration: BoxDecoration(
             color: theme.cardTheme.color ?? theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.border, width: 1),
+            border: Border.all(color: AppColors.borderOf(context), width: 1),
           ),
           child: Column(
             children: [
@@ -498,19 +498,19 @@ class _RecentList extends StatelessWidget {
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.12),
+                        color: AppColors.primary(context).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.receipt_long_rounded,
-                        color: AppColors.primary,
+                        color: AppColors.primary(context),
                       ),
                     ),
                     title: Text(
                       Fmt.money(v.total, currency: controller.devise),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
+                        color: AppColors.primary(context),
                       ),
                     ),
                     subtitle: Text(

@@ -99,7 +99,7 @@ class _StatsRow extends StatelessWidget {
                   icon: Icons.people_alt_rounded,
                   value: controller.total.toString(),
                   label: 'Clients',
-                  color: AppColors.primary,
+                  color: AppColors.primary(context),
                 ),
               ),
               const SizedBox(width: 12),
@@ -138,7 +138,7 @@ class _StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 1),
+        border: Border.all(color: AppColors.borderOf(context), width: 1),
       ),
       child: Row(
         children: [
@@ -173,7 +173,7 @@ class _StatCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: Colors.grey.shade700,
+                    color: AppColors.greyText(context, 700),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -209,7 +209,7 @@ class _Filters extends StatelessWidget {
                 size: 16,
                 color: controller.onlyAvecDette.value
                     ? AppColors.warning
-                    : Colors.grey.shade600,
+                    : AppColors.greyText(context, 600),
               ),
               label: const Text('Avec crédit',
                   style: TextStyle(fontSize: 12)),
@@ -235,7 +235,7 @@ class _ClientTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 1),
+        border: Border.all(color: AppColors.borderOf(context), width: 1),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -248,12 +248,12 @@ class _ClientTile extends StatelessWidget {
           child: Row(
             children: [
               CircleAvatar(
-                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                backgroundColor: AppColors.primary(context).withValues(alpha: 0.12),
                 radius: 22,
                 child: Text(
                   client.nom.isEmpty ? '?' : client.nom[0].toUpperCase(),
-                  style: const TextStyle(
-                    color: AppColors.primary,
+                  style: TextStyle(
+                    color: AppColors.primary(context),
                     fontWeight: FontWeight.w700,
                     fontSize: 16,
                   ),
@@ -278,13 +278,13 @@ class _ClientTile extends StatelessWidget {
                       Row(
                         children: [
                           Icon(Icons.phone_outlined,
-                              size: 12, color: Colors.grey.shade500),
+                              size: 12, color: AppColors.greyText(context, 500)),
                           const SizedBox(width: 4),
                           Text(
                             client.telephone!,
                             style: TextStyle(
                               fontSize: 11.5,
-                              color: Colors.grey.shade700,
+                              color: AppColors.greyText(context, 700),
                             ),
                           ),
                         ],
@@ -296,15 +296,15 @@ class _ClientTile extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.10),
+                          color: AppColors.primary(context).withValues(alpha: 0.10),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           controller.boutiqueNom(client.boutiqueId),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
+                            color: AppColors.primary(context),
                           ),
                         ),
                       ),
@@ -323,7 +323,7 @@ class _ClientTile extends StatelessWidget {
                       fontSize: 14,
                       color: hasDette
                           ? AppColors.warning
-                          : Colors.grey.shade500,
+                          : AppColors.greyText(context, 500),
                       letterSpacing: -0.2,
                     ),
                   ),
@@ -331,7 +331,7 @@ class _ClientTile extends StatelessWidget {
                     hasDette ? 'à recevoir' : 'à jour',
                     style: TextStyle(
                       fontSize: 10,
-                      color: Colors.grey.shade600,
+                      color: AppColors.greyText(context, 600),
                     ),
                   ),
                 ],
@@ -344,7 +344,7 @@ class _ClientTile extends StatelessWidget {
                     ? PopupMenuButton<String>(
                         tooltip: 'Plus',
                         icon: Icon(Icons.more_vert_rounded,
-                            color: Colors.grey.shade600, size: 20),
+                            color: AppColors.greyText(context, 600), size: 20),
                         onSelected: (v) {
                           switch (v) {
                             case 'encaisser':
@@ -427,7 +427,7 @@ class _Empty extends StatelessWidget {
               hasSearch
                   ? 'Aucun client ne correspond.'
                   : 'Aucun client pour l\'instant.',
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(color: AppColors.greyText(context, 600)),
               textAlign: TextAlign.center,
             ),
             if (!hasSearch) ...[
@@ -435,7 +435,7 @@ class _Empty extends StatelessWidget {
               Text(
                 'Ajoutez vos clients pour suivre leurs achats et leurs crédits.',
                 style:
-                    TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                    TextStyle(color: AppColors.greyText(context, 500), fontSize: 12),
                 textAlign: TextAlign.center,
               ),
             ],

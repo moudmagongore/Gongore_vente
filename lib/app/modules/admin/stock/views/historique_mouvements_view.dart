@@ -65,7 +65,7 @@ class HistoriqueMouvementsView
                           const SizedBox(height: 12),
                           Text(
                             'Aucun mouvement sur cette période.',
-                            style: TextStyle(color: Colors.grey.shade600),
+                            style: TextStyle(color: AppColors.greyText(context, 600)),
                           ),
                         ],
                       ),
@@ -252,10 +252,10 @@ class _Pill extends StatelessWidget {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: selected ? AppColors.primary : Colors.transparent,
+            color: selected ? AppColors.primary(context) : Colors.transparent,
             border: Border.all(
               color: selected
-                  ? AppColors.primary
+                  ? AppColors.primary(context)
                   : Theme.of(context).dividerColor,
             ),
             borderRadius: BorderRadius.circular(20),
@@ -294,7 +294,7 @@ class _StatsRow extends StatelessWidget {
                   icon: Icons.history_rounded,
                   value: '${c.nbMouvements}',
                   label: 'Mouvements',
-                  color: AppColors.primary,
+                  color: AppColors.primary(context),
                 ),
               ),
               const SizedBox(width: 8),
@@ -351,7 +351,7 @@ class _StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderOf(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -374,7 +374,7 @@ class _StatCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 10,
-              color: Colors.grey.shade700,
+              color: AppColors.greyText(context, 700),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -402,7 +402,7 @@ class _MouvementTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderOf(context)),
       ),
       padding: const EdgeInsets.all(12),
       child: Row(
@@ -444,7 +444,7 @@ class _MouvementTile extends StatelessWidget {
                     Text(
                       Fmt.dateTime(m.date),
                       style:
-                          TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                          TextStyle(fontSize: 11, color: AppColors.greyText(context, 600)),
                     ),
                   ],
                 ),
@@ -461,7 +461,7 @@ class _MouvementTile extends StatelessWidget {
                 Text(
                   '${c.userNom(m.userId)} · ${m.qteAvant} → ${m.qteApres}',
                   style: TextStyle(
-                      fontSize: 11, color: Colors.grey.shade700),
+                      fontSize: 11, color: AppColors.greyText(context, 700)),
                 ),
                 if (m.motif?.isNotEmpty ?? false) ...[
                   const SizedBox(height: 2),
@@ -469,7 +469,7 @@ class _MouvementTile extends StatelessWidget {
                     m.motif!,
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.grey.shade700,
+                      color: AppColors.greyText(context, 700),
                       fontStyle: FontStyle.italic,
                     ),
                     maxLines: 2,
@@ -486,7 +486,7 @@ class _MouvementTile extends StatelessWidget {
               fontSize: 16,
               fontWeight: FontWeight.w800,
               color: delta == 0
-                  ? Colors.grey.shade600
+                  ? AppColors.greyText(context, 600)
                   : (delta > 0 ? Colors.green : Colors.red),
               letterSpacing: -0.3,
             ),

@@ -127,7 +127,7 @@ class _CategorieTile extends StatelessWidget {
                       Text(
                         categorie.description!,
                         style: TextStyle(
-                          color: Colors.grey.shade600,
+                          color: AppColors.greyText(context, 600),
                           fontSize: 12,
                         ),
                         maxLines: 2,
@@ -167,24 +167,24 @@ class _BoutiqueBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.10),
+        color: AppColors.primary(context).withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             Icons.store_rounded,
             size: 12,
-            color: AppColors.primary,
+            color: AppColors.primary(context),
           ),
           const SizedBox(width: 4),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: AppColors.primary,
+              color: AppColors.primary(context),
             ),
           ),
         ],
@@ -217,7 +217,7 @@ class _Empty extends StatelessWidget {
               hasSearch
                   ? 'Aucune catégorie ne correspond.'
                   : 'Aucune catégorie pour l\'instant.',
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(color: AppColors.greyText(context, 600)),
               textAlign: TextAlign.center,
             ),
             if (!hasSearch) ...[
@@ -225,7 +225,7 @@ class _Empty extends StatelessWidget {
               Text(
                 'Exemples : Boissons, Alimentaire, Cosmétiques...',
                 style: TextStyle(
-                  color: Colors.grey.shade500,
+                  color: AppColors.greyText(context, 500),
                   fontSize: 12,
                 ),
               ),

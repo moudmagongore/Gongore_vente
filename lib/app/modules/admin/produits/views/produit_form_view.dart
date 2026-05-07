@@ -13,7 +13,7 @@ class _AddLigneButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.primary.withValues(alpha: 0.10),
+      color: AppColors.primary(context).withValues(alpha: 0.10),
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: onTap,
@@ -22,15 +22,15 @@ class _AddLigneButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           child: Row(
             mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(Icons.add_rounded, size: 16, color: AppColors.primary),
+            children: [
+              Icon(Icons.add_rounded, size: 16, color: AppColors.primary(context)),
               SizedBox(width: 4),
               Text(
                 'Ligne',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
+                  color: AppColors.primary(context),
                 ),
               ),
             ],
@@ -51,9 +51,9 @@ class _VariantesEditor extends StatelessWidget {
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.04),
+        color: AppColors.primary(context).withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.18)),
+        border: Border.all(color: AppColors.primary(context).withValues(alpha: 0.18)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -80,7 +80,7 @@ class _VariantesEditor extends StatelessWidget {
                 'Stock par taille. Total affiché : ${c.variantesTotalStock.value}',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey.shade600,
+                  color: AppColors.greyText(context, 600),
                 ),
               ),
             ),
@@ -94,7 +94,7 @@ class _VariantesEditor extends StatelessWidget {
                   child: Text(
                     'Aucune variante. Cliquez sur « + Ligne » pour en ajouter.',
                     style:
-                        TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        TextStyle(fontSize: 12, color: AppColors.greyText(context, 600)),
                   ),
                 );
               }
@@ -134,7 +134,7 @@ class _LabeledField extends StatelessWidget {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: Colors.grey.shade700,
+              color: AppColors.greyText(context, 700),
             ),
           ),
         ),
@@ -157,7 +157,7 @@ class _VarianteRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderOf(context)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -521,9 +521,9 @@ class ProduitFormView extends GetView<ProduitFormController> {
               OutlinedButton(
                 onPressed: () => Get.back(),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  side: const BorderSide(
-                      color: AppColors.primary, width: 1.4),
+                  foregroundColor: AppColors.primary(context),
+                  side: BorderSide(
+                      color: AppColors.primary(context), width: 1.4),
                   minimumSize: const Size.fromHeight(48),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -561,7 +561,7 @@ class _SectionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderOf(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -571,10 +571,10 @@ class _SectionCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.10),
+                  color: AppColors.primary(context).withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, size: 16, color: AppColors.primary),
+                child: Icon(icon, size: 16, color: AppColors.primary(context)),
               ),
               const SizedBox(width: 10),
               Text(
@@ -627,8 +627,8 @@ class _ToggleCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: value
-                    ? AppColors.primary.withValues(alpha: 0.45)
-                    : AppColors.border,
+                    ? AppColors.primary(context).withValues(alpha: 0.45)
+                    : AppColors.borderOf(context),
               ),
             ),
             child: Row(
@@ -636,14 +636,14 @@ class _ToggleCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: (value ? AppColors.primary : Colors.grey)
+                    color: (value ? AppColors.primary(context) : Colors.grey)
                         .withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
                     icon,
                     size: 18,
-                    color: value ? AppColors.primary : Colors.grey.shade600,
+                    color: value ? AppColors.primary(context) : AppColors.greyText(context, 600),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -663,7 +663,7 @@ class _ToggleCard extends StatelessWidget {
                         subtitle,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade600,
+                          color: AppColors.greyText(context, 600),
                         ),
                       ),
                     ],

@@ -194,11 +194,11 @@ class _SectionTitle extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.4,
-          color: AppColors.lightTextMuted,
+          color: AppColors.greyText(context, 700),
         ),
       ),
     );
@@ -234,10 +234,10 @@ class _BiometricCard extends StatelessWidget {
           secondary: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
+              color: AppColors.primary(context).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(iconData, color: AppColors.primary),
+            child: Icon(iconData, color: AppColors.primary(context)),
           ),
           title: Text(
             available

@@ -225,7 +225,7 @@ class _ReglementSheetState extends State<ReglementSheet> {
                             fontSize: 12,
                             color: c.solde > 0
                                 ? AppColors.warning
-                                : Colors.grey.shade700,
+                                : AppColors.greyText(context, 700),
                           ),
                         ),
                       ],

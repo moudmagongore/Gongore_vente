@@ -147,12 +147,12 @@ class _FournisseurPicker extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.12),
+                color: AppColors.primary(context).withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.local_shipping_rounded,
-                color: AppColors.primary,
+                color: AppColors.primary(context),
                 size: 22,
               ),
             ),
@@ -167,7 +167,7 @@ class _FournisseurPicker extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: Colors.grey.shade600,
+                      color: AppColors.greyText(context, 600),
                       letterSpacing: 0.4,
                     ),
                   ),
@@ -178,7 +178,7 @@ class _FournisseurPicker extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                           fontSize: 15,
                           color: c.fournisseurSelectionne == null
-                              ? Colors.grey.shade500
+                              ? AppColors.greyText(context, 500)
                               : null,
                         ),
                         maxLines: 1,
@@ -208,8 +208,8 @@ class _FournisseurPicker extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.keyboard_arrow_right_rounded,
-                color: AppColors.lightTextMuted),
+            Icon(Icons.keyboard_arrow_right_rounded,
+                color: AppColors.greyText(context, 700)),
           ],
         ),
       ),
@@ -316,7 +316,7 @@ class _FournisseurPickerSheetState extends State<_FournisseurPickerSheet> {
                               ? 'Aucun fournisseur enregistré.\nCréez-en un d\'abord depuis le menu.'
                               : 'Aucun fournisseur ne correspond.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey.shade600),
+                          style: TextStyle(color: AppColors.greyText(context, 600)),
                         ),
                       ),
                     );
@@ -335,11 +335,11 @@ class _FournisseurPickerSheetState extends State<_FournisseurPickerSheet> {
                       return ListTile(
                         leading: CircleAvatar(
                           backgroundColor:
-                              AppColors.primary.withValues(alpha: 0.12),
+                              AppColors.primary(context).withValues(alpha: 0.12),
                           child: Text(
                             f.nom.isEmpty ? '?' : f.nom[0].toUpperCase(),
-                            style: const TextStyle(
-                              color: AppColors.primary,
+                            style: TextStyle(
+                              color: AppColors.primary(context),
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -387,9 +387,9 @@ class _FournisseurPickerSheetState extends State<_FournisseurPickerSheet> {
                                     ),
                                   )
                                 : selected
-                                    ? const Icon(
+                                    ? Icon(
                                         Icons.check_circle_rounded,
-                                        color: AppColors.primary)
+                                        color: AppColors.primary(context))
                                     : null,
                         onTap: () {
                           widget.controller.selectFournisseur(f.id);
@@ -500,7 +500,7 @@ class _AvanceBanner extends StatelessWidget {
                   style: TextButton.styleFrom(
                     visualDensity: VisualDensity.compact,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
-                    foregroundColor: Colors.grey.shade600,
+                    foregroundColor: AppColors.greyText(context, 600),
                   ),
                   onPressed: () => c.retirerAvance(),
                   icon: const Icon(Icons.close_rounded, size: 14),
@@ -539,13 +539,13 @@ class _EmptyLignes extends StatelessWidget {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.10),
+                color: AppColors.primary(context).withValues(alpha: 0.10),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.local_shipping_rounded,
                 size: 32,
-                color: AppColors.primary,
+                color: AppColors.primary(context),
               ),
             ),
             const SizedBox(height: 14),
@@ -559,7 +559,7 @@ class _EmptyLignes extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey.shade600,
+                color: AppColors.greyText(context, 600),
                 height: 1.35,
               ),
             ),
@@ -594,7 +594,7 @@ class _LigneTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: Theme.of(context).cardTheme.color,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: AppColors.borderOf(context)),
         ),
         padding: const EdgeInsets.all(10),
         child: Row(
@@ -603,15 +603,15 @@ class _LigneTile extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.10),
+                color: AppColors.primary(context).withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(8),
               ),
               alignment: Alignment.center,
               child: Text(
                 '${index + 1}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
+                  color: AppColors.primary(context),
                 ),
               ),
             ),
@@ -635,7 +635,7 @@ class _LigneTile extends StatelessWidget {
                     '  •  Sous-total : ${Fmt.money(l.sousTotal, currency: c.devise)}',
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.grey.shade700,
+                      color: AppColors.greyText(context, 700),
                     ),
                   ),
                 ],
@@ -650,7 +650,7 @@ class _LigneTile extends StatelessWidget {
             IconButton(
               visualDensity: VisualDensity.compact,
               icon: Icon(Icons.tune_rounded,
-                  size: 18, color: Colors.grey.shade700),
+                  size: 18, color: AppColors.greyText(context, 700)),
               tooltip: 'Modifier PA',
               onPressed: () => _editPa(context, index, l.prixAchatUnitaire),
             ),
@@ -719,7 +719,7 @@ class _QtyStepper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.08),
+        color: AppColors.primary(context).withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -732,9 +732,9 @@ class _QtyStepper extends StatelessWidget {
           ),
           Text(
             '$quantite',
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w800,
-              color: AppColors.primary,
+              color: AppColors.primary(context),
             ),
           ),
           IconButton(
@@ -840,7 +840,7 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
                               ? 'Aucun produit dans cette boutique.'
                               : 'Aucun produit ne correspond.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey.shade600),
+                          style: TextStyle(color: AppColors.greyText(context, 600)),
                         ),
                       ),
                     );
@@ -862,7 +862,7 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
                           decoration: BoxDecoration(
                             color: (dejaAjoute
                                     ? AppColors.success
-                                    : AppColors.primary)
+                                    : AppColors.primary(context))
                                 .withValues(alpha: 0.10),
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -872,7 +872,7 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
                                 : Icons.inventory_2_rounded,
                             color: dejaAjoute
                                 ? AppColors.success
-                                : AppColors.primary,
+                                : AppColors.primary(context),
                             size: 20,
                           ),
                         ),
@@ -980,11 +980,11 @@ class _ApproVariantePickerSheet extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.12),
+                        color: AppColors.primary(context).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.style_rounded,
-                          color: AppColors.primary, size: 18),
+                      child: Icon(Icons.style_rounded,
+                          color: AppColors.primary(context), size: 18),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -1005,7 +1005,7 @@ class _ApproVariantePickerSheet extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey.shade700,
+                              color: AppColors.greyText(context, 700),
                             ),
                           ),
                         ],
@@ -1036,7 +1036,7 @@ class _ApproVariantePickerSheet extends StatelessWidget {
                             'Ce produit n\'a aucune variante.',
                             textAlign: TextAlign.center,
                             style:
-                                TextStyle(color: Colors.grey.shade600),
+                                TextStyle(color: AppColors.greyText(context, 600)),
                           ),
                         ),
                       );
@@ -1052,7 +1052,7 @@ class _ApproVariantePickerSheet extends StatelessWidget {
                         return ListTile(
                           leading: CircleAvatar(
                             backgroundColor:
-                                AppColors.primary.withValues(alpha: 0.12),
+                                AppColors.primary(context).withValues(alpha: 0.12),
                             child: Text(
                               v.libelle.isEmpty
                                   ? '?'
@@ -1061,8 +1061,8 @@ class _ApproVariantePickerSheet extends StatelessWidget {
                                       v.libelle.length > 2
                                           ? 2
                                           : v.libelle.length),
-                              style: const TextStyle(
-                                color: AppColors.primary,
+                              style: TextStyle(
+                                color: AppColors.primary(context),
                                 fontWeight: FontWeight.w800,
                                 fontSize: 12,
                               ),
@@ -1073,7 +1073,7 @@ class _ApproVariantePickerSheet extends StatelessWidget {
                             'Stock actuel : ${v.stock}',
                             style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey.shade600),
+                                color: AppColors.greyText(context, 600)),
                           ),
                           onTap: () {
                             Navigator.of(context).pop();
@@ -1184,11 +1184,11 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.12),
+                    color: AppColors.primary(context).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.inventory_2_rounded,
-                      color: AppColors.primary),
+                  child: Icon(Icons.inventory_2_rounded,
+                      color: AppColors.primary(context)),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1215,7 +1215,7 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
                                 '  •  Stock : ${p.quantiteStock}',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade700,
+                          color: AppColors.greyText(context, 700),
                         ),
                       ),
                     ],
@@ -1284,7 +1284,7 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.06),
+                color: AppColors.primary(context).withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -1295,10 +1295,10 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
                   const Spacer(),
                   Text(
                     Fmt.money(sousTotal, currency: devise),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 16,
-                      color: AppColors.primary,
+                      color: AppColors.primary(context),
                       letterSpacing: -0.2,
                     ),
                   ),
@@ -1357,10 +1357,10 @@ class _SummaryAndAction extends StatelessWidget {
             Obx(() => Container(
                   padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.06),
+                    color: AppColors.primary(context).withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.20),
+                      color: AppColors.primary(context).withValues(alpha: 0.20),
                     ),
                   ),
                   child: Row(
@@ -1375,16 +1375,16 @@ class _SummaryAndAction extends StatelessWidget {
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.6,
-                              color: Colors.grey.shade700,
+                              color: AppColors.greyText(context, 700),
                             ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             Fmt.money(c.total, currency: c.devise),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
-                              color: AppColors.primary,
+                              color: AppColors.primary(context),
                               letterSpacing: -0.4,
                             ),
                           ),
@@ -1452,7 +1452,7 @@ class _PaiementInfoChip extends StatelessWidget {
         label =
             'Trop versé ${Fmt.money(reste.abs(), currency: c.devise)}';
       } else {
-        color = Colors.grey.shade700;
+        color = AppColors.greyText(context, 700);
         label = c.modePaiement.value.label;
       }
       return InkWell(
@@ -1572,10 +1572,10 @@ class _PaiementSheet extends StatelessWidget {
               Obx(() => Container(
                     padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.05),
+                      color: AppColors.primary(context).withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.18),
+                        color: AppColors.primary(context).withValues(alpha: 0.18),
                       ),
                     ),
                     child: Column(
@@ -1595,7 +1595,7 @@ class _PaiementSheet extends StatelessWidget {
                           child: Divider(
                             height: 1,
                             color:
-                                AppColors.primary.withValues(alpha: 0.18),
+                                AppColors.primary(context).withValues(alpha: 0.18),
                           ),
                         ),
                         _RowKv(
@@ -1623,7 +1623,7 @@ class _PaiementSheet extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: Colors.grey.shade700,
+                  color: AppColors.greyText(context, 700),
                 ),
               ),
               const SizedBox(height: 6),
@@ -1722,7 +1722,7 @@ class _EncaissementSectionState extends State<_EncaissementSection> {
         resteColor = AppColors.success;
         resteLabel = 'Trop-versé (avance créée chez fournisseur)';
       } else {
-        resteColor = Colors.grey.shade600;
+        resteColor = AppColors.greyText(context, 600);
         resteLabel = 'Réglé intégralement';
       }
 
@@ -1731,7 +1731,7 @@ class _EncaissementSectionState extends State<_EncaissementSection> {
         decoration: BoxDecoration(
           color: Theme.of(context).cardTheme.color,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: AppColors.borderOf(context)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1743,8 +1743,8 @@ class _EncaissementSectionState extends State<_EncaissementSection> {
             ],
             Row(
               children: [
-                const Icon(Icons.payments_rounded,
-                    size: 18, color: AppColors.primary),
+                Icon(Icons.payments_rounded,
+                    size: 18, color: AppColors.primary(context)),
                 const SizedBox(width: 6),
                 const Text(
                   'Montant payé (cash)',
@@ -1870,7 +1870,7 @@ class _RowKv extends StatelessWidget {
           style: TextStyle(
             fontSize: big ? 20 : 13.5,
             fontWeight: big ? FontWeight.w800 : FontWeight.w700,
-            color: color ?? (big ? AppColors.primary : null),
+            color: color ?? (big ? AppColors.primary(context) : null),
             letterSpacing: big ? -0.3 : null,
           ),
         ),

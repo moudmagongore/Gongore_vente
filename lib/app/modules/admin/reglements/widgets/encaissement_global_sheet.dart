@@ -130,7 +130,7 @@ class _EncaissementGlobalSheetState extends State<EncaissementGlobalSheet> {
                       size: 14,
                       color: _onlyDettes
                           ? AppColors.warning
-                          : Colors.grey.shade600,
+                          : AppColors.greyText(context, 600),
                     ),
                     selected: _onlyDettes,
                     onSelected: (v) => setState(() => _onlyDettes = v),
@@ -157,7 +157,7 @@ class _EncaissementGlobalSheetState extends State<EncaissementGlobalSheet> {
                             ? 'Aucun client avec dette en cours.'
                             : 'Aucun client.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey.shade600),
+                        style: TextStyle(color: AppColors.greyText(context, 600)),
                       ),
                     ),
                   );
@@ -173,11 +173,11 @@ class _EncaissementGlobalSheetState extends State<EncaissementGlobalSheet> {
                     return ListTile(
                       leading: CircleAvatar(
                         backgroundColor:
-                            AppColors.primary.withValues(alpha: 0.12),
+                            AppColors.primary(context).withValues(alpha: 0.12),
                         child: Text(
                           c.nom.isEmpty ? '?' : c.nom[0].toUpperCase(),
-                          style: const TextStyle(
-                            color: AppColors.primary,
+                          style: TextStyle(
+                            color: AppColors.primary(context),
                             fontWeight: FontWeight.w700,
                           ),
                         ),

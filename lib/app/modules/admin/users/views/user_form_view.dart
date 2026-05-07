@@ -228,13 +228,13 @@ class UserFormView extends GetView<UserFormController> {
                 return Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.06),
+                    color: AppColors.primary(context).withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.store_rounded,
-                          color: AppColors.primary),
+                      Icon(Icons.store_rounded,
+                          color: AppColors.primary(context)),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
@@ -390,9 +390,9 @@ class UserFormView extends GetView<UserFormController> {
             OutlinedButton(
               onPressed: () => Get.back(),
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(
-                    color: AppColors.primary, width: 1.4),
+                foregroundColor: AppColors.primary(context),
+                side: BorderSide(
+                    color: AppColors.primary(context), width: 1.4),
                 minimumSize: const Size.fromHeight(48),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -420,11 +420,11 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 13,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.4,
-        color: AppColors.lightTextMuted,
+        color: AppColors.greyText(context, 700),
       ),
     );
   }
@@ -450,7 +450,7 @@ class _LabeledField extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
-              color: Colors.grey.shade700,
+              color: AppColors.greyText(context, 700),
             ),
           ),
         ),
@@ -563,7 +563,7 @@ class _RoleReadOnly extends StatelessWidget {
         break;
       case UserRole.admin:
         icon = Icons.admin_panel_settings_rounded;
-        color = AppColors.primary;
+        color = AppColors.primary(context);
         break;
       case UserRole.vendeur:
         icon = Icons.point_of_sale_rounded;
@@ -598,7 +598,7 @@ class _RoleReadOnly extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade600,
+                    color: AppColors.greyText(context, 600),
                   ),
                 ),
                 Text(
@@ -615,7 +615,7 @@ class _RoleReadOnly extends StatelessWidget {
           Icon(
             Icons.lock_outline_rounded,
             size: 16,
-            color: Colors.grey.shade500,
+            color: AppColors.greyText(context, 500),
           ),
         ],
       ),
@@ -637,7 +637,7 @@ class _RoleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isAdmin = role == UserRole.admin;
-    final color = isAdmin ? AppColors.primary : AppColors.secondary;
+    final color = isAdmin ? AppColors.primary(context) : AppColors.secondary;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -647,7 +647,7 @@ class _RoleCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? color.withValues(alpha: 0.12) : null,
           border: Border.all(
-            color: selected ? color : AppColors.border,
+            color: selected ? color : AppColors.borderOf(context),
             width: selected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(14),
@@ -676,7 +676,7 @@ class _RoleCard extends StatelessWidget {
                   : 'Caisse + sa boutique',
               style: TextStyle(
                 fontSize: 11,
-                color: Colors.grey.shade600,
+                color: AppColors.greyText(context, 600),
               ),
               textAlign: TextAlign.center,
             ),

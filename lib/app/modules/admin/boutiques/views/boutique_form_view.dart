@@ -89,9 +89,9 @@ class BoutiqueFormView extends GetView<BoutiqueFormController> {
             OutlinedButton(
               onPressed: () => Get.back(),
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(
-                    color: AppColors.primary, width: 1.4),
+                foregroundColor: AppColors.primary(context),
+                side: BorderSide(
+                    color: AppColors.primary(context), width: 1.4),
                 minimumSize: const Size.fromHeight(48),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),

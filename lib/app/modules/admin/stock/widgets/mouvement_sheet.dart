@@ -207,11 +207,11 @@ class _MouvementSheetState extends State<MouvementSheet> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.12),
+                        color: AppColors.primary(context).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.inventory_2_rounded,
-                          color: AppColors.primary),
+                      child: Icon(Icons.inventory_2_rounded,
+                          color: AppColors.primary(context)),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -234,7 +234,7 @@ class _MouvementSheetState extends State<MouvementSheet> {
                             'Stock actuel : $_stockCourant',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey.shade700,
+                              color: AppColors.greyText(context, 700),
                             ),
                           ),
                         ],
@@ -298,13 +298,13 @@ class _MouvementSheetState extends State<MouvementSheet> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.06),
+                    color: AppColors.primary(context).withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.arrow_forward_rounded,
-                          size: 18, color: AppColors.primary),
+                      Icon(Icons.arrow_forward_rounded,
+                          size: 18, color: AppColors.primary(context)),
                       const SizedBox(width: 8),
                       const Text(
                         'Stock après mouvement :',
@@ -314,10 +314,10 @@ class _MouvementSheetState extends State<MouvementSheet> {
                       const Spacer(),
                       Text(
                         _previewQteApres(),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
+                          color: AppColors.primary(context),
                         ),
                       ),
                     ],
@@ -403,11 +403,11 @@ class _MouvementVariantePickerSheet extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.12),
+                        color: AppColors.primary(context).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.style_rounded,
-                          color: AppColors.primary, size: 18),
+                      child: Icon(Icons.style_rounded,
+                          color: AppColors.primary(context), size: 18),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -428,7 +428,7 @@ class _MouvementVariantePickerSheet extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey.shade700,
+                              color: AppColors.greyText(context, 700),
                             ),
                           ),
                         ],
@@ -459,7 +459,7 @@ class _MouvementVariantePickerSheet extends StatelessWidget {
                             'Ce produit n\'a aucune variante.',
                             textAlign: TextAlign.center,
                             style:
-                                TextStyle(color: Colors.grey.shade600),
+                                TextStyle(color: AppColors.greyText(context, 600)),
                           ),
                         ),
                       );
@@ -475,7 +475,7 @@ class _MouvementVariantePickerSheet extends StatelessWidget {
                         return ListTile(
                           leading: CircleAvatar(
                             backgroundColor:
-                                AppColors.primary.withValues(alpha: 0.12),
+                                AppColors.primary(context).withValues(alpha: 0.12),
                             child: Text(
                               v.libelle.isEmpty
                                   ? '?'
@@ -484,8 +484,8 @@ class _MouvementVariantePickerSheet extends StatelessWidget {
                                       v.libelle.length > 2
                                           ? 2
                                           : v.libelle.length),
-                              style: const TextStyle(
-                                color: AppColors.primary,
+                              style: TextStyle(
+                                color: AppColors.primary(context),
                                 fontWeight: FontWeight.w800,
                                 fontSize: 12,
                               ),
@@ -496,7 +496,7 @@ class _MouvementVariantePickerSheet extends StatelessWidget {
                             'Stock actuel : ${v.stock}',
                             style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey.shade600),
+                                color: AppColors.greyText(context, 600)),
                           ),
                           onTap: () {
                             Navigator.of(context).pop();

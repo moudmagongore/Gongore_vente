@@ -100,7 +100,7 @@ class _StatsRow extends StatelessWidget {
                   icon: Icons.local_shipping_rounded,
                   value: controller.total.toString(),
                   label: 'Fournisseurs',
-                  color: AppColors.primary,
+                  color: AppColors.primary(context),
                 ),
               ),
               const SizedBox(width: 12),
@@ -139,7 +139,7 @@ class _StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 1),
+        border: Border.all(color: AppColors.borderOf(context), width: 1),
       ),
       child: Row(
         children: [
@@ -174,7 +174,7 @@ class _StatCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: Colors.grey.shade700,
+                    color: AppColors.greyText(context, 700),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -210,7 +210,7 @@ class _Filters extends StatelessWidget {
                 size: 16,
                 color: controller.onlyAvecDette.value
                     ? AppColors.warning
-                    : Colors.grey.shade600,
+                    : AppColors.greyText(context, 600),
               ),
               label: const Text('Avec dette',
                   style: TextStyle(fontSize: 12)),
@@ -237,7 +237,7 @@ class _FournisseurTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 1),
+        border: Border.all(color: AppColors.borderOf(context), width: 1),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -250,14 +250,14 @@ class _FournisseurTile extends StatelessWidget {
           child: Row(
             children: [
               CircleAvatar(
-                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                backgroundColor: AppColors.primary(context).withValues(alpha: 0.12),
                 radius: 22,
                 child: Text(
                   fournisseur.nom.isEmpty
                       ? '?'
                       : fournisseur.nom[0].toUpperCase(),
-                  style: const TextStyle(
-                    color: AppColors.primary,
+                  style: TextStyle(
+                    color: AppColors.primary(context),
                     fontWeight: FontWeight.w700,
                     fontSize: 16,
                   ),
@@ -282,13 +282,13 @@ class _FournisseurTile extends StatelessWidget {
                       Row(
                         children: [
                           Icon(Icons.phone_outlined,
-                              size: 12, color: Colors.grey.shade500),
+                              size: 12, color: AppColors.greyText(context, 500)),
                           const SizedBox(width: 4),
                           Text(
                             fournisseur.telephone!,
                             style: TextStyle(
                               fontSize: 11.5,
-                              color: Colors.grey.shade700,
+                              color: AppColors.greyText(context, 700),
                             ),
                           ),
                         ],
@@ -297,18 +297,18 @@ class _FournisseurTile extends StatelessWidget {
                     if (controller.isSuperAdmin) ...[
                       const SizedBox(height: 4),
                       Container(
-                        padding: const EdgeInsets.symmetric(
+                        padding: EdgeInsets.symmetric(
                             horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.10),
+                          color: AppColors.primary(context).withValues(alpha: 0.10),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           controller.boutiqueNom(fournisseur.boutiqueId),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
+                            color: AppColors.primary(context),
                           ),
                         ),
                       ),
@@ -329,7 +329,7 @@ class _FournisseurTile extends StatelessWidget {
                           ? AppColors.warning
                           : (hasAvance
                               ? AppColors.success
-                              : Colors.grey.shade500),
+                              : AppColors.greyText(context, 500)),
                       letterSpacing: -0.2,
                     ),
                   ),
@@ -339,7 +339,7 @@ class _FournisseurTile extends StatelessWidget {
                         : (hasAvance ? 'avance' : 'à jour'),
                     style: TextStyle(
                       fontSize: 10,
-                      color: Colors.grey.shade600,
+                      color: AppColors.greyText(context, 600),
                     ),
                   ),
                 ],
@@ -352,7 +352,7 @@ class _FournisseurTile extends StatelessWidget {
                     ? PopupMenuButton<String>(
                         tooltip: 'Plus',
                         icon: Icon(Icons.more_vert_rounded,
-                            color: Colors.grey.shade600, size: 20),
+                            color: AppColors.greyText(context, 600), size: 20),
                         onSelected: (v) {
                           switch (v) {
                             case 'verser':
@@ -369,11 +369,11 @@ class _FournisseurTile extends StatelessWidget {
                           }
                         },
                         itemBuilder: (_) => [
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'verser',
                             child: ListTile(
                               leading: Icon(Icons.payments_rounded,
-                                  color: AppColors.primary),
+                                  color: AppColors.primary(context)),
                               title: Text('Verser règlement'),
                               contentPadding: EdgeInsets.zero,
                               dense: true,
@@ -436,7 +436,7 @@ class _Empty extends StatelessWidget {
               hasSearch
                   ? 'Aucun fournisseur ne correspond.'
                   : 'Aucun fournisseur pour l\'instant.',
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(color: AppColors.greyText(context, 600)),
               textAlign: TextAlign.center,
             ),
             if (!hasSearch) ...[
@@ -445,7 +445,7 @@ class _Empty extends StatelessWidget {
                 'Ajoutez vos fournisseurs pour suivre vos achats et vos '
                 'dettes à payer.',
                 style:
-                    TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                    TextStyle(color: AppColors.greyText(context, 500), fontSize: 12),
                 textAlign: TextAlign.center,
               ),
             ],

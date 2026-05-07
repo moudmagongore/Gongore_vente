@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/user_controller.dart';
 import 'admin_drawer.dart';
 import 'vendeur_drawer.dart';
+import 'package:gongore_vente/app/theme/app_colors.dart';
 
 /// Page placeholder pour les sections pas encore implémentées.
 class ComingSoonView extends StatelessWidget {
@@ -46,7 +47,7 @@ class ComingSoonView extends StatelessWidget {
                 Text(
                   subtitle ?? 'Cette section sera disponible prochainement.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey.shade600),
+                  style: TextStyle(color: AppColors.greyText(context, 600)),
                 ),
               ],
             ),

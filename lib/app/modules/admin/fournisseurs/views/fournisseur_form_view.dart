@@ -104,16 +104,16 @@ class FournisseurFormView extends GetView<FournisseurFormController> {
                   return Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.06),
+                      color: AppColors.primary(context).withValues(alpha: 0.06),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.2),
+                        color: AppColors.primary(context).withValues(alpha: 0.2),
                       ),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.store_rounded,
-                            color: AppColors.primary),
+                        Icon(Icons.store_rounded,
+                            color: AppColors.primary(context)),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
@@ -170,9 +170,9 @@ class FournisseurFormView extends GetView<FournisseurFormController> {
               OutlinedButton(
                 onPressed: () => Get.back(),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  side: const BorderSide(
-                      color: AppColors.primary, width: 1.4),
+                  foregroundColor: AppColors.primary(context),
+                  side: BorderSide(
+                      color: AppColors.primary(context), width: 1.4),
                   minimumSize: const Size.fromHeight(48),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -199,11 +199,11 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 13,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.4,
-        color: AppColors.lightTextMuted,
+        color: AppColors.greyText(context, 700),
       ),
     );
   }

@@ -31,7 +31,7 @@ class AdminDrawer extends StatelessWidget {
               email: user?.email ?? '',
               isSuper: isSuper,
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Expanded(
               child: ListView(
                 padding: EdgeInsets.zero,
@@ -202,7 +202,7 @@ class AdminDrawer extends StatelessWidget {
                 ],
               ),
             ),
-            const Divider(height: 1),
+            Divider(height: 1),
             Builder(
               builder: (ctx) => ListTile(
                 leading: const Icon(Icons.logout_rounded, color: Colors.red),
@@ -253,9 +253,9 @@ class _Header extends StatelessWidget {
         },
         child: Container(
           padding: EdgeInsets.fromLTRB(20, 20 + topInset, 20, 18),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [AppColors.primary, AppColors.primaryDark],
+              colors: [AppColors.primary(context), AppColors.primaryDark],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -273,10 +273,10 @@ class _Header extends StatelessWidget {
                 backgroundColor: Colors.white,
                 child: Text(
                   name.isEmpty ? '?' : name[0].toUpperCase(),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
+                    color: AppColors.primary(context),
                   ),
                 ),
               ),
@@ -397,18 +397,18 @@ class _Item extends StatelessWidget {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       leading: Icon(
         icon,
-        color: selected ? AppColors.primary : null,
+        color: selected ? AppColors.primary(context) : null,
       ),
       title: Text(
         label,
         style: TextStyle(
           fontFamily: AppTheme.fontFamily,
-          color: selected ? AppColors.primary : null,
+          color: selected ? AppColors.primary(context) : null,
           fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
         ),
       ),
       selected: selected,
-      selectedTileColor: AppColors.primary.withValues(alpha: 0.08),
+      selectedTileColor: AppColors.primary(context).withValues(alpha: 0.08),
       onTap: () {
         Navigator.of(context).pop();
         if (selected) return;
@@ -449,13 +449,13 @@ class _ExpansionGroup extends StatelessWidget {
             const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
         leading: Icon(
           icon,
-          color: containsCurrent ? AppColors.primary : null,
+          color: containsCurrent ? AppColors.primary(context) : null,
         ),
         title: Text(
           title,
           style: TextStyle(
             fontFamily: AppTheme.fontFamily,
-            color: containsCurrent ? AppColors.primary : null,
+            color: containsCurrent ? AppColors.primary(context) : null,
             fontWeight:
                 containsCurrent ? FontWeight.w600 : FontWeight.normal,
           ),

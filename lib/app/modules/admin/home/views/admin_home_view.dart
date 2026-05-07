@@ -21,7 +21,7 @@ class AdminHomeView extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tableau de bord'),
+        title: Text('Tableau de bord'),
         actions: [
           IconButton(
             tooltip: 'Rapports',
@@ -97,11 +97,11 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 13,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.4,
-        color: AppColors.lightTextMuted,
+        color: AppColors.greyText(context, 700),
       ),
     );
   }
@@ -115,7 +115,7 @@ class _ChartCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
+        padding: EdgeInsets.fromLTRB(12, 14, 12, 12),
         child: child,
       ),
     );
@@ -135,8 +135,8 @@ class _GreetingCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primary, AppColors.primaryDark],
+        gradient: LinearGradient(
+          colors: [AppColors.primary(context), AppColors.primaryDark],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -212,7 +212,7 @@ class _KpiCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 1),
+        border: Border.all(color: AppColors.borderOf(context), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -237,7 +237,7 @@ class _KpiCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade700,
+                    color: AppColors.greyText(context, 700),
                   ),
                 ),
               ),
@@ -259,7 +259,7 @@ class _KpiCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               hint!,
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+              style: TextStyle(fontSize: 11, color: AppColors.greyText(context, 500)),
             ),
           ],
         ],
@@ -301,7 +301,7 @@ class _SecondaryStats extends StatelessWidget {
                     it.label,
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.grey.shade600,
+                      color: AppColors.greyText(context, 600),
                     ),
                   ),
                 ],
@@ -339,7 +339,7 @@ class _KpisJour extends StatelessWidget {
                 Expanded(
                   child: _KpiCard(
                     icon: Icons.receipt_long_rounded,
-                    color: AppColors.primary,
+                    color: AppColors.primary(context),
                     value: c.nbVentesJour.toString(),
                     label: 'Ventes',
                   ),
@@ -409,7 +409,7 @@ class _KpisMois extends StatelessWidget {
               icon: Icons.receipt_long_rounded,
               value: c.nbVentesMois.toString(),
               label: 'ventes',
-              color: AppColors.primary,
+              color: AppColors.primary(context),
             ),
           ]),
         ],
@@ -466,7 +466,7 @@ class _LineChartCa extends StatelessWidget {
                 getTitlesWidget: (value, _) => Text(
                   Fmt.number(value),
                   style: TextStyle(
-                      fontSize: 9, color: Colors.grey.shade600),
+                      fontSize: 9, color: AppColors.greyText(context, 600)),
                 ),
               ),
             ),
@@ -483,7 +483,7 @@ class _LineChartCa extends StatelessWidget {
                     child: Text(
                       '${d.day}/${d.month}',
                       style: TextStyle(
-                          fontSize: 9, color: Colors.grey.shade600),
+                          fontSize: 9, color: AppColors.greyText(context, 600)),
                     ),
                   );
                 },
@@ -499,20 +499,20 @@ class _LineChartCa extends StatelessWidget {
             LineChartBarData(
               spots: spots,
               isCurved: true,
-              color: AppColors.primary,
+              color: AppColors.primary(context),
               barWidth: 3,
               dotData: FlDotData(
                 show: true,
                 getDotPainter: (spot, _, _, _) => FlDotCirclePainter(
                   radius: 4,
-                  color: AppColors.primary,
+                  color: AppColors.primary(context),
                   strokeColor: Colors.white,
                   strokeWidth: 2,
                 ),
               ),
               belowBarData: BarAreaData(
                 show: true,
-                color: AppColors.primary.withValues(alpha: 0.1),
+                color: AppColors.primary(context).withValues(alpha: 0.1),
               ),
             ),
           ],
@@ -551,7 +551,7 @@ class _BarChartTopProduits extends StatelessWidget {
                     height: 22,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: _rankColor(i).withValues(alpha: 0.15),
+                      color: _rankColor(context, i).withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
                     child: Text(
@@ -559,7 +559,7 @@ class _BarChartTopProduits extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: _rankColor(i),
+                        color: _rankColor(context, i),
                       ),
                     ),
                   ),
@@ -578,7 +578,7 @@ class _BarChartTopProduits extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: _rankColor(i),
+                      color: _rankColor(context, i),
                     ),
                   ),
                 ],
@@ -590,7 +590,7 @@ class _BarChartTopProduits extends StatelessWidget {
                   value: ratio.clamp(0.0, 1.0),
                   minHeight: 6,
                   backgroundColor: Colors.grey.shade200,
-                  valueColor: AlwaysStoppedAnimation(_rankColor(i)),
+                  valueColor: AlwaysStoppedAnimation(_rankColor(context, i)),
                 ),
               ),
             ],
@@ -601,10 +601,10 @@ class _BarChartTopProduits extends StatelessWidget {
     });
   }
 
-  Color _rankColor(int i) {
+  Color _rankColor(BuildContext context, int i) {
     switch (i) {
       case 0:
-        return AppColors.primary;
+        return AppColors.primary(context);
       case 1:
         return AppColors.secondary;
       case 2:
@@ -631,7 +631,7 @@ class _PiePaiements extends StatelessWidget {
       final colors = {
         ModePaiement.especes: AppColors.success,
         ModePaiement.orangeMoney: AppColors.warning,
-        ModePaiement.mobileMoney: AppColors.primary,
+        ModePaiement.mobileMoney: AppColors.primary(context),
         ModePaiement.paycard: AppColors.secondary,
       };
 
@@ -715,7 +715,7 @@ class _NoData extends StatelessWidget {
                 size: 40, color: Colors.grey.shade400),
             const SizedBox(height: 6),
             Text(message,
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                style: TextStyle(color: AppColors.greyText(context, 600), fontSize: 12)),
           ],
         ),
       ),
@@ -742,9 +742,9 @@ class _ListBoutiques extends StatelessWidget {
                       ListTile(
                         leading: CircleAvatar(
                           backgroundColor:
-                              AppColors.primary.withValues(alpha: 0.12),
-                          child: const Icon(Icons.store_rounded,
-                              color: AppColors.primary),
+                              AppColors.primary(context).withValues(alpha: 0.12),
+                          child: Icon(Icons.store_rounded,
+                              color: AppColors.primary(context)),
                         ),
                         title: Text(e.value.boutique.nom),
                         subtitle: Text('${e.value.nb} vente(s)',
@@ -752,9 +752,9 @@ class _ListBoutiques extends StatelessWidget {
                         trailing: Text(
                           Fmt.money(e.value.ca,
                               currency: e.value.boutique.devise),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
+                            color: AppColors.primary(context),
                           ),
                         ),
                       ),
@@ -831,7 +831,7 @@ class _QuickActions extends StatelessWidget {
       mainAxisSpacing: 10,
       crossAxisSpacing: 10,
       childAspectRatio: 0.95,
-      children: const [
+      children: [
         // admin/super-admin n'ont pas le droit de créer une vente.
         // Raccourci pointé vers la liste (lecture seule).
         _Quick(
@@ -843,7 +843,7 @@ class _QuickActions extends StatelessWidget {
         _Quick(
           icon: Icons.store_rounded,
           label: 'Boutiques',
-          color: AppColors.primary,
+          color: AppColors.primary(context),
           route: AppRoutes.adminBoutiques,
         ),
         _Quick(
@@ -884,7 +884,7 @@ class _Quick extends StatelessWidget {
         decoration: BoxDecoration(
           color: Theme.of(context).cardTheme.color,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border, width: 1),
+          border: Border.all(color: AppColors.borderOf(context), width: 1),
         ),
         padding: const EdgeInsets.all(8),
         child: Column(

@@ -156,7 +156,7 @@ class _DetailBody extends StatelessWidget {
                       Fmt.dateTime(vente.date),
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade700,
+                        color: AppColors.greyText(context, 700),
                       ),
                     ),
                     if (vente.motifAnnulation?.isNotEmpty ?? false) ...[
@@ -226,14 +226,14 @@ class _DetailBody extends StatelessWidget {
         const SizedBox(height: 16),
 
         // ====== Articles ======
-        const Padding(
+        Padding(
           padding: EdgeInsets.fromLTRB(4, 0, 4, 8),
           child: Text(
             'Articles',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: AppColors.lightTextMuted,
+              color: AppColors.greyText(context, 700),
             ),
           ),
         ),
@@ -334,13 +334,13 @@ class _InfoLine extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: Colors.grey.shade600),
+              Icon(icon, size: 20, color: AppColors.greyText(context, 600)),
               const SizedBox(width: 12),
               Text(
                 label,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey.shade700,
+                  color: AppColors.greyText(context, 700),
                 ),
               ),
               const Spacer(),
@@ -384,14 +384,14 @@ class _ArticleLine extends StatelessWidget {
                 height: 30,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
+                  color: AppColors.primary(context).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   '${article.quantite}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
+                    color: AppColors.primary(context),
                   ),
                 ),
               ),
@@ -416,15 +416,15 @@ class _ArticleLine extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.10),
+                          color: AppColors.primary(context).withValues(alpha: 0.10),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           article.varianteLibelle!,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
+                            color: AppColors.primary(context),
                             letterSpacing: 0.2,
                           ),
                         ),
@@ -436,7 +436,7 @@ class _ArticleLine extends StatelessWidget {
                       '${article.remise > 0 ? '  • remise ${Fmt.money(article.remise, currency: devise)}' : ''}',
                       style: TextStyle(
                         fontSize: 11,
-                        color: Colors.grey.shade600,
+                        color: AppColors.greyText(context, 600),
                       ),
                     ),
                   ],
@@ -444,9 +444,9 @@ class _ArticleLine extends StatelessWidget {
               ),
               Text(
                 Fmt.money(article.sousTotal, currency: devise),
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
+                  color: AppColors.primary(context),
                 ),
               ),
             ],
@@ -495,7 +495,7 @@ class _TotalLine extends StatelessWidget {
               fontWeight: big ? FontWeight.w800 : FontWeight.w600,
               color: strikethrough
                   ? Colors.grey
-                  : (color ?? (big ? AppColors.primary : null)),
+                  : (color ?? (big ? AppColors.primary(context) : null)),
               decoration: strikethrough
                   ? TextDecoration.lineThrough
                   : TextDecoration.none,
