@@ -22,3 +22,77 @@ Travail estimé : ajout de 2 packages, config iOS (NSFaceIDUsageDescription) + A
 Mot de passe changé ailleurs → l'auth biométrique se désactive automatiquement avec un message clair
 
 
+
+
+
+
+
+
+
+NB:
+Plan Spark gratuit (votre plan actuel)
+Pour Cloud Firestore (votre BD principale) :
+
+Ressource	Limite gratuite par jour	Limite stricte
+Lectures	50 000 / jour	bloque à minuit UTC
+Écritures	20 000 / jour	idem
+Suppressions	20 000 / jour	idem
+Stockage total	1 Gio	bloque
+Bande passante sortante	10 Gio / mois	bloque
+Firebase Auth : 50 000 utilisateurs actifs/mois gratuits, inscriptions illimitées.
+
+⚠️ Important : ces limites sont par JOUR, pas par utilisateur. Quand vous dépassez, votre app renvoie des erreurs resource-exhausted jusqu'au lendemain — pas de surfacturation, mais l'app plante pour les utilisateurs.
+
+🧮 Combien d'utilisateurs ça représente pour Gongoré ?
+Estimation pour votre app (vente, stock, règlements). Un usage moyen vendeur/jour :
+
+Ouverture app + sync : ~50 reads (boutique, user, stock, dashboard)
+20 ventes : ~20 reads (clients) + 60 writes (vente + variantes + counter)
+Consultations stock/historique : ~200 reads
+Total ≈ 250 reads + 80 writes par vendeur/jour
+Nombre de vendeurs actifs/jour	Reads	Writes	Tient sur Spark ?
+10 vendeurs	2 500	800	✅ Large
+50 vendeurs	12 500	4 000	✅ OK
+150 vendeurs	37 500	12 000	⚠️ Limite proche
+200 vendeurs	50 000	16 000	❌ Dépasse reads
+Conclusion : Spark tient pour 1 à 5 boutiques avec 150 vendeurs au max. Au-delà, vous DEVEZ passer Blaze.
+
+💰 Plan Blaze (pay-as-you-go)
+Le tier gratuit reste inclus dans Blaze (50k reads/jour gratuits) — vous ne payez que ce qui dépasse.
+
+Tarifs Firestore au-delà du gratuit :
+
+100 000 lectures = 0,06 $ (~600 GNF)
+100 000 écritures = 0,18 $ (~1 800 GNF)
+1 Gio stockage = 0,18 $/mois
+1 Gio bande passante = 0,12 $
+Exemple chiffré : 500 vendeurs actifs/jour pendant 1 mois
+
+500 × 250 reads × 30 j = 3 750 000 reads → 3,7M − 1,5M (gratuit) = 2,2M payants → 1,32 $
+500 × 80 writes × 30 j = 1 200 000 writes → 1,2M − 600k (gratuit) = 600k payants → 1,08 $
+Stockage 5 Gio → 0,90 $/mois
+Total ≈ 3,30 $/mois (~33 000 GNF)
+Pour 5 000 vendeurs/jour : ~30-50 $/mois. Pour 50 000 vendeurs/jour : ~300-500 $/mois.
+
+🛡️ Comment se protéger des coûts surprise
+1. Définir une alerte budget dans Google Cloud Console :
+
+Console → Billing → Budgets & alerts → ex. alerte à 5 $, 20 $, 50 $
+Reçoit un email automatique si dépassement
+2. Optimisations Firestore (gain potentiel de 50-80% sur les reads) :
+
+✅ Vous utilisez déjà des streams scopés par boutique dans BoutiqueRepository.watchScoped — bon point
+❓ Vérifier : pas de get() répétés là où un cache local suffirait
+❓ Pagination sur les listes longues (ventes, produits) — limit(20) au lieu de tout charger
+❓ Index composites bien définis pour éviter les scans
+3. Données rarement consultées → cache: Source.cache plutôt que Source.server.
+
+🎯 Ma recommandation pour la commercialisation
+Lancement initial (0-100 boutiques) → Restez sur Spark gratuit. Surveillez la console Firebase → Usage chaque semaine.
+À 100+ boutiques actives → Passez Blaze + alerte budget à 10 $/mois. Les coûts seront marginaux (3-15 $/mois).
+À 1000+ boutiques → Audit perfs : indexes, pagination, cache. Coût attendu 30-100 $/mois — largement absorbé par votre marge SaaS.
+Firebase n'est PAS limité techniquement pour des millions d'utilisateurs (Duolingo, NYT, Alibaba l'utilisent). Le seul vrai sujet c'est le coût, qui reste très faible pour une app B2B comme la vôtre.
+
+Voulez-vous que je vérifie maintenant si votre code a des patterns coûteux (lectures inutiles, listeners non disposés, etc.) qu'on pourrait optimiser avant la commercialisation ?
+
+
