@@ -84,7 +84,7 @@ class _FiltersBar extends StatelessWidget {
           return Row(
             children: [
               _Chip(
-                label: 'Mes gestionnaires (${controller.nbVendeurs})',
+                label: 'Mes gestionnaires',
                 selected: true,
                 onTap: () {},
               ),
@@ -102,13 +102,13 @@ class _FiltersBar extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               _Chip(
-                label: 'Admins (${controller.nbAdmins})',
+                label: 'Admins',
                 selected: controller.filterRole.value == UserRole.admin,
                 onTap: () => controller.setFilterRole(UserRole.admin),
               ),
               const SizedBox(width: 8),
               _Chip(
-                label: 'Gestionnaires (${controller.nbVendeurs})',
+                label: 'Gestionnaires',
                 selected: controller.filterRole.value == UserRole.vendeur,
                 onTap: () => controller.setFilterRole(UserRole.vendeur),
               ),
@@ -241,21 +241,14 @@ class _UserTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            user.nom,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        _RoleBadge(role: user.role),
-                      ],
+                    Text(
+                      user.nom,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -292,28 +285,41 @@ class _UserTile extends StatelessWidget {
                           ],
                         ),
                       ),
-                    if (!user.active)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Text(
-                            'DÉSACTIVÉ',
-                            style: TextStyle(
-                              color: Colors.red,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          // Badge du rôle principal
+                          _RoleBadge(role: user.role),
+                          // Cumul admin + gestionnaire : badge supplémentaire
+                          // GESTIONNAIRE pour signaler le double rôle.
+                          if (user.role == UserRole.admin &&
+                              user.alsoGestionnaire)
+                            const _RoleBadge(role: UserRole.vendeur),
+                          if (!user.active)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Text(
+                                'DÉSACTIVÉ',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
+                        ],
                       ),
+                    ),
                   ],
                 ),
               ),

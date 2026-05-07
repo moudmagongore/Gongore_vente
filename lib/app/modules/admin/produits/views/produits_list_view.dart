@@ -122,6 +122,8 @@ class _Filters extends StatelessWidget {
                     style: TextStyle(fontSize: 12)),
                 selected: controller.onlyActive.value,
                 onSelected: (v) => controller.onlyActive.value = v,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 6),
               ),
             ],
           ),
@@ -153,7 +155,7 @@ class _DropdownChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         border: Border.all(color: AppColors.border),
         borderRadius: BorderRadius.circular(20),
@@ -286,11 +288,16 @@ class _ProduitTileState extends State<_ProduitTile> {
                             ),
                           ),
                         ),
-                        if (cat != null) ...[
-                          const SizedBox(width: 6),
+                      ],
+                    ),
+                    // Catégorie : ligne dédiée juste au-dessus du prix.
+                    if (cat != null) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
                           Icon(Icons.category_outlined,
                               size: 12, color: Colors.grey.shade500),
-                          const SizedBox(width: 3),
+                          const SizedBox(width: 4),
                           Flexible(
                             child: Text(
                               cat,
@@ -301,8 +308,8 @@ class _ProduitTileState extends State<_ProduitTile> {
                             ),
                           ),
                         ],
-                      ],
-                    ),
+                      ),
+                    ],
                     const SizedBox(height: 6),
                     Row(
                       children: [

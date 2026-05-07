@@ -24,11 +24,9 @@ class VendeurDrawer extends StatelessWidget {
             _Header(name: user?.nom ?? '', email: user?.email ?? ''),
             const SizedBox(height: 8),
             Expanded(
-              child: SafeArea(
-                top: false,
-                child: ListView(
-                  padding: EdgeInsets.zero,
-                  children: [
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
                     _Item(
                       icon: Icons.home_rounded,
                       label: 'Accueil',
@@ -155,14 +153,29 @@ class VendeurDrawer extends StatelessWidget {
                         },
                       ),
                     ),
-                    _Item(
-                      icon: Icons.settings_rounded,
-                      label: 'Paramètres',
-                      route: AppRoutes.parametres,
-                      currentRoute: currentRoute,
+                    // Paramètres : push (toNamed) plutôt que replace pour
+                    // garder la route précédente dans la pile et afficher
+                    // automatiquement un bouton retour dans l'AppBar.
+                    Builder(
+                      builder: (ctx) => ListTile(
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.zero,
+                        ),
+                        leading: const Icon(Icons.settings_rounded),
+                        title: const Text(
+                          'Paramètres',
+                          style: TextStyle(
+                            fontFamily: AppTheme.fontFamily,
+                            fontWeight: FontWeight.normal,
+                          ),
+                        ),
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          Get.toNamed(AppRoutes.parametres);
+                        },
+                      ),
                     ),
-                  ],
-                ),
+                ],
               ),
             ),
             const Divider(height: 1),
@@ -197,16 +210,27 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final topInset = MediaQuery.of(context).padding.top;
-    return Container(
-      padding: EdgeInsets.fromLTRB(20, 20 + topInset, 20, 18),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.primary, AppColors.primaryDark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Column(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        // Tap sur le header → ouvre "Mon compte" (édition de son propre profil).
+        onTap: () {
+          Navigator.of(context).pop();
+          final me = UserController.to.user;
+          if (me != null) {
+            Get.toNamed(AppRoutes.adminUserForm, arguments: me);
+          }
+        },
+        child: Container(
+          padding: EdgeInsets.fromLTRB(20, 20 + topInset, 20, 18),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.primary, AppColors.primaryDark],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CircleAvatar(
@@ -260,6 +284,8 @@ class _Header extends StatelessWidget {
             ),
           ),
         ],
+      ),
+        ),
       ),
     );
   }

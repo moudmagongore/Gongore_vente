@@ -33,11 +33,9 @@ class AdminDrawer extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Expanded(
-              child: SafeArea(
-                top: false,
-                child: ListView(
-                  padding: EdgeInsets.zero,
-                  children: [
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
                     _Item(
                       icon: Icons.dashboard_rounded,
                       label: 'Tableau de bord',
@@ -179,14 +177,29 @@ class AdminDrawer extends StatelessWidget {
                         },
                       ),
                     ),
-                    _Item(
-                      icon: Icons.settings_rounded,
-                      label: 'Paramètres',
-                      route: AppRoutes.parametres,
-                      currentRoute: currentRoute,
+                    // Paramètres : push (toNamed) plutôt que replace pour
+                    // garder la route précédente dans la pile et afficher
+                    // automatiquement un bouton retour dans l'AppBar.
+                    Builder(
+                      builder: (ctx) => ListTile(
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.zero,
+                        ),
+                        leading: const Icon(Icons.settings_rounded),
+                        title: const Text(
+                          'Paramètres',
+                          style: TextStyle(
+                            fontFamily: AppTheme.fontFamily,
+                            fontWeight: FontWeight.normal,
+                          ),
+                        ),
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          Get.toNamed(AppRoutes.parametres);
+                        },
+                      ),
                     ),
-                  ],
-                ),
+                ],
               ),
             ),
             const Divider(height: 1),
@@ -227,18 +240,27 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final topInset = MediaQuery.of(context).padding.top;
-    return Container(
-      padding: EdgeInsets.fromLTRB(20, 20 + topInset, 20, 18),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isSuper
-              ? const [Color(0xFF6A1B9A), Color(0xFF1565C0)]
-              : const [AppColors.primary, AppColors.primaryDark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Column(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        // Tap sur le header → ouvre "Mon compte" (édition de son propre profil).
+        onTap: () {
+          Navigator.of(context).pop();
+          final me = UserController.to.user;
+          if (me != null) {
+            Get.toNamed(AppRoutes.adminUserForm, arguments: me);
+          }
+        },
+        child: Container(
+          padding: EdgeInsets.fromLTRB(20, 20 + topInset, 20, 18),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.primary, AppColors.primaryDark],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Stack(
@@ -248,12 +270,10 @@ class _Header extends StatelessWidget {
                 backgroundColor: Colors.white,
                 child: Text(
                   name.isEmpty ? '?' : name[0].toUpperCase(),
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: isSuper
-                        ? const Color(0xFF6A1B9A)
-                        : AppColors.primary,
+                    color: AppColors.primary,
                   ),
                 ),
               ),
@@ -298,24 +318,30 @@ class _Header extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          // Badge rôle : on affiche aussi "+ GESTIONNAIRE" si l'admin a
-          // activé le cumul des rôles (alsoGestionnaire = true).
+          // Badge rôle : on affiche aussi GESTIONNAIRE en dessous si
+          // l'admin a activé le cumul des rôles (alsoGestionnaire = true).
           Builder(
             builder: (_) {
               final user = UserController.to.user;
               final showCumul = !isSuper && (user?.alsoGestionnaire ?? false);
-              return Wrap(
-                spacing: 6,
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   _RoleBadge(
                     label: isSuper ? 'SUPER ADMIN' : 'ADMINISTRATEUR',
                   ),
-                  if (showCumul) const _RoleBadge(label: '+ GESTIONNAIRE'),
+                  if (showCumul) ...[
+                    const SizedBox(height: 6),
+                    const _RoleBadge(label: 'GESTIONNAIRE'),
+                  ],
                 ],
               );
             },
           ),
         ],
+      ),
+        ),
       ),
     );
   }

@@ -546,6 +546,56 @@ class _LigneTile extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      // Catégorie : même chip discret que dans le picker
+                      // et le dialog "Ajouter à la vente".
+                      Builder(
+                        builder: (_) {
+                          final catNom = controller.categories
+                              .firstWhereOrNull(
+                                  (c) => c.id == l.produit.categorieId)
+                              ?.nom;
+                          if (catNom == null || catNom.isEmpty) {
+                            return const SizedBox.shrink();
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary
+                                    .withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.category_outlined,
+                                    size: 11,
+                                    color: AppColors.primary
+                                        .withValues(alpha: 0.85),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      catNom,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.primary
+                                            .withValues(alpha: 0.85),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         '${Fmt.money(l.prixUnitaire, currency: devise)} l\'unité',
@@ -1008,14 +1058,71 @@ class _ProduitPickerSheetState extends State<_ProduitPickerSheet> {
                         ),
                         title: Text(p.nom,
                             maxLines: 1, overflow: TextOverflow.ellipsis),
-                        subtitle: Text(
-                          Fmt.money(p.prixVente,
-                              currency: widget.controller.devise),
-                          style: const TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
-                          ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Catégorie : petit chip discret avec icône
+                            // (affiché juste sous le nom du produit).
+                            Builder(
+                              builder: (_) {
+                                final catNom = widget.controller.categories
+                                    .firstWhereOrNull(
+                                        (c) => c.id == p.categorieId)
+                                    ?.nom;
+                                if (catNom == null || catNom.isEmpty) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary
+                                          .withValues(alpha: 0.08),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.category_outlined,
+                                          size: 11,
+                                          color: AppColors.primary
+                                              .withValues(alpha: 0.85),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Flexible(
+                                          child: Text(
+                                            catNom,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 10.5,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.primary
+                                                  .withValues(alpha: 0.85),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              Fmt.money(p.prixVente,
+                                  currency: widget.controller.devise),
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
                         trailing: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -1556,6 +1663,56 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      // Catégorie : même design discret que dans le picker.
+                      Builder(
+                        builder: (_) {
+                          final catNom = widget.controller.categories
+                              .firstWhereOrNull(
+                                  (c) => c.id == p.categorieId)
+                              ?.nom;
+                          if (catNom == null || catNom.isEmpty) {
+                            return const SizedBox.shrink();
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary
+                                    .withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.category_outlined,
+                                    size: 11,
+                                    color: AppColors.primary
+                                        .withValues(alpha: 0.85),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      catNom,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.primary
+                                            .withValues(alpha: 0.85),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 4),
                       Text(
                         '${Fmt.money(p.prixVente, currency: devise)} l\'unité',
                         style: TextStyle(
@@ -1979,6 +2136,8 @@ class _PaiementSheet extends StatelessWidget {
                     ),
                   )),
               const SizedBox(height: 12),
+              _RemiseGlobaleField(controller: controller),
+              const SizedBox(height: 12),
               _NoteField(controller: controller),
               const SizedBox(height: 10),
               Text(
@@ -2028,6 +2187,302 @@ class _PaiementSheet extends StatelessWidget {
         ),
       ),
       ),
+    );
+  }
+}
+
+/// Tuile cliquable qui résume la remise globale et ouvre un bottom
+/// sheet permettant de la saisir en montant fixe OU en pourcentage
+/// du sous-total. Aligné visuellement sur la remise par ligne mais
+/// présenté en pleine largeur dans la sheet de paiement.
+class _RemiseGlobaleField extends StatelessWidget {
+  final VenteFormController controller;
+  const _RemiseGlobaleField({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final remise = controller.remiseGlobale.value;
+      final sousTotal = controller.sousTotal;
+      final active = remise > 0;
+      final pct = (active && sousTotal > 0)
+          ? (remise / sousTotal * 100).clamp(0, 100)
+          : 0;
+
+      final accent = active ? AppColors.success : AppColors.primary;
+      final bg = active
+          ? AppColors.success.withValues(alpha: 0.08)
+          : AppColors.primary.withValues(alpha: 0.04);
+      final border = active
+          ? AppColors.success.withValues(alpha: 0.35)
+          : AppColors.primary.withValues(alpha: 0.18);
+
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => _showRemiseGlobaleSheet(context),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: border),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    active
+                        ? Icons.local_offer_rounded
+                        : Icons.local_offer_outlined,
+                    size: 18,
+                    color: accent,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Remise globale',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: accent,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        active
+                            ? 'Appliquée au sous-total'
+                            : 'Aucune remise — appuyez pour en ajouter',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (active) ...[
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '-${Fmt.money(remise, currency: controller.devise)}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.success,
+                        ),
+                      ),
+                      if (pct > 0)
+                        Text(
+                          '${pct.toStringAsFixed(pct < 1 ? 1 : 0)} %',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(Icons.edit_rounded,
+                      size: 16, color: Colors.grey.shade500),
+                ] else
+                  Icon(Icons.add_rounded,
+                      size: 18, color: AppColors.primary.withValues(alpha: 0.7)),
+              ],
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  void _showRemiseGlobaleSheet(BuildContext context) {
+    final sousTotal = controller.sousTotal;
+    final montantCtrl = TextEditingController(
+      text: controller.remiseGlobale.value > 0
+          ? Fmt.number(controller.remiseGlobale.value)
+          : '',
+    );
+    final pourcentCtrl = TextEditingController();
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+    final viewPadding = MediaQuery.of(context).viewPadding.bottom;
+
+    Get.bottomSheet(
+      SafeArea(
+        top: false,
+        bottom: false,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardTheme.color,
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.fromLTRB(
+            16,
+            12,
+            16,
+            (viewInsets > 0 ? viewInsets : viewPadding) + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade400,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.local_offer_rounded,
+                      color: AppColors.primary,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Remise globale',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.only(left: 46),
+                child: Text(
+                  'Sous-total : ${Fmt.money(sousTotal, currency: controller.devise)}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              TextField(
+                controller: montantCtrl,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Montant fixe (${controller.devise})',
+                  prefixIcon: const Icon(Icons.payments_outlined),
+                  isDense: true,
+                ),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                ],
+                onChanged: (_) => pourcentCtrl.clear(),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(child: Divider(color: Colors.grey.shade300)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      'OU',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.grey.shade500,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+                  Expanded(child: Divider(color: Colors.grey.shade300)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: pourcentCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Pourcentage du sous-total',
+                  prefixIcon: Icon(Icons.percent_rounded),
+                  suffixText: '%',
+                  isDense: true,
+                ),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                ],
+                onChanged: (_) => montantCtrl.clear(),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        controller.remiseGlobale.value = 0;
+                        Get.back();
+                      },
+                      child: const Text('Retirer'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        final m = double.tryParse(
+                            montantCtrl.text.replaceAll(',', '.'));
+                        final p = double.tryParse(
+                            pourcentCtrl.text.replaceAll(',', '.'));
+                        double next = controller.remiseGlobale.value;
+                        if (p != null) {
+                          next = sousTotal * (p / 100);
+                        } else if (m != null) {
+                          next = m;
+                        }
+                        controller.remiseGlobale.value =
+                            next.clamp(0, sousTotal).toDouble();
+                        Get.back();
+                      },
+                      icon: const Icon(Icons.check_rounded, size: 18),
+                      label: const Text('Appliquer'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
     );
   }
 }

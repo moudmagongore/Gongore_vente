@@ -6,9 +6,6 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/biometric_service.dart';
 import '../../../core/services/user_controller.dart';
 import '../../../core/utils/bottom_sheet_helpers.dart';
-import '../../../core/widgets/admin_drawer.dart';
-import '../../../core/widgets/vendeur_drawer.dart';
-import '../../../routes/app_routes.dart';
 import '../../../theme/app_colors.dart';
 
 class ParametresView extends StatefulWidget {
@@ -161,14 +158,10 @@ class _ParametresViewState extends State<ParametresView> {
 
   @override
   Widget build(BuildContext context) {
-    final isAnyAdmin = UserController.to.isAnyAdmin;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Paramètres'),
       ),
-      drawer: isAnyAdmin
-          ? const AdminDrawer(currentRoute: AppRoutes.parametres)
-          : const VendeurDrawer(currentRoute: AppRoutes.parametres),
       body: androidOnlySafeArea(
         _loading
             ? const Center(child: CircularProgressIndicator())

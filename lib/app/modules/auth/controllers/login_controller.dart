@@ -46,21 +46,6 @@ class LoginController extends GetxController {
   }
 
   @override
-  void onReady() {
-    super.onReady();
-    // Auto-prompt biométrique au démarrage si l'utilisateur l'a activé.
-    _maybeAutoBiometric();
-  }
-
-  Future<void> _maybeAutoBiometric() async {
-    // Attend que le state biométrique soit chargé.
-    await Future.delayed(const Duration(milliseconds: 300));
-    if (biometricReady.value && !isLoading.value) {
-      await signInWithBiometric();
-    }
-  }
-
-  @override
   void onClose() {
     emailCtrl.dispose();
     passwordCtrl.dispose();

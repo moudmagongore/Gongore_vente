@@ -86,13 +86,13 @@ class _FilterBar extends StatelessWidget {
         return Row(
           children: [
             _Chip(
-              label: 'Toutes (${controller.totalCount})',
+              label: 'Toutes',
               selected: f == null,
               onTap: () => controller.setFilter(null),
             ),
             const SizedBox(width: 8),
             _Chip(
-              label: 'Actives (${controller.activeCount})',
+              label: 'Actives',
               selected: f == true,
               onTap: () => controller.setFilter(true),
             ),
