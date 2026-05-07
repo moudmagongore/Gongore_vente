@@ -46,7 +46,10 @@ class BoutiquesController extends GetxController {
       return b.nom.toLowerCase().contains(q) ||
           (b.adresse?.toLowerCase().contains(q) ?? false) ||
           (b.telephone?.toLowerCase().contains(q) ?? false);
-    }).toList();
+    }).toList()
+      // Plus récent en haut
+      ..sort((a, b) => (b.createdAt ?? DateTime(0))
+          .compareTo(a.createdAt ?? DateTime(0)));
   }
 
   int get totalCount {

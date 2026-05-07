@@ -77,7 +77,12 @@ class _VariantesEditor extends StatelessWidget {
             () => Padding(
               padding: const EdgeInsets.only(top: 2, bottom: 12),
               child: Text(
-                'Stock par taille. Total affiché : ${c.variantesTotalStock.value}',
+                c.isEdit
+                    ? 'Stock total : ${c.variantesTotalStock.value}. '
+                        'Le stock d\'une variante existante n\'est modifiable '
+                        'qu\'via les mouvements de stock, ventes et appros.'
+                    : 'Stock initial par variante. '
+                        'Total : ${c.variantesTotalStock.value}',
                 style: TextStyle(
                   fontSize: 12,
                   color: AppColors.greyText(context, 600),
@@ -152,6 +157,12 @@ class _VarianteRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = Get.find<ProduitFormController>();
     final v = c.variantes[index];
+    // Variante déjà persistée que l'on édite : on verrouille le stock,
+    // qui ne peut plus être modifié que via le module Stock (mouvement
+    // tracé). Pour les nouvelles lignes (id vide) ou en création produit,
+    // on garde un champ « Stock initial » éditable — exactement comme
+    // pour un produit simple.
+    final isExistingVariante = c.isEdit && v.id.isNotEmpty;
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
@@ -195,21 +206,25 @@ class _VarianteRow extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           SizedBox(
-            width: 56,
+            // Élargi à 78 pour que le libellé « Stock initial » tienne sur
+            // une seule ligne (taille 11, ~72 px) sans déborder ni wrapper.
+            width: isExistingVariante ? 56 : 78,
             child: _LabeledField(
-              label: 'Stock',
-              child: TextFormField(
-                controller: v.stockCtrl,
-                textAlign: TextAlign.center,
-                decoration: const InputDecoration(
-                  isDense: true,
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-                ),
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                onChanged: (_) => c.onVarianteStockChanged(),
-              ),
+              label: isExistingVariante ? 'Stock' : 'Stock initial',
+              child: isExistingVariante
+                  ? _ReadOnlyStock(value: v.stock)
+                  : TextFormField(
+                      controller: v.stockCtrl,
+                      textAlign: TextAlign.center,
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      ),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onChanged: (_) => c.onVarianteStockChanged(),
+                    ),
             ),
           ),
           Padding(
@@ -228,6 +243,36 @@ class _VarianteRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Affichage en lecture seule du stock courant d'une variante existante.
+/// Visuellement aligné avec les TextFormField voisins (même hauteur,
+/// même bordure que la decoration `filled`).
+class _ReadOnlyStock extends StatelessWidget {
+  final int value;
+  const _ReadOnlyStock({required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      height: 44,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.05)
+            : const Color(0xFFF1F3F7),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        '$value',
+        style: TextStyle(
+          fontWeight: FontWeight.w700,
+          color: AppColors.greyText(context, 700),
+        ),
       ),
     );
   }
@@ -422,7 +467,7 @@ class ProduitFormView extends GetView<ProduitFormController> {
                           child: Padding(
                             padding: const EdgeInsets.only(right: 12),
                             child: _LabeledField(
-                              label: 'Quantité initiale',
+                              label: 'Stock initial',
                               child: TextFormField(
                                 controller: controller.stockInitialCtrl,
                                 decoration: const InputDecoration(

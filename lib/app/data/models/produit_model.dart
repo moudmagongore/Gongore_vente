@@ -31,7 +31,7 @@ class ProduitModel {
   final int quantiteStock;
 
   /// Seuil en-dessous duquel le produit est considéré comme « stock bas »
-  /// (alerte visuelle dans la liste stock). Default 5.
+  /// (alerte visuelle dans la liste stock). Default 0 (pas d'alerte).
   ///
   /// Quand [hasVariantes] est true, ce seuil s'applique **par variante**
   /// (alerte si une variante < seuil), et non sur le total.
@@ -58,7 +58,7 @@ class ProduitModel {
     this.prixAchat = 0,
     this.categorieId,
     this.quantiteStock = 0,
-    this.seuilAlerte = 5,
+    this.seuilAlerte = 0,
     this.hasVariantes = false,
     this.active = true,
     this.createdAt,
@@ -75,7 +75,7 @@ class ProduitModel {
       categorieId: map['categorieId'] as String?,
       boutiqueId: (map['boutiqueId'] ?? '') as String,
       quantiteStock: (map['quantiteStock'] as num?)?.toInt() ?? 0,
-      seuilAlerte: (map['seuilAlerte'] as num?)?.toInt() ?? 5,
+      seuilAlerte: (map['seuilAlerte'] as num?)?.toInt() ?? 0,
       hasVariantes: (map['hasVariantes'] ?? false) as bool,
       active: (map['active'] ?? true) as bool,
       createdAt: (map['createdAt'] as Timestamp?)?.toDate(),

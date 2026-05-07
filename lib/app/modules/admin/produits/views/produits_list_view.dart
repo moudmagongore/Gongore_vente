@@ -43,6 +43,7 @@ class ProduitsListView extends GetView<ProduitsController> {
           : const VendeurDrawer(currentRoute: AppRoutes.adminProduits),
       body: SafeArea(
         top: false,
+        bottom: false,
         child: Column(
         children: [
           const SizedBox(height: 12),

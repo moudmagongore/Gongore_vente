@@ -40,6 +40,7 @@ class CategoriesListView extends GetView<CategoriesController> {
           : const VendeurDrawer(currentRoute: AppRoutes.adminCategories),
       body: SafeArea(
         top: false,
+        bottom: false,
         child: Obx(() {
           if (controller.isLoading.value) {
             return const Center(child: CircularProgressIndicator());

@@ -335,9 +335,6 @@ class _UserTile extends StatelessWidget {
                     case 'toggle':
                       controller.toggleActive(user);
                       break;
-                    case 'delete':
-                      controller.confirmDelete(user);
-                      break;
                   }
                 },
                 itemBuilder: (_) => [
@@ -368,19 +365,6 @@ class _UserTile extends StatelessWidget {
                             : Icons.toggle_on_outlined,
                       ),
                       title: Text(user.active ? 'Désactiver' : 'Activer'),
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
-                    ),
-                  ),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: ListTile(
-                      leading: Icon(Icons.delete_outline, color: Colors.red),
-                      title: Text(
-                        'Supprimer',
-                        style: TextStyle(color: Colors.red),
-                      ),
                       contentPadding: EdgeInsets.zero,
                       dense: true,
                     ),

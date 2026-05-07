@@ -37,12 +37,17 @@ class CategoriesController extends GetxController {
 
   List<CategorieModel> get filtered {
     final q = search.value.trim().toLowerCase();
-    if (q.isEmpty) return _all.toList();
-    return _all
-        .where((c) =>
-            c.nom.toLowerCase().contains(q) ||
-            (c.description?.toLowerCase().contains(q) ?? false))
-        .toList();
+    final base = q.isEmpty
+        ? _all.toList()
+        : _all
+            .where((c) =>
+                c.nom.toLowerCase().contains(q) ||
+                (c.description?.toLowerCase().contains(q) ?? false))
+            .toList();
+    // Plus récent en haut (les anciens documents sans createdAt finissent en bas)
+    return base
+      ..sort((a, b) => (b.createdAt ?? DateTime(0))
+          .compareTo(a.createdAt ?? DateTime(0)));
   }
 
   int get total => _all.length;

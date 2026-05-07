@@ -48,7 +48,10 @@ class ClientsController extends GetxController {
       return c.nom.toLowerCase().contains(q) ||
           (c.telephone?.toLowerCase().contains(q) ?? false) ||
           (c.email?.toLowerCase().contains(q) ?? false);
-    }).toList();
+    }).toList()
+      // Plus récent en haut
+      ..sort((a, b) => (b.createdAt ?? DateTime(0))
+          .compareTo(a.createdAt ?? DateTime(0)));
   }
 
   int get total => _all.length;

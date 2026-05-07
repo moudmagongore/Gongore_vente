@@ -117,15 +117,20 @@ class ProduitRepository {
 
   /// Synchronise la sous-collection variantes d'un produit avec la liste
   /// fournie, en une seule transaction atomique :
-  /// - crée les variantes ayant un id vide
-  /// - met à jour celles qui existent
+  /// - crée les variantes ayant un id vide (avec leur `stock` initial)
+  /// - met à jour `libelle` / `couleur` des variantes existantes —
+  ///   **mais jamais leur `stock`** (le stock courant est uniquement
+  ///   modifiable via les modules Stock / Ventes / Approvisionnements,
+  ///   qui créent une trace mouvement)
   /// - supprime celles qui ne sont plus dans la liste
-  /// - met à jour `produit.quantiteStock` = somme des stocks des variantes
+  /// - met à jour `produit.quantiteStock` = somme (stocks existants
+  ///   conservés + stocks initiaux des nouvelles variantes)
   /// - met à jour `produit.hasVariantes` selon le contenu fourni
   ///
   /// La transaction Firestore garantit qu'aucune mise à jour partielle
   /// n'est jamais visible, et que `quantiteStock` reste cohérent avec la
-  /// somme des variantes.
+  /// somme des variantes lues à l'instant T (pas la valeur potentiellement
+  /// stale du formulaire).
   Future<void> syncVariantes({
     required String produitId,
     required List<VarianteModel> variantes,
@@ -135,9 +140,14 @@ class ProduitRepository {
     final produitRef = _col.doc(produitId);
 
     await _fs.db.runTransaction((tx) async {
-      // 1. Lit les variantes existantes pour repérer celles à supprimer.
+      // 1. Lit les variantes existantes pour : (a) repérer celles à
+      // supprimer, (b) connaître leur `stock` actuel à conserver.
       final existing = await colRef.get();
-      final existingIds = existing.docs.map((d) => d.id).toSet();
+      final existingStockById = <String, int>{
+        for (final d in existing.docs)
+          d.id: (d.data()['stock'] as num?)?.toInt() ?? 0,
+      };
+      final existingIds = existingStockById.keys.toSet();
       final keepIds = variantes
           .where((v) => v.id.isNotEmpty)
           .map((v) => v.id)
@@ -148,17 +158,30 @@ class ProduitRepository {
         tx.delete(colRef.doc(docId));
       }
 
-      // 3. Crée / met à jour.
+      // 3. Crée les nouvelles, met à jour libelle/couleur des existantes.
       var totalStock = 0;
       for (final v in variantes) {
-        totalStock += v.stock;
-        final ref = v.id.isEmpty ? colRef.doc() : colRef.doc(v.id);
-        final data = v.toMap();
         if (v.id.isEmpty) {
-          data['createdAt'] = FieldValue.serverTimestamp();
+          // Nouvelle variante : on persiste libelle + couleur + stock
+          // initial. C'est le seul moment où le formulaire peut écrire
+          // un stock — ensuite il est figé côté UI.
+          final ref = colRef.doc();
+          final data = v.toMap()
+            ..['createdAt'] = FieldValue.serverTimestamp();
           tx.set(ref, data);
+          totalStock += v.stock;
         } else {
-          tx.set(ref, data, SetOptions(merge: true));
+          // Variante existante : on met à jour seulement libelle/couleur.
+          // Le stock courant lu en transaction est préservé.
+          final ref = colRef.doc(v.id);
+          final patch = <String, dynamic>{
+            'libelle': v.libelle,
+            'couleur':
+                (v.couleur == null || v.couleur!.isEmpty) ? null : v.couleur,
+            'updatedAt': FieldValue.serverTimestamp(),
+          };
+          tx.set(ref, patch, SetOptions(merge: true));
+          totalStock += existingStockById[v.id] ?? 0;
         }
       }
 

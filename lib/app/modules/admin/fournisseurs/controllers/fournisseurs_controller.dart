@@ -50,7 +50,10 @@ class FournisseursController extends GetxController {
       return f.nom.toLowerCase().contains(q) ||
           (f.telephone?.toLowerCase().contains(q) ?? false) ||
           (f.email?.toLowerCase().contains(q) ?? false);
-    }).toList();
+    }).toList()
+      // Plus récent en haut
+      ..sort((a, b) => (b.createdAt ?? DateTime(0))
+          .compareTo(a.createdAt ?? DateTime(0)));
   }
 
   int get total => _all.length;

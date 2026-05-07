@@ -64,7 +64,10 @@ class UsersController extends GetxController {
       return u.nom.toLowerCase().contains(q) ||
           u.email.toLowerCase().contains(q) ||
           (u.telephone?.toLowerCase().contains(q) ?? false);
-    }).toList();
+    }).toList()
+      // Plus récent en haut
+      ..sort((a, b) => (b.createdAt ?? DateTime(0))
+          .compareTo(a.createdAt ?? DateTime(0)));
   }
 
   int get totalVisible => filtered.length;

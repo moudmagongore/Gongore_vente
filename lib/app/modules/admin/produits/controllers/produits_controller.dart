@@ -56,7 +56,10 @@ class ProduitsController extends GetxController {
       if (q.isEmpty) return true;
       return p.nom.toLowerCase().contains(q) ||
           (p.description?.toLowerCase().contains(q) ?? false);
-    }).toList();
+    }).toList()
+      // Plus récent en haut
+      ..sort((a, b) => (b.createdAt ?? DateTime(0))
+          .compareTo(a.createdAt ?? DateTime(0)));
   }
 
   int get totalVisible => filtered.length;

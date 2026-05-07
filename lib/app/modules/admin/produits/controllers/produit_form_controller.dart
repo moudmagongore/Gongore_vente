@@ -51,7 +51,7 @@ class ProduitFormController extends GetxController {
   final descCtrl = TextEditingController();
   final prixAchatCtrl = TextEditingController();
   final prixVenteCtrl = TextEditingController();
-  final seuilCtrl = TextEditingController(text: '5');
+  final seuilCtrl = TextEditingController(text: '0');
 
   /// Quantité initiale en stock — visible uniquement à la **création**
   /// d'un produit **sans** variantes. À l'édition, le stock est géré
@@ -281,7 +281,7 @@ class ProduitFormController extends GetxController {
       final prixVente = double.parse(
         prixVenteCtrl.text.trim().replaceAll(',', '.'),
       );
-      final seuil = int.tryParse(seuilCtrl.text.trim()) ?? 5;
+      final seuil = int.tryParse(seuilCtrl.text.trim()) ?? 0;
 
       // Construit la liste des variantes (modèle Firestore) à partir des
       // lignes éditées. Conserve l'id existant si présent.
