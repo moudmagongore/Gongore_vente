@@ -260,7 +260,10 @@ class _UserTile extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (user.isVendeur)
+                    // Boutique de rattachement : affichée pour admin et
+                    // gestionnaire (vendeur). Cachée pour super-admin qui
+                    // n'est lié à aucune boutique.
+                    if (!user.isSuperAdmin)
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
                         child: Row(
