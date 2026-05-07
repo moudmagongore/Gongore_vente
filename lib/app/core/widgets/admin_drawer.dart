@@ -264,6 +264,9 @@ class _Header extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Stack(
+            // Sans `Clip.none`, l'étoile (positionnée en débord -2px)
+            // serait rognée par le Stack qui clip ses enfants par défaut.
+            clipBehavior: Clip.none,
             children: [
               CircleAvatar(
                 radius: 28,
