@@ -22,6 +22,10 @@ class AppColors {
   // constante est requise (ex: ColorScheme.fromSeed à la création du thème).
   static const Color primaryFixed = _primaryLight;
 
+  /// Bleu clair (Tailwind blue-400) pour les accents légers — utilisé p.ex.
+  /// comme background du bouton « Partager » sur l'écran d'aperçu PDF.
+  static const Color primaryLight = Color(0xFF60A5FA);
+
   static const Color primaryDark = Color(0XFF34a0a7);
   static const Color secondary = Color(0xFF00ACC1);
   static const Color accent = Color(0xFFFFB300);
