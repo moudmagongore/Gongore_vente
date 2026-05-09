@@ -31,6 +31,7 @@ class RapportsView extends GetView<RapportsController> {
           : const VendeurDrawer(currentRoute: AppRoutes.adminRapports),
       body: SafeArea(
         top: false,
+        bottom: false,
         child: Obx(() {
         if (controller.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
@@ -53,7 +54,7 @@ class RapportsView extends GetView<RapportsController> {
 
             // ====== Section Financier ======
             const _SectionTitle(
-                label: 'Financier', icon: Icons.attach_money_rounded),
+                label: 'Financier', icon: Icons.trending_up_rounded),
             const SizedBox(height: 10),
             _FinancierSection(c: controller),
             const SizedBox(height: 20),

@@ -4,7 +4,10 @@ import 'package:get/get.dart';
 
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/biometric_service.dart';
+import '../../../core/services/subscription_guard.dart';
 import '../../../core/services/user_controller.dart';
+import '../../../core/utils/phone_normalizer.dart';
+import '../../../data/repositories/phone_index_repository.dart';
 import '../../../routes/app_routes.dart';
 
 class LoginController extends GetxController {
@@ -54,12 +57,19 @@ class LoginController extends GetxController {
 
   void toggleObscure() => obscurePassword.toggle();
 
+  /// Valide le champ « Identifiant » de connexion : accepte un email
+  /// ou un numéro de téléphone. La résolution phone → email est faite
+  /// au moment du `signIn`.
   String? validateEmail(String? value) {
     final v = value?.trim() ?? '';
-    if (v.isEmpty) return 'Email requis';
-    final regex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-    if (!regex.hasMatch(v)) return 'Email invalide';
-    return null;
+    if (v.isEmpty) return 'Email ou téléphone requis';
+    if (v.contains('@')) {
+      final regex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+      if (!regex.hasMatch(v)) return 'Email invalide';
+      return null;
+    }
+    if (PhoneNormalizer.looksLikePhone(v)) return null;
+    return 'Saisissez un email ou un numéro de téléphone';
   }
 
   String? validatePassword(String? value) {
@@ -70,8 +80,40 @@ class LoginController extends GetxController {
 
   Future<void> signIn() async {
     if (!(formKey.currentState?.validate() ?? false)) return;
+
+    final raw = emailCtrl.text.trim();
+    String resolvedEmail;
+
+    if (raw.contains('@')) {
+      // Saisie email — on l'utilise directement.
+      resolvedEmail = raw;
+    } else {
+      // Saisie téléphone — on résout via la collection phone_index.
+      final normalized = PhoneNormalizer.normalize(raw);
+      if (normalized == null) {
+        _snackError('Numéro de téléphone invalide.');
+        return;
+      }
+      isLoading.value = true;
+      try {
+        final found =
+            await PhoneIndexRepository().getEmailByPhone(normalized);
+        if (found == null || found.isEmpty) {
+          _snackError(
+              'Aucun compte n\'est associé à ce numéro de téléphone.');
+          return;
+        }
+        resolvedEmail = found;
+      } catch (e) {
+        _snackError('Vérification du numéro impossible : $e');
+        return;
+      } finally {
+        isLoading.value = false;
+      }
+    }
+
     await _doSignIn(
-      email: emailCtrl.text,
+      email: resolvedEmail,
       password: passwordCtrl.text,
       askEnableBiometric: true,
     );
@@ -130,6 +172,22 @@ class LoginController extends GetxController {
         return;
       }
 
+      // Vérification de l'abonnement de la boutique avant d'autoriser la
+      // navigation. Bloque admin et gestionnaire si la boutique est
+      // expirée au-delà de la période de grâce.
+      final user = UserController.to.user;
+      SubscriptionWarning? warning;
+      if (user != null) {
+        final blockMsg = await SubscriptionGuard.checkAccess(user);
+        if (blockMsg != null) {
+          await UserController.to.signOut();
+          _snackError(blockMsg);
+          return;
+        }
+        // Avertissement non-bloquant à afficher après navigation.
+        warning = await SubscriptionGuard.getWarning(user);
+      }
+
       if (askEnableBiometric) {
         await _maybePromptEnableBiometric(email: email, password: password);
       }
@@ -139,6 +197,33 @@ class LoginController extends GetxController {
           ? AppRoutes.adminHome
           : AppRoutes.vendeurHome;
       Get.offAllNamed(route);
+
+      // Avertissement abonnement (≤ 7 jours ou période de grâce). Décalé
+      // après la navigation pour s'afficher sur l'écran d'accueil.
+      if (warning != null) {
+        final isGrace = warning.isGracePeriod;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Get.snackbar(
+            warning!.title,
+            warning.message,
+            snackPosition: SnackPosition.TOP,
+            duration: const Duration(seconds: 7),
+            backgroundColor: isGrace
+                ? Colors.red.shade50
+                : Colors.orange.shade50,
+            colorText: isGrace
+                ? Colors.red.shade900
+                : Colors.orange.shade900,
+            margin: const EdgeInsets.all(12),
+            icon: Icon(
+              isGrace
+                  ? Icons.error_outline_rounded
+                  : Icons.warning_amber_rounded,
+              color: isGrace ? Colors.red.shade900 : Colors.orange.shade900,
+            ),
+          );
+        });
+      }
     } on FirebaseAuthException catch (e) {
       // Mot de passe stocké obsolète (changé via reset email) →
       // désactive la biométrie pour éviter une boucle d'échecs.

@@ -32,3 +32,18 @@ class AuthGuard extends GetMiddleware {
   }
 }
 
+/// Bloque l'accès aux routes réservées au super-admin (gestion des
+/// abonnements, paramètres globaux). Un admin de boutique est redirigé
+/// vers son accueil ; un vendeur idem.
+class SuperAdminGuard extends GetMiddleware {
+  @override
+  RouteSettings? redirect(String? route) {
+    final uc = UserController.to;
+    if (!uc.isLoggedIn) {
+      return const RouteSettings(name: AppRoutes.login);
+    }
+    if (uc.isSuperAdmin) return null;
+    return const RouteSettings(name: AppRoutes.adminHome);
+  }
+}
+

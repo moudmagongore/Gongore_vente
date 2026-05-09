@@ -3,7 +3,9 @@ import 'package:firebase_core/firebase_core.dart';
 
 import '../../../firebase_options.dart';
 import '../../data/models/user_model.dart';
+import '../../data/repositories/phone_index_repository.dart';
 import '../../data/repositories/user_repository.dart';
+import '../utils/phone_normalizer.dart';
 
 /// Crée un compte Firebase Auth + le document Firestore correspondant
 /// SANS déconnecter l'admin courant.
@@ -17,6 +19,7 @@ class UserCreationService {
   static const _secondaryAppName = 'AdminCreator';
 
   final UserRepository _userRepo = UserRepository();
+  final PhoneIndexRepository _phoneIndexRepo = PhoneIndexRepository();
 
   /// Résultat d'une création de user. `emailSent` indique si l'envoi du
   /// mail de définition de mot de passe a réussi (false si demandé mais
@@ -73,6 +76,24 @@ class UserCreationService {
       );
 
       await _userRepo.createDoc(newUser);
+
+      // Index téléphone → email pour le login hybride. Best-effort : si
+      // l'écriture de l'index échoue, l'utilisateur peut toujours se
+      // connecter par email — on ne fait pas échouer la création.
+      final normalizedPhone =
+          PhoneNormalizer.normalize(newUser.telephone);
+      if (normalizedPhone != null) {
+        try {
+          await _phoneIndexRepo.setEntry(
+            normalizedPhone: normalizedPhone,
+            email: newUser.email,
+            uid: uid,
+          );
+        } catch (_) {
+          // Silencieux : l'admin pourra relancer une migration depuis la
+          // vue super-admin si besoin.
+        }
+      }
 
       // Envoi du mail depuis l'instance secondaire (le user vient d'être
       // créé dessus, Firebase le reconnaît immédiatement). On capture

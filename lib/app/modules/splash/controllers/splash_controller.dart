@@ -1,6 +1,8 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/subscription_guard.dart';
 import '../../../core/services/user_controller.dart';
 import '../../../routes/app_routes.dart';
 
@@ -30,12 +32,63 @@ class SplashController extends GetxController {
       return;
     }
 
+    // Vérification de l'abonnement pour les sessions auto-rétablies au
+    // démarrage : si la boutique est expirée au-delà de la grâce, on
+    // déconnecte et on redirige vers le login avec un message.
+    final user = UserController.to.user;
+    SubscriptionWarning? warning;
+    if (user != null) {
+      final blockMsg = await SubscriptionGuard.checkAccess(user);
+      if (blockMsg != null) {
+        await UserController.to.signOut();
+        Get.offAllNamed(AppRoutes.login);
+        // Décale la snackbar après le push pour qu'elle s'affiche sur le
+        // login (sinon elle disparaît avec le splash).
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Get.snackbar(
+            'Abonnement expiré',
+            blockMsg,
+            snackPosition: SnackPosition.TOP,
+            duration: const Duration(seconds: 6),
+            margin: const EdgeInsets.all(12),
+          );
+        });
+        return;
+      }
+      warning = await SubscriptionGuard.getWarning(user);
+    }
+
     // Super-admin OU admin de boutique → /admin
     // Vendeur → /vendeur
     final route = UserController.to.isAnyAdmin
         ? AppRoutes.adminHome
         : AppRoutes.vendeurHome;
     Get.offAllNamed(route);
+
+    // Avertissement abonnement (≤ 7 jours ou période de grâce). Décalé
+    // après la navigation pour s'afficher sur l'écran d'accueil.
+    if (warning != null) {
+      final isGrace = warning.isGracePeriod;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Get.snackbar(
+          warning!.title,
+          warning.message,
+          snackPosition: SnackPosition.TOP,
+          duration: const Duration(seconds: 7),
+          backgroundColor:
+              isGrace ? Colors.red.shade50 : Colors.orange.shade50,
+          colorText:
+              isGrace ? Colors.red.shade900 : Colors.orange.shade900,
+          margin: const EdgeInsets.all(12),
+          icon: Icon(
+            isGrace
+                ? Icons.error_outline_rounded
+                : Icons.warning_amber_rounded,
+            color: isGrace ? Colors.red.shade900 : Colors.orange.shade900,
+          ),
+        );
+      });
+    }
   }
 
   Future<void> _waitMinDuration(Stopwatch sw) async {

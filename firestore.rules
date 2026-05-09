@@ -394,6 +394,48 @@ service cloud.firestore {
       allow delete: if isSuperAdmin();
     }
 
+    // ================== Abonnements (paiements) ==================
+    // Un doc par paiement enregistré pour une boutique. Création réservée
+    // au super-admin. admin/gestionnaire peuvent lire l'historique de leur
+    // propre boutique (transparence sur les paiements). Update/delete
+    // bloqués en dehors du super-admin (audit immuable).
+    match /abonnements/{aid} {
+      allow read: if isSuperAdmin()
+                  || (isAuthed() && resource.data.boutiqueId == userBoutiqueId());
+
+      allow create: if isSuperAdmin();
+
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // ================== Paramètres globaux ==================
+    // Singleton `parametres/abonnement` : tarifs par période + jours de
+    // grâce. Lecture pour tout utilisateur authentifié (l'admin de boutique
+    // a besoin de connaître la période de grâce pour afficher le bandeau).
+    // Écriture super-admin uniquement.
+    match /parametres/{paramId} {
+      allow read: if isAuthed();
+      allow write: if isSuperAdmin();
+    }
+
+    // ================== Phone Index (login hybride) ==================
+    // Mapping `téléphone normalisé → email/uid` pour permettre la
+    // connexion avec un numéro de téléphone (résolu vers l'email avant
+    // l'appel à Firebase Auth signInWithEmailAndPassword).
+    //
+    // Lecture publique : indispensable car au moment du login l'utilisateur
+    // n'est pas encore authentifié. Le contenu exposé est minimal (email
+    // + uid) ; ce n'est pas plus sensible qu'une recherche email→user
+    // déjà possible via les flux de reset password Firebase.
+    //
+    // Écriture : super-admin ou admin de boutique uniquement (ils créent
+    // / modifient les utilisateurs). Le gestionnaire ne touche pas à
+    // l'index.
+    match /phone_index/{phoneId} {
+      allow read: if true;
+      allow create, update, delete: if isSuperAdmin() || isAdmin();
+    }
+
     // ================== Tout le reste : refusé ==================
     // Sécurité par défaut : deny all sur les chemins non couverts ci-dessus.
   }

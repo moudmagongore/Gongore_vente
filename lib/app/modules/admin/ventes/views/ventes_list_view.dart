@@ -439,8 +439,8 @@ class _StatsBar extends StatelessWidget {
               Expanded(
                 child: _StatCard(
                   color: AppColors.success,
-                  icon: Icons.attach_money_rounded,
-                  value: Fmt.number(controller.caTotal),
+                  icon: Icons.trending_up_rounded,
+                  value: '${Fmt.number(controller.caTotal)} GNF ',
                   label: 'Chiffre d\'affaires',
                 ),
               ),

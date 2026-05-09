@@ -6,6 +6,8 @@ import '../../../../core/services/user_controller.dart';
 import '../../../../core/utils/bottom_sheet_helpers.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../core/widgets/admin_drawer.dart';
+import '../../../../core/widgets/subscription_badge_card.dart';
+import '../../../../core/widgets/subscription_warning_banner.dart';
 import '../../../../data/models/vente_model.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../../theme/app_colors.dart';
@@ -31,6 +33,20 @@ class AdminHomeView extends StatelessWidget {
         ],
       ),
       drawer: const AdminDrawer(currentRoute: AppRoutes.adminHome),
+      // FAB « Vendre » : visible uniquement quand l'utilisateur cumule le
+      // rôle gestionnaire (admin avec `alsoGestionnaire = true`, ou rôle
+      // vendeur direct). Réactif via Obx pour qu'un admin qui active le
+      // cumul depuis son profil voie le bouton apparaître immédiatement.
+      floatingActionButton: Obx(
+        () => UserController.to.isVendeur
+            ? FloatingActionButton.extended(
+                onPressed: () => Get.toNamed(AppRoutes.venteForm),
+                icon: const Icon(Icons.add_shopping_cart_rounded),
+                label: const Text('Vendre'),
+                backgroundColor: AppColors.success,
+              )
+            : const SizedBox.shrink(),
+      ),
       body: androidOnlySafeArea(
         Obx(() {
         if (c.isLoading.value) {
@@ -42,7 +58,15 @@ class AdminHomeView extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
+              // Bandeau d'alerte abonnement : ne s'affiche que si ≤ 7
+              // jours restants ou en période de grâce. Caché sinon.
+              const SubscriptionWarningBanner(),
+              const SizedBox(height: 12),
               _GreetingCard(name: UserController.to.user?.nom ?? ''),
+              const SizedBox(height: 12),
+              // Badge abonnement de la boutique courante (caché pour
+              // super-admin et users sans boutiqueId).
+              const SubscriptionBadgeCard(),
               const SizedBox(height: 16),
               const _SectionTitle('Aujourd\'hui'),
               const SizedBox(height: 10),
@@ -328,7 +352,7 @@ class _KpisJour extends StatelessWidget {
               children: [
                 Expanded(
                   child: _KpiCard(
-                    icon: Icons.attach_money_rounded,
+                    icon: Icons.trending_up_rounded,
                     color: AppColors.success,
                     value: Fmt.number(c.caJour),
                     label: 'Chiffre d\'affaires',
@@ -397,7 +421,7 @@ class _KpisMois extends StatelessWidget {
                     color: AppColors.secondary,
                     value: Fmt.number(c.beneficeMois),
                     label: 'Bénéfice',
-                    hint: 'estimé',
+                    hint: 'GNF \n estimé',
                   ),
                 ),
               ],

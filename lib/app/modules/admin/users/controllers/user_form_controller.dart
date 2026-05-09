@@ -7,13 +7,16 @@ import 'package:get/get.dart';
 import '../../../../core/services/biometric_service.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../core/services/user_creation_service.dart';
+import '../../../../core/utils/phone_normalizer.dart';
 import '../../../../data/models/boutique_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
+import '../../../../data/repositories/phone_index_repository.dart';
 import '../../../../data/repositories/user_repository.dart';
 
 class UserFormController extends GetxController {
   final UserRepository _userRepo = UserRepository();
+  final PhoneIndexRepository _phoneIndexRepo = PhoneIndexRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
   final UserCreationService _creation = UserCreationService();
 
@@ -289,7 +292,8 @@ class UserFormController extends GetxController {
   }
 
   Future<void> _saveEdit() async {
-    final updated = editing.value!.copyWith(
+    final previous = editing.value!;
+    final updated = previous.copyWith(
       nom: nomCtrl.text.trim(),
       telephone: telephoneCtrl.text.trim().isEmpty
           ? null
@@ -304,6 +308,27 @@ class UserFormController extends GetxController {
           role.value == UserRole.admin ? alsoGestionnaire.value : false,
     );
     await _userRepo.update(updated);
+
+    // Synchronise l'index téléphone → email si le numéro a changé. On
+    // l'exécute en best-effort : si ça échoue (rules / réseau), l'édition
+    // du user est déjà persistée et le super-admin pourra relancer une
+    // migration depuis la vue paramètres si besoin.
+    final oldNormalized =
+        PhoneNormalizer.normalize(previous.telephone);
+    final newNormalized =
+        PhoneNormalizer.normalize(updated.telephone);
+    if (oldNormalized != newNormalized) {
+      try {
+        await _phoneIndexRepo.migratePhone(
+          oldNormalized: oldNormalized,
+          newNormalized: newNormalized,
+          email: updated.email,
+          uid: updated.id,
+        );
+      } catch (_) {
+        // Silencieux — voir commentaire ci-dessus.
+      }
+    }
 
     Get.back();
     Get.snackbar(

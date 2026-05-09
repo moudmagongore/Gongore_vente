@@ -26,6 +26,9 @@ class VendeurDrawer extends StatelessWidget {
             Expanded(
               child: ListView(
                 padding: EdgeInsets.zero,
+                // ClampingScrollPhysics : pas de bouncing iOS qui laisse
+                // voir le fond du drawer au-dessus du header.
+                physics: const ClampingScrollPhysics(),
                 children: [
                     _Item(
                       icon: Icons.home_rounded,
@@ -172,6 +175,25 @@ class VendeurDrawer extends StatelessWidget {
                         onTap: () {
                           Navigator.of(ctx).pop();
                           Get.toNamed(AppRoutes.parametres);
+                        },
+                      ),
+                    ),
+                    Builder(
+                      builder: (ctx) => ListTile(
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.zero,
+                        ),
+                        leading: const Icon(Icons.info_outline_rounded),
+                        title: const Text(
+                          'À propos',
+                          style: TextStyle(
+                            fontFamily: AppTheme.fontFamily,
+                            fontWeight: FontWeight.normal,
+                          ),
+                        ),
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          Get.toNamed(AppRoutes.apropos);
                         },
                       ),
                     ),

@@ -35,6 +35,10 @@ class AdminDrawer extends StatelessWidget {
             Expanded(
               child: ListView(
                 padding: EdgeInsets.zero,
+                // ClampingScrollPhysics pour désactiver le bouncing iOS qui
+                // laissait voir le fond du drawer au-dessus du header lors
+                // d'un overscroll vers le haut.
+                physics: const ClampingScrollPhysics(),
                 children: [
                     _Item(
                       icon: Icons.dashboard_rounded,
@@ -150,6 +154,24 @@ class AdminDrawer extends StatelessWidget {
                       route: AppRoutes.adminRapports,
                       currentRoute: currentRoute,
                     ),
+                    // Abonnements :
+                    //   • super-admin → vue globale gestion paiements + tarifs
+                    //   • admin de boutique → vue lecture seule de SON
+                    //     abonnement avec historique
+                    if (isSuper)
+                      _Item(
+                        icon: Icons.workspace_premium_rounded,
+                        label: 'Abonnements',
+                        route: AppRoutes.adminAbonnements,
+                        currentRoute: currentRoute,
+                      )
+                    else
+                      _Item(
+                        icon: Icons.workspace_premium_rounded,
+                        label: 'Mon abonnement',
+                        route: AppRoutes.monAbonnement,
+                        currentRoute: currentRoute,
+                      ),
                     // Mon compte : visible pour tous les rôles.
                     // Style aligné sur les autres `_Item` (shape plate,
                     // typographie identique).
@@ -196,6 +218,25 @@ class AdminDrawer extends StatelessWidget {
                         onTap: () {
                           Navigator.of(ctx).pop();
                           Get.toNamed(AppRoutes.parametres);
+                        },
+                      ),
+                    ),
+                    Builder(
+                      builder: (ctx) => ListTile(
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.zero,
+                        ),
+                        leading: const Icon(Icons.info_outline_rounded),
+                        title: const Text(
+                          'À propos',
+                          style: TextStyle(
+                            fontFamily: AppTheme.fontFamily,
+                            fontWeight: FontWeight.normal,
+                          ),
+                        ),
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          Get.toNamed(AppRoutes.apropos);
                         },
                       ),
                     ),

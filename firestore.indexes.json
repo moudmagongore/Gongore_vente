@@ -186,6 +186,14 @@
         {"fieldPath": "statut", "order": "ASCENDING"},
         {"fieldPath": "date", "order": "ASCENDING"}
       ]
+    },
+    {
+      "collectionGroup": "abonnements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
+        {"fieldPath": "dateFin", "order": "DESCENDING"}
+      ]
     }
   ],
   "fieldOverrides": []

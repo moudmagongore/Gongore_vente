@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../../../core/utils/bottom_sheet_helpers.dart';
 import '../../../../core/utils/format_helpers.dart';
+import '../../../../core/widgets/subscription_warning_banner.dart';
 import '../../../../core/widgets/vendeur_drawer.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../../theme/app_colors.dart';
@@ -40,6 +41,10 @@ class VendeurHomeView extends GetView<VendeurHomeController> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Bandeau d'alerte abonnement (≤ seuil ou période de grâce).
+            // Lecture seule pour le gestionnaire — pas de tap vers l'historique.
+            const SubscriptionWarningBanner(),
+            const SizedBox(height: 12),
             _GreetingCard(controller: controller),
             const SizedBox(height: 16),
             _StatsBar(controller: controller),
@@ -196,7 +201,7 @@ class _StatsBar extends StatelessWidget {
         children: [
           // Hero : chiffre d'affaires du jour (pleine largeur)
           _HeroStatCard(
-            icon: Icons.money,
+            icon: Icons.trending_up_rounded,
             value: Fmt.number(controller.caJour),
             label: 'Chiffre d\'affaires du jour',
             color: AppColors.success,

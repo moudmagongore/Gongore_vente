@@ -1,5 +1,13 @@
 import 'package:get/get.dart';
 
+import '../modules/admin/abonnements/bindings/abonnement_form_binding.dart';
+import '../modules/admin/abonnements/bindings/abonnement_params_binding.dart';
+import '../modules/admin/abonnements/bindings/abonnements_binding.dart';
+import '../modules/admin/abonnements/bindings/mon_abonnement_binding.dart';
+import '../modules/admin/abonnements/views/abonnement_form_view.dart';
+import '../modules/admin/abonnements/views/abonnement_params_view.dart';
+import '../modules/admin/abonnements/views/abonnements_list_view.dart';
+import '../modules/admin/abonnements/views/mon_abonnement_view.dart';
 import '../modules/admin/boutiques/bindings/boutique_form_binding.dart';
 import '../modules/admin/boutiques/bindings/boutiques_binding.dart';
 import '../modules/admin/boutiques/views/boutique_form_view.dart';
@@ -51,6 +59,7 @@ import '../modules/admin/users/bindings/user_form_binding.dart';
 import '../modules/admin/users/bindings/users_binding.dart';
 import '../modules/admin/users/views/user_form_view.dart';
 import '../modules/admin/users/views/users_list_view.dart';
+import '../modules/apropos/views/apropos_view.dart';
 import '../modules/auth/bindings/login_binding.dart';
 import '../modules/auth/views/login_view.dart';
 import '../modules/parametres/views/parametres_view.dart';
@@ -248,6 +257,35 @@ class AppPages {
       // (le controller verrouille `vendeurId` sur lui-même).
       middlewares: [AuthGuard()],
     ),
+
+    // ========== Abonnements (super-admin uniquement) ==========
+    GetPage(
+      name: AppRoutes.adminAbonnements,
+      page: () => const AbonnementsListView(),
+      binding: AbonnementsBinding(),
+      middlewares: [SuperAdminGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.adminAbonnementForm,
+      page: () => const AbonnementFormView(),
+      binding: AbonnementFormBinding(),
+      middlewares: [SuperAdminGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.adminAbonnementParams,
+      page: () => const AbonnementParamsView(),
+      binding: AbonnementParamsBinding(),
+      middlewares: [SuperAdminGuard()],
+    ),
+    // Vue lecture seule pour l'admin de boutique : son propre abonnement +
+    // historique. AdminGuard : le vendeur n'a pas accès à l'historique
+    // des paiements (il voit uniquement le bandeau d'alerte sur sa home).
+    GetPage(
+      name: AppRoutes.monAbonnement,
+      page: () => const MonAbonnementView(),
+      binding: MonAbonnementBinding(),
+      middlewares: [AdminGuard()],
+    ),
     // ========== Vendeur (tout user connecté) ==========
     GetPage(
       name: AppRoutes.vendeurHome,
@@ -265,6 +303,12 @@ class AppPages {
     GetPage(
       name: AppRoutes.parametres,
       page: () => const ParametresView(),
+      middlewares: [AuthGuard()],
+    ),
+    // ========== À propos (commun à tous les rôles) ==========
+    GetPage(
+      name: AppRoutes.apropos,
+      page: () => const AproposView(),
       middlewares: [AuthGuard()],
     ),
   ];

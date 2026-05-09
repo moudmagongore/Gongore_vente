@@ -52,4 +52,19 @@ class FirestoreService extends GetxService {
 
   CollectionReference<Map<String, dynamic>> get counters =>
       _db.collection(FirestoreKeys.counters);
+
+  CollectionReference<Map<String, dynamic>> get abonnements =>
+      _db.collection(FirestoreKeys.abonnements);
+
+  /// Document singleton des paramètres d'abonnement
+  /// (`parametres/abonnement`).
+  DocumentReference<Map<String, dynamic>> get abonnementParamsDoc =>
+      _db
+          .collection(FirestoreKeys.parametres)
+          .doc(FirestoreKeys.parametresAbonnementDoc);
+
+  /// Index téléphone → email pour le login hybride. Doc-id = téléphone
+  /// normalisé (`+224621785645`).
+  CollectionReference<Map<String, dynamic>> get phoneIndex =>
+      _db.collection(FirestoreKeys.phoneIndex);
 }

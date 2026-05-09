@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../theme/app_colors.dart';
+import '../../apropos/views/apropos_view.dart';
 import '../controllers/login_controller.dart';
 
 class LoginView extends GetView<LoginController> {
@@ -100,17 +102,21 @@ class LoginView extends GetView<LoginController> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                                 _LabeledField(
-                                  label: 'Email',
+                                  label: 'Email ou téléphone',
                                   child: TextFormField(
                                     controller: controller.emailCtrl,
+                                    // emailAddress : couvre les deux cas
+                                    // côté clavier (l'utilisateur a accès
+                                    // au @ et au pavé numérique).
                                     keyboardType:
                                         TextInputType.emailAddress,
                                     textInputAction: TextInputAction.next,
                                     autocorrect: false,
                                     decoration: const InputDecoration(
-                                      hintText: 'votre@email.com',
-                                      prefixIcon:
-                                          Icon(Icons.mail_outline_rounded),
+                                      hintText:
+                                          'Téléphone ou Email',
+                                      prefixIcon: Icon(
+                                          Icons.account_circle_outlined),
                                     ),
                                     validator: controller.validateEmail,
                                   ),
@@ -255,15 +261,8 @@ class LoginView extends GetView<LoginController> {
                                 }),
                                 const Spacer(),
                                 Padding(
-                                  padding: EdgeInsets.only(top: 16),
-                                  child: Text(
-                                    'L\'inscription est réservée à l\'administrateur.',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.greyText(context, 700),
-                                    ),
-                                  ),
+                                  padding: const EdgeInsets.only(top: 16),
+                                  child: _SupportBlock(),
                                 ),
                               ],
                             ),
@@ -361,6 +360,101 @@ class _LabeledField extends StatelessWidget {
         ),
         child,
       ],
+    );
+  }
+}
+
+/// Bloc de coordonnées du support affiché en bas de l'écran de connexion.
+/// Reprend les valeurs de [AproposContact] pour rester aligné avec la
+/// page « À propos » accessible depuis le drawer après connexion.
+class _SupportBlock extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Besoin d\'aide ? Contactez le support',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: AppColors.greyText(context, 800),
+          ),
+        ),
+        const SizedBox(height: 8),
+        _SupportRow(
+          icon: Icons.mail_outline_rounded,
+          value: AproposContact.email,
+          uri: Uri(scheme: 'mailto', path: AproposContact.email),
+        ),
+        const SizedBox(height: 6),
+        for (var i = 0; i < AproposContact.phones.length; i++) ...[
+          if (i > 0) const SizedBox(height: 6),
+          _SupportRow(
+            icon: Icons.phone_outlined,
+            value: AproposContact.phones[i],
+            // tel: requiert un numéro sans espaces.
+            uri: Uri(
+              scheme: 'tel',
+              path: AproposContact.phones[i].replaceAll(' ', ''),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Ligne d'une coordonnée support : tap → lance l'app téléphone (tel:)
+/// ou l'app mail (mailto:) selon le schéma de [uri].
+class _SupportRow extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final Uri uri;
+  const _SupportRow({
+    required this.icon,
+    required this.value,
+    required this.uri,
+  });
+
+  Future<void> _open() async {
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      Get.snackbar(
+        'Action impossible',
+        'Aucune application disponible pour ouvrir « $value ».',
+        snackPosition: SnackPosition.TOP,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: _open,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 14, color: AppColors.greyText(context, 700)),
+            const SizedBox(width: 6),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.greyText(context, 700),
+             
+                decorationColor: AppColors.greyText(context, 700),
+                decorationThickness: 0.7,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

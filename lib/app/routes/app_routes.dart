@@ -38,6 +38,14 @@ abstract class AppRoutes {
   static const venteDetail = '/ventes/detail';
   static const adminRapports = '/admin/rapports';
 
+  // Abonnements (super-admin)
+  static const adminAbonnements = '/admin/abonnements';
+  static const adminAbonnementForm = '/admin/abonnements/form';
+  static const adminAbonnementParams = '/admin/abonnements/params';
+
+  // Mon abonnement (admin de boutique, lecture seule de SON abonnement)
+  static const monAbonnement = '/admin/mon-abonnement';
+
   // Vendeur
   static const vendeurHome = '/vendeur';
   static const vendeurVentes = '/vendeur/ventes';
@@ -45,4 +53,5 @@ abstract class AppRoutes {
   // Commun
   static const profil = '/profil';
   static const parametres = '/parametres';
+  static const apropos = '/apropos';
 }
