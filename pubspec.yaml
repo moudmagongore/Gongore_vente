@@ -69,6 +69,9 @@ dependencies:
   # Lancer mailto: / tel: depuis l'app (page À propos, page de connexion).
   url_launcher: ^6.3.1
 
+  # Lecture de la version installée pour la mise à jour forcée.
+  package_info_plus: ^8.0.0
+
 dev_dependencies:
   flutter_native_splash: ^2.4.7
   flutter_test:

@@ -22,7 +22,6 @@ class VendeurDrawer extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _Header(name: user?.nom ?? '', email: user?.email ?? ''),
-            SizedBox(height: 8),
             Expanded(
               child: ListView(
                 padding: EdgeInsets.zero,

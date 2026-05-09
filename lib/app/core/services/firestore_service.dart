@@ -67,4 +67,11 @@ class FirestoreService extends GetxService {
   /// normalisé (`+224621785645`).
   CollectionReference<Map<String, dynamic>> get phoneIndex =>
       _db.collection(FirestoreKeys.phoneIndex);
+
+  /// Document singleton de configuration de mise à jour forcée
+  /// (`parametres/app_update`).
+  DocumentReference<Map<String, dynamic>> get appUpdateConfigDoc =>
+      _db
+          .collection(FirestoreKeys.parametres)
+          .doc(FirestoreKeys.parametresAppUpdateDoc);
 }

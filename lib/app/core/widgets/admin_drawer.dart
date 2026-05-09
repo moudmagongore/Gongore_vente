@@ -31,7 +31,6 @@ class AdminDrawer extends StatelessWidget {
               email: user?.email ?? '',
               isSuper: isSuper,
             ),
-            SizedBox(height: 8),
             Expanded(
               child: ListView(
                 padding: EdgeInsets.zero,
@@ -156,8 +155,10 @@ class AdminDrawer extends StatelessWidget {
                     ),
                     // Abonnements :
                     //   • super-admin → vue globale gestion paiements + tarifs
-                    //   • admin de boutique → vue lecture seule de SON
-                    //     abonnement avec historique
+                    //     (route principale, on remplace la stack)
+                    //   • admin de boutique → vue lecture seule (sous-page,
+                    //     on push pour conserver un bouton retour vers le
+                    //     dashboard)
                     if (isSuper)
                       _Item(
                         icon: Icons.workspace_premium_rounded,
@@ -166,11 +167,25 @@ class AdminDrawer extends StatelessWidget {
                         currentRoute: currentRoute,
                       )
                     else
-                      _Item(
-                        icon: Icons.workspace_premium_rounded,
-                        label: 'Mon abonnement',
-                        route: AppRoutes.monAbonnement,
-                        currentRoute: currentRoute,
+                      Builder(
+                        builder: (ctx) => ListTile(
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.zero,
+                          ),
+                          leading:
+                              const Icon(Icons.workspace_premium_rounded),
+                          title: const Text(
+                            'Mon abonnement',
+                            style: TextStyle(
+                              fontFamily: AppTheme.fontFamily,
+                              fontWeight: FontWeight.normal,
+                            ),
+                          ),
+                          onTap: () {
+                            Navigator.of(ctx).pop();
+                            Get.toNamed(AppRoutes.monAbonnement);
+                          },
+                        ),
                       ),
                     // Mon compte : visible pour tous les rôles.
                     // Style aligné sur les autres `_Item` (shape plate,

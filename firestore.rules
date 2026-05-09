@@ -418,6 +418,13 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
+    // Cas particulier : `parametres/app_update` doit être lisible par
+    // tous (même non-authentifiés) car le check de mise à jour forcée
+    // tourne au splash AVANT le login.
+    match /parametres/app_update {
+      allow read: if true;
+    }
+
     // ================== Phone Index (login hybride) ==================
     // Mapping `téléphone normalisé → email/uid` pour permettre la
     // connexion avec un numéro de téléphone (résolu vers l'email avant

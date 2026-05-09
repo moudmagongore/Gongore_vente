@@ -40,4 +40,8 @@ abstract class FirestoreKeys {
   /// authentifié), mais le contenu exposé est minimal. Écriture réservée
   /// aux admins de boutique et super-admin (qui créent les users).
   static const phoneIndex = 'phone_index';
+
+  /// Doc-id du singleton de configuration de mise à jour forcée
+  /// (`parametres/app_update`).
+  static const parametresAppUpdateDoc = 'app_update';
 }

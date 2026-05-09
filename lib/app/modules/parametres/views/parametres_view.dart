@@ -6,6 +6,8 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/biometric_service.dart';
 import '../../../core/services/user_controller.dart';
 import '../../../core/utils/bottom_sheet_helpers.dart';
+import '../../../data/models/app_update_config_model.dart';
+import '../../../data/repositories/app_update_repository.dart';
 import '../../../theme/app_colors.dart';
 
 class ParametresView extends StatefulWidget {
@@ -17,6 +19,7 @@ class ParametresView extends StatefulWidget {
 
 class _ParametresViewState extends State<ParametresView> {
   final _bio = BiometricService.to;
+  final _updateRepo = AppUpdateRepository();
 
   bool _loading = true;
   bool _bioAvailable = false;
@@ -24,16 +27,47 @@ class _ParametresViewState extends State<ParametresView> {
   String _bioLabel = 'biométrie';
   bool _busy = false;
 
+  // Mise à jour forcée (super-admin uniquement).
+  final _updateFormKey = GlobalKey<FormState>();
+  final _minVersionCtrl = TextEditingController();
+  final _iosStoreCtrl = TextEditingController();
+  final _androidStoreCtrl = TextEditingController();
+  final _updateMessageCtrl = TextEditingController();
+  bool _savingUpdate = false;
+
+  bool get _isSuperAdmin => UserController.to.isSuperAdmin;
+
   @override
   void initState() {
     super.initState();
     _refresh();
   }
 
+  @override
+  void dispose() {
+    _minVersionCtrl.dispose();
+    _iosStoreCtrl.dispose();
+    _androidStoreCtrl.dispose();
+    _updateMessageCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _refresh() async {
     final available = await _bio.isAvailable();
     final enabled = await _bio.isEnabled();
     final label = available ? await _bio.typeLabel() : 'biométrie';
+
+    // Charge la config de mise à jour forcée si super-admin (best-effort).
+    if (_isSuperAdmin) {
+      try {
+        final upd = await _updateRepo.get();
+        _minVersionCtrl.text = upd.minVersion;
+        _iosStoreCtrl.text = upd.iosStoreUrl;
+        _androidStoreCtrl.text = upd.androidStoreUrl;
+        _updateMessageCtrl.text = upd.message ?? '';
+      } catch (_) {}
+    }
+
     if (!mounted) return;
     setState(() {
       _bioAvailable = available;
@@ -41,6 +75,36 @@ class _ParametresViewState extends State<ParametresView> {
       _bioLabel = label;
       _loading = false;
     });
+  }
+
+  Future<void> _saveUpdateConfig() async {
+    if (!(_updateFormKey.currentState?.validate() ?? false)) return;
+    setState(() => _savingUpdate = true);
+    try {
+      await _updateRepo.save(AppUpdateConfigModel(
+        minVersion: _minVersionCtrl.text.trim(),
+        iosStoreUrl: _iosStoreCtrl.text.trim(),
+        androidStoreUrl: _androidStoreCtrl.text.trim(),
+        message: _updateMessageCtrl.text.trim().isEmpty
+            ? null
+            : _updateMessageCtrl.text.trim(),
+      ));
+      Get.snackbar(
+        'Enregistré',
+        'Configuration de mise à jour mise à jour.',
+        snackPosition: SnackPosition.TOP,
+      );
+    } catch (e) {
+      Get.snackbar(
+        'Erreur',
+        '$e',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red.shade50,
+        colorText: Colors.red.shade900,
+      );
+    } finally {
+      if (mounted) setState(() => _savingUpdate = false);
+    }
   }
 
   Future<void> _onToggleBiometric(bool value) async {
@@ -177,6 +241,20 @@ class _ParametresViewState extends State<ParametresView> {
                     busy: _busy,
                     onChanged: _onToggleBiometric,
                   ),
+                  if (_isSuperAdmin) ...[
+                    const SizedBox(height: 24),
+                    _SectionTitle('Mise à jour forcée'),
+                    const SizedBox(height: 8),
+                    _ForceUpdateCard(
+                      formKey: _updateFormKey,
+                      minVersionCtrl: _minVersionCtrl,
+                      iosStoreCtrl: _iosStoreCtrl,
+                      androidStoreCtrl: _androidStoreCtrl,
+                      updateMessageCtrl: _updateMessageCtrl,
+                      saving: _savingUpdate,
+                      onSave: _saveUpdateConfig,
+                    ),
+                  ],
                 ],
               ),
       ),
@@ -253,6 +331,121 @@ class _BiometricCard extends StatelessWidget {
           ),
           value: enabled,
           onChanged: (!available || busy) ? null : onChanged,
+        ),
+      ),
+    );
+  }
+}
+
+/// Section super-admin : configuration de la version minimale forcée et
+/// des URL des stores (App Store / Play Store). Le check tourne au splash
+/// avant tout login.
+class _ForceUpdateCard extends StatelessWidget {
+  final GlobalKey<FormState> formKey;
+  final TextEditingController minVersionCtrl;
+  final TextEditingController iosStoreCtrl;
+  final TextEditingController androidStoreCtrl;
+  final TextEditingController updateMessageCtrl;
+  final bool saving;
+  final VoidCallback onSave;
+
+  const _ForceUpdateCard({
+    required this.formKey,
+    required this.minVersionCtrl,
+    required this.iosStoreCtrl,
+    required this.androidStoreCtrl,
+    required this.updateMessageCtrl,
+    required this.saving,
+    required this.onSave,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Form(
+          key: formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Quand un utilisateur ouvre l\'app, sa version est comparée '
+                'à la version minimale ci-dessous. Si elle est plus '
+                'ancienne, un dialog non-fermable l\'oblige à mettre à '
+                'jour via le store. Laisser vide pour désactiver le forçage.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.greyText(context, 700),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: minVersionCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Version minimale',
+                  hintText: 'ex: 1.2.5',
+                  prefixIcon: Icon(Icons.system_update_rounded),
+                ),
+                validator: (v) {
+                  final t = (v ?? '').trim();
+                  if (t.isEmpty) return null;
+                  if (!RegExp(r'^\d+(\.\d+){0,2}$').hasMatch(t)) {
+                    return 'Format MAJOR.MINOR.PATCH (ex: 1.2.5)';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: iosStoreCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'URL App Store iOS',
+                  hintText: 'https://apps.apple.com/app/id…',
+                  prefixIcon: Icon(Icons.apple),
+                ),
+                keyboardType: TextInputType.url,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: androidStoreCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'URL Play Store Android',
+                  hintText: 'https://play.google.com/store/apps/details?id=…',
+                  prefixIcon: Icon(Icons.android),
+                ),
+                keyboardType: TextInputType.url,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: updateMessageCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Message (optionnel)',
+                  hintText: 'Ex: Corrections importantes et nouveautés',
+                  prefixIcon: Icon(Icons.message_outlined),
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: saving ? null : onSave,
+                  icon: saving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.save_rounded),
+                  label: Text(saving
+                      ? 'Enregistrement...'
+                      : 'Enregistrer la mise à jour'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../core/services/app_update_service.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/subscription_guard.dart';
 import '../../../core/services/user_controller.dart';
+import '../../../core/widgets/force_update_dialog.dart';
 import '../../../routes/app_routes.dart';
 
 class SplashController extends GetxController {
@@ -17,6 +19,22 @@ class SplashController extends GetxController {
 
   Future<void> _bootstrap() async {
     final stopwatch = Stopwatch()..start();
+
+    // Check de mise à jour forcée AVANT toute navigation : on lit la
+    // config Firestore (publique) et on compare avec la version installée.
+    // Si l'app est trop ancienne, on affiche un dialog non-fermable et
+    // on stoppe le splash ici — l'utilisateur ne peut continuer qu'après
+    // avoir mis à jour depuis le store.
+    final updateRequired = await AppUpdateService.check();
+    if (updateRequired != null) {
+      await _waitMinDuration(stopwatch);
+      // Le dialog est lancé après le frame courant pour que GetX ait
+      // bien un overlay de navigation prêt.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ForceUpdateDialog.show(updateRequired);
+      });
+      return;
+    }
 
     if (!AuthService.to.isLoggedIn) {
       await _waitMinDuration(stopwatch);
