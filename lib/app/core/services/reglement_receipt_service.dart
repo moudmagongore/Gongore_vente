@@ -2,13 +2,13 @@ import 'dart:typed_data';
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
 import '../../data/models/boutique_model.dart';
 import '../../data/models/client_model.dart';
 import '../../data/models/reglement_model.dart';
 import '../../data/models/user_model.dart';
 import '../utils/format_helpers.dart';
+import '../utils/pdf_share_helper.dart';
 import 'pdf_theme_service.dart';
 
 /// Génère un reçu PDF pour un règlement (encaissement). Format 80mm
@@ -208,6 +208,7 @@ class ReglementReceiptService {
                 color: PdfColors.grey600,
               ),
             ),
+            PdfThemeService.signatureFooter(),
           ],
         ),
       ),
@@ -230,9 +231,9 @@ class ReglementReceiptService {
       vendeur: vendeur,
       soldeApres: soldeApres,
     );
-    await Printing.layoutPdf(
-      onLayout: (_) async => bytes,
-      name: 'Recu_${boutique.nom}_${client.nom}_${reglement.id}.pdf',
+    await sharePdfBytes(
+      bytes: bytes,
+      filename: 'Recu_${boutique.nom}_${client.nom}_${reglement.id}.pdf',
     );
   }
 }

@@ -2,11 +2,11 @@ import 'dart:typed_data';
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
 import '../../core/utils/format_helpers.dart';
 import '../../data/models/vente_model.dart';
 import '../constants/app_constants.dart';
+import '../utils/pdf_share_helper.dart';
 import 'pdf_theme_service.dart';
 
 class ReportData {
@@ -62,6 +62,25 @@ class ReportPdfService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.fromLTRB(28, 28, 28, 28),
+        // Pied de page sur chaque page : signature « © <année> Gongore »
+        // + numéro de page courant.
+        footer: (ctx) => pw.Container(
+          alignment: pw.Alignment.center,
+          padding: const pw.EdgeInsets.only(top: 8),
+          child: pw.Column(
+            children: [
+              PdfThemeService.signatureFooter(fontSize: 8),
+              pw.SizedBox(height: 2),
+              pw.Text(
+                'Page ${ctx.pageNumber} / ${ctx.pagesCount}',
+                style: pw.TextStyle(
+                  fontSize: 7,
+                  color: PdfColors.grey600,
+                ),
+              ),
+            ],
+          ),
+        ),
         build: (ctx) => [
           // ====== En-tête ======
           pw.Container(
@@ -87,7 +106,7 @@ class ReportPdfService {
                 ),
                 pw.SizedBox(height: 6),
                 pw.Text(
-                  'Période : ${Fmt.dateShort(data.debut)} → ${Fmt.dateShort(data.fin)}',
+                  'Période : du ${Fmt.dateShort(data.debut)} au ${Fmt.dateShort(data.fin)}',
                   style: const pw.TextStyle(fontSize: 10),
                 ),
                 if (data.boutiqueNom != null)
@@ -348,11 +367,12 @@ class ReportPdfService {
 
   static Future<void> sharePrint(ReportData data) async {
     final bytes = await build(data);
-    await Printing.layoutPdf(
-      onLayout: (_) async => bytes,
-      name:
+    await sharePdfBytes(
+      bytes: bytes,
+      filename:
           'Rapport_${Fmt.dateShort(data.debut)}_${Fmt.dateShort(data.fin)}.pdf'
               .replaceAll('/', '-'),
+      previewTitle: 'Rapport',
     );
   }
 }

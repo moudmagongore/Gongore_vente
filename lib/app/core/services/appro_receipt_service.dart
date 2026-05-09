@@ -291,6 +291,7 @@ class ApproReceiptService {
                 ),
               ),
             ),
+            PdfThemeService.signatureFooter(fontSize: 8),
           ],
         ),
       ),

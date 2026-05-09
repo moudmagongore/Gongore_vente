@@ -2,13 +2,13 @@ import 'dart:typed_data';
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
 import '../../data/models/boutique_model.dart';
 import '../../data/models/fournisseur_model.dart';
 import '../../data/models/reglement_fournisseur_model.dart';
 import '../../data/models/user_model.dart';
 import '../utils/format_helpers.dart';
+import '../utils/pdf_share_helper.dart';
 import 'pdf_theme_service.dart';
 
 /// Reçu PDF (format 80mm thermique) pour un règlement fournisseur.
@@ -210,6 +210,7 @@ class ReglementFournisseurReceiptService {
                 color: PdfColors.grey600,
               ),
             ),
+            PdfThemeService.signatureFooter(),
           ],
         ),
       ),
@@ -232,9 +233,9 @@ class ReglementFournisseurReceiptService {
       user: user,
       soldeApres: soldeApres,
     );
-    await Printing.layoutPdf(
-      onLayout: (_) async => bytes,
-      name:
+    await sharePdfBytes(
+      bytes: bytes,
+      filename:
           'RecuFournisseur_${boutique.nom}_${fournisseur.nom}_${reglement.id}.pdf',
     );
   }
