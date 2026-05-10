@@ -163,8 +163,11 @@ class VenteFormController extends GetxController {
 
     final user = UserController.to.user;
     if ((user?.isVendeur ?? false) || (user?.isAdmin ?? false)) {
-      // Vendeur OU admin : verrouillé sur sa boutique
-      final bId = user?.boutiqueId;
+      // Vendeur OU admin : verrouillé sur la boutique ACTIVE (scopeBoutiqueId
+      // qui retourne `currentBoutiqueId` du UserController). Pour un admin
+      // multi-boutique qui a switché vers B2, il faut bien charger les
+      // produits de B2 — pas de la boutique principale.
+      final bId = UserController.to.scopeBoutiqueId;
       if (bId != null && bId.isNotEmpty) {
         currentBoutiqueId.value = bId;
       }

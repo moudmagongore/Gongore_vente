@@ -137,7 +137,10 @@ class ApproFormController extends GetxController {
 
     final user = UserController.to.user;
     if ((user?.isVendeur ?? false) || (user?.isAdmin ?? false)) {
-      final bId = user?.boutiqueId;
+      // Vendeur OU admin : verrouillé sur la boutique ACTIVE (et non la
+      // boutique principale) pour qu'un admin multi-boutique scope bien
+      // appro / produits / fournisseurs sur la boutique sélectionnée.
+      final bId = UserController.to.scopeBoutiqueId;
       if (bId != null && bId.isNotEmpty) {
         currentBoutiqueId.value = bId;
       }
