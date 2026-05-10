@@ -56,8 +56,10 @@ class AbonnementRepository {
     if (boutiqueId.isEmpty) {
       throw ArgumentError('boutiqueId requis');
     }
-    if (montant <= 0) {
-      throw ArgumentError('Le montant doit être strictement positif');
+    // Le montant 0 est autorisé (ex: période offerte, geste commercial).
+    // On refuse uniquement les montants négatifs.
+    if (montant < 0) {
+      throw ArgumentError('Le montant ne peut pas être négatif');
     }
 
     final boutiqueRef = _boutiques.doc(boutiqueId);

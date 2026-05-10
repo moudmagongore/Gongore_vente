@@ -47,9 +47,16 @@ class AbonnementFormView extends GetView<AbonnementFormController> {
               }),
               const SizedBox(height: 14),
 
-              // Période
+              // Période — la `key` change avec la valeur pour forcer Flutter
+              // à recréer le DropdownButtonFormField quand la période est
+              // modifiée par programme (chargement du dernier paiement).
+              // Sans cette clé, `initialValue` est consommé une seule fois
+              // au premier build et le dropdown reste visuellement bloqué
+              // sur "Mensuel" même après que `controller.periode.value`
+              // soit passé à "Annuel".
               Obx(
                 () => DropdownButtonFormField<AbonnementPeriode>(
+                  key: ValueKey('periode_${controller.periode.value.name}'),
                   initialValue: controller.periode.value,
                   isExpanded: true,
                   decoration: const InputDecoration(
@@ -100,49 +107,66 @@ class AbonnementFormView extends GetView<AbonnementFormController> {
               ),
               const SizedBox(height: 12),
 
-              // Récap période payée
+              // Récap période :
+              //   • Si un abonnement EXISTE pour la boutique → affiche ses
+              //     dates EXACTES (du dateDebut au dateFin) — données
+              //     conformes à l'abonnement sélectionné.
+              //   • Sinon (boutique sans abonnement) → forecast de la
+              //     période qui sera créée à l'enregistrement.
               Obx(() {
+                final latest = controller.latestAbonnement.value;
                 final p = controller.periode.value;
                 final boutique = controller.selectedBoutique;
                 final endsAt = boutique?.subscriptionEndsAt;
                 final now = DateTime.now();
-                final base = (endsAt != null && endsAt.isAfter(now))
-                    ? endsAt
-                    : now;
+                final color = AppColors.primary(context);
                 return Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.primary(context).withValues(alpha: 0.06),
+                    color: color.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color:
-                          AppColors.primary(context).withValues(alpha: 0.20),
-                    ),
+                    border: Border.all(color: color.withValues(alpha: 0.20)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Période ajoutée',
+                        latest != null
+                            ? 'Abonnement actuel'
+                            : 'Période ajoutée',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.primary(context),
+                          color: color,
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Text(
-                        '+ ${p.nbMois} mois à partir de ${_fmt(base)}',
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                      if (endsAt != null && endsAt.isAfter(now)) ...[
+                      if (latest != null) ...[
+                        // Dates EXACTES du dernier abonnement enregistré
+                        // pour cette boutique : conforme à ce que l'admin
+                        // s'attend à voir quand il clique sur la fiche.
+                        Text(
+                          '${latest.periode.label} — du '
+                          '${_fmt(latest.dateDebut)} au ${_fmt(latest.dateFin)}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         const SizedBox(height: 4),
                         Text(
-                          'Cumul : la nouvelle période s\'ajoute après la fin actuelle.',
+                          'Un nouveau paiement (${p.nbMois} mois) prolongera '
+                          'cet abonnement à partir du '
+                          '${_fmt(endsAt != null && endsAt.isAfter(now) ? endsAt : now)}.',
                           style: TextStyle(
                             fontSize: 11,
                             color: AppColors.greyText(context, 600),
                           ),
+                        ),
+                      ] else ...[
+                        Text(
+                          '+ ${p.nbMois} mois à partir de ${_fmt(now)}',
+                          style: const TextStyle(fontSize: 13),
                         ),
                       ],
                     ],

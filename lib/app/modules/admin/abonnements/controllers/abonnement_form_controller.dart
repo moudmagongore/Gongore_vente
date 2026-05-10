@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -26,6 +28,18 @@ class AbonnementFormController extends GetxController {
       const AbonnementParamsModel().obs;
   final RxBool isSaving = false.obs;
 
+  /// Dernier paiement enregistré pour la boutique sélectionnée.
+  /// Affiché dans la fiche pour que le super-admin voie immédiatement
+  /// les données exactes du dernier abonnement (montant, période, dates,
+  /// note) — utile pour vérifier ou renouveler à l'identique.
+  final Rxn<AbonnementModel> latestAbonnement = Rxn<AbonnementModel>();
+  StreamSubscription<List<AbonnementModel>>? _latestSub;
+
+  /// Drapeau interne : quand on pré-remplit le formulaire avec les valeurs
+  /// du dernier paiement, on doit éviter que les listeners `ever(periode)`
+  /// / `ever(boutiqueId)` n'écrasent le montant par le tarif standard.
+  bool _suppressMontantRefill = false;
+
   /// Périodes ordonnées telles qu'affichées dans le dropdown.
   final List<AbonnementPeriode> periodes = AbonnementPeriode.values;
 
@@ -40,23 +54,64 @@ class AbonnementFormController extends GetxController {
     boutiques.bindStream(_boutiqueRepo.watchScoped(scope: null));
     _paramsRepo.watch().listen(params.call);
 
-    // Pré-sélection si la vue liste a passé une boutique en argument.
-    final arg = Get.arguments;
-    if (arg is BoutiqueModel) {
-      boutiqueId.value = arg.id;
-    }
-
+    // IMPORTANT : enregistrer les `ever` AVANT toute affectation à
+    // `boutiqueId` / `periode`. Sinon, la pré-sélection issue de
+    // `Get.arguments` se ferait avant que les listeners n'existent et le
+    // dernier paiement de la boutique ne serait jamais chargé.
+    //
     // Changement de période → on écrase toujours le montant par le tarif
     // configuré pour la nouvelle période (l'utilisateur s'attend à voir
     // le prix se mettre à jour quand il change la période).
     ever(periode, (_) => _refillMontant(force: true));
-    // Changement de boutique / chargement initial des params → on remplit
-    // seulement si le champ est vide (éviter d'écraser une valeur saisie).
-    ever(boutiqueId, (_) => _refillMontant(force: false));
+    // Changement de boutique : recharge le dernier paiement de cette
+    // boutique pour pré-remplir le formulaire avec les valeurs exactes.
+    ever(boutiqueId, _onBoutiqueChanged);
     ever(params, (_) => _refillMontant(force: false));
+
+    // Pré-sélection si la vue liste a passé une boutique en argument :
+    // déclenche `_onBoutiqueChanged` qui chargera le dernier abonnement.
+    final arg = Get.arguments;
+    if (arg is BoutiqueModel) {
+      boutiqueId.value = arg.id;
+    }
+  }
+
+  /// Appelé à chaque changement de boutique : abonne au flux du dernier
+  /// paiement de cette boutique et pré-remplit le formulaire (période,
+  /// montant exact, note) avec les valeurs du dernier abonnement trouvé.
+  void _onBoutiqueChanged(String? bid) {
+    _latestSub?.cancel();
+    _latestSub = null;
+    if (bid == null || bid.isEmpty) {
+      latestAbonnement.value = null;
+      _refillMontant(force: false);
+      return;
+    }
+    _latestSub = _aboRepo.watchByBoutique(bid).listen((list) {
+      if (list.isEmpty) {
+        latestAbonnement.value = null;
+        // Pas de précédent paiement : retombe sur le tarif standard.
+        _refillMontant(force: false);
+        return;
+      }
+      final latest = list.first; // déjà trié par dateFin desc
+      latestAbonnement.value = latest;
+
+      // Pré-remplit période + montant + note avec les valeurs EXACTES.
+      // Le drapeau évite que l'écouteur `ever(periode)` n'écrase le
+      // montant par le tarif standard juste après notre écriture.
+      _suppressMontantRefill = true;
+      if (periode.value != latest.periode) {
+        periode.value = latest.periode;
+      }
+      montantCtrl.text = latest.montant.toStringAsFixed(0);
+      noteCtrl.text = latest.note ?? '';
+      _suppressMontantRefill = false;
+    });
   }
 
   void _refillMontant({required bool force}) {
+    if (_suppressMontantRefill) return;
     final tarif = params.value.tarifPour(periode.value, devise);
     if (tarif <= 0) {
       // Pas de tarif configuré pour cette période/devise : on laisse le
@@ -70,6 +125,7 @@ class AbonnementFormController extends GetxController {
 
   @override
   void onClose() {
+    _latestSub?.cancel();
     montantCtrl.dispose();
     noteCtrl.dispose();
     super.onClose();
@@ -79,7 +135,9 @@ class AbonnementFormController extends GetxController {
     final t = v?.trim() ?? '';
     if (t.isEmpty) return 'Montant requis';
     final n = double.tryParse(t.replaceAll(',', '.'));
-    if (n == null || n <= 0) return 'Montant invalide';
+    // 0 est autorisé (ex: paiement gratuit / promo / commercial offert).
+    // On refuse uniquement un format invalide ou un montant négatif.
+    if (n == null || n < 0) return 'Montant invalide';
     return null;
   }
 
