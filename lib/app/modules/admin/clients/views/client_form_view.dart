@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/utils/bottom_sheet_helpers.dart';
 import '../../../../theme/app_colors.dart';
 import '../controllers/client_form_controller.dart';
 
@@ -14,9 +15,8 @@ class ClientFormView extends GetView<ClientFormController> {
       appBar: AppBar(
         title: Obx(() => Text(controller.title)),
       ),
-      body: SafeArea(
-        top: false,
-        child: Form(
+      body: androidOnlySafeArea(
+        Form(
         key: controller.formKey,
         child: ListView(
           padding: const EdgeInsets.all(20),

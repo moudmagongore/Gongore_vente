@@ -21,6 +21,17 @@ class UserController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxnString errorMessage = RxnString();
 
+  /// Boutique actuellement sélectionnée par un admin multi-boutique.
+  /// Initialisée à `user.boutiqueId` à la connexion. Pour vendeur, elle reste
+  /// fixée sur `user.boutiqueId`. Pour super-admin, elle reste null.
+  ///
+  /// IMPORTANT : c'est cette valeur que retourne `scopeBoutiqueId` — donc
+  /// changer cette valeur change la portée de TOUTES les requêtes scopées.
+  /// En pratique, les contrôleurs binds leurs streams au démarrage avec
+  /// `scopeBoutiqueId` ; pour qu'un switch de boutique propage partout, on
+  /// fait `Get.offAllNamed(adminHome)` après le switch (voir drawer).
+  final RxnString currentBoutiqueId = RxnString();
+
   StreamSubscription<User?>? _authSub;
   // Subscription au doc Firestore du user courant : permet aux changements
   // (ex. admin qui coche `alsoGestionnaire` sur son propre profil, ou
@@ -44,14 +55,48 @@ class UserController extends GetxController {
   bool get isVendeur => _user.value?.isVendeur ?? false;
   bool get isAnyAdmin => _user.value?.isAnyAdmin ?? false;
 
-  /// Boutique propre de l'utilisateur (admin/vendeur). null pour super-admin.
+  /// Vrai si l'utilisateur peut gérer le catalogue (produits, catégories,
+  /// mouvements stock manuels) : super-admin ou admin de boutique. Utilisé
+  /// pour exposer les FABs et actions d'édition côté listes.
+  bool get canManageCatalog => isSuperAdmin || isAdmin;
+
+  /// Vrai si l'utilisateur peut effectuer des opérations métier (ventes,
+  /// règlements, encaissements, créer clients/fournisseurs, appros, etc.) :
+  /// super-admin ou gestionnaire (vendeur OU admin avec alsoGestionnaire).
+  bool get canPerformSales => isSuperAdmin || isVendeur;
+
+  /// Boutique principale de l'utilisateur (admin/vendeur). null pour super-admin.
+  /// Note : pour un admin multi-boutique, ne pas utiliser pour scoper les
+  /// requêtes — préférer `scopeBoutiqueId` qui retourne la boutique active.
   String? get boutiqueId => _user.value?.boutiqueId;
 
   /// Renvoie le boutiqueId à utiliser pour filtrer les requêtes côté app.
   /// - Super-admin → null (pas de filtre, voit tout)
-  /// - Admin / Vendeur → leur boutiqueId
-  String? get scopeBoutiqueId =>
-      isSuperAdmin ? null : _user.value?.boutiqueId;
+  /// - Admin / Vendeur → la boutique ACTIVE (`currentBoutiqueId`), qui
+  ///   correspond à `user.boutiqueId` par défaut. Un admin multi-boutique
+  ///   peut changer la boutique active via le switcher du drawer.
+  String? get scopeBoutiqueId {
+    if (isSuperAdmin) return null;
+    return currentBoutiqueId.value ?? _user.value?.boutiqueId;
+  }
+
+  /// Liste des boutiques accessibles par l'utilisateur (admin uniquement
+  /// peut en avoir plusieurs). Vide pour super-admin.
+  List<String> get accessibleBoutiqueIds =>
+      _user.value?.accessibleBoutiqueIds ?? const [];
+
+  /// Vrai si l'utilisateur a accès à plusieurs boutiques (admin uniquement).
+  bool get hasMultipleBoutiques =>
+      _user.value?.hasMultipleBoutiques ?? false;
+
+  /// Change la boutique active. No-op si l'ID n'est pas dans les boutiques
+  /// accessibles. Le caller (drawer) navigue ensuite vers admin home pour
+  /// que tous les contrôleurs se ré-initialisent avec le nouveau scope.
+  void setCurrentBoutique(String boutiqueId) {
+    if (!accessibleBoutiqueIds.contains(boutiqueId)) return;
+    if (currentBoutiqueId.value == boutiqueId) return;
+    currentBoutiqueId.value = boutiqueId;
+  }
 
   @override
   void onInit() {
@@ -80,6 +125,7 @@ class UserController extends GetxController {
 
     if (firebaseUser == null) {
       _user.value = null;
+      currentBoutiqueId.value = null;
       return;
     }
     await _loadUserDoc(firebaseUser.uid);
@@ -179,6 +225,7 @@ class UserController extends GetxController {
     );
     await AuthService.to.signOut();
     _user.value = null;
+    currentBoutiqueId.value = null;
     // Force le retour à la page login (sinon l'utilisateur reste sur la
     // route active jusqu'à la prochaine navigation).
     Get.offAllNamed(AppRoutes.login);
@@ -212,6 +259,15 @@ class UserController extends GetxController {
           return;
         }
         _user.value = updated;
+        // Si la boutique active n'est plus accessible (super-admin a retiré
+        // l'admin d'une boutique), retombe sur sa boutique principale.
+        if (!updated.isSuperAdmin) {
+          final selected = currentBoutiqueId.value;
+          if (selected == null ||
+              !updated.accessibleBoutiqueIds.contains(selected)) {
+            currentBoutiqueId.value = updated.boutiqueId;
+          }
+        }
       },
       onError: (e) {
         errorMessage.value = 'Erreur de synchronisation du profil : $e';
@@ -301,6 +357,18 @@ class UserController extends GetxController {
       }
 
       _user.value = loaded;
+      // Initialise la boutique active. Pour un admin multi-boutique on
+      // garde sa sélection précédente si elle reste valide, sinon on
+      // retombe sur sa boutique principale.
+      if (!loaded.isSuperAdmin) {
+        final selected = currentBoutiqueId.value;
+        if (selected == null ||
+            !loaded.accessibleBoutiqueIds.contains(selected)) {
+          currentBoutiqueId.value = loaded.boutiqueId;
+        }
+      } else {
+        currentBoutiqueId.value = null;
+      }
       return true;
     } catch (e) {
       errorMessage.value = 'Erreur de chargement du profil : $e';
@@ -325,5 +393,6 @@ class UserController extends GetxController {
   Future<void> signOut() async {
     await AuthService.to.signOut();
     _user.value = null;
+    currentBoutiqueId.value = null;
   }
 }

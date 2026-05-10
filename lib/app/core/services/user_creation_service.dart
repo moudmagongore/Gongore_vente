@@ -44,6 +44,7 @@ class UserCreationService {
     String? telephone,
     required UserRole role,
     String? boutiqueId,
+    List<String> additionalBoutiqueIds = const [],
     bool active = true,
     bool alsoGestionnaire = false,
     bool sendPasswordResetEmail = true,
@@ -63,7 +64,8 @@ class UserCreationService {
 
       final uid = cred.user!.uid;
 
-      // Créer le document Firestore avec UID = id du document
+      // Créer le document Firestore avec UID = id du document.
+      // additionalBoutiqueIds n'a de sens que pour un admin — on force [] sinon.
       final newUser = UserModel(
         id: uid,
         nom: nom.trim(),
@@ -73,6 +75,8 @@ class UserCreationService {
         boutiqueId: boutiqueId,
         active: active,
         alsoGestionnaire: alsoGestionnaire,
+        additionalBoutiqueIds:
+            role == UserRole.admin ? additionalBoutiqueIds : const [],
       );
 
       await _userRepo.createDoc(newUser);

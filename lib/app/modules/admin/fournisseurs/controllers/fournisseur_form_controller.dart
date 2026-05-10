@@ -46,7 +46,7 @@ class FournisseurFormController extends GetxController {
       noteCtrl.text = arg.note ?? '';
       boutiqueId.value = arg.boutiqueId;
     } else if (!canPickBoutique) {
-      boutiqueId.value = UserController.to.boutiqueId;
+      boutiqueId.value = UserController.to.scopeBoutiqueId;
     }
   }
 

@@ -166,6 +166,11 @@ class ApprovisionnementRepository {
         tx.update(snap.reference, {
           'prixAchat': nouveauCmup,
           'quantiteStock': qteActuelle + qteAppro,
+          // Pose le verrou : à partir de cet appro, le PA ne doit plus
+          // être édité manuellement (CMUP automatique). Idempotent : on
+          // l'écrit à chaque appro, mais c'est toujours `true` une fois
+          // posé (jamais remis à false ailleurs dans le code).
+          'hasAppros': true,
           'updatedAt': FieldValue.serverTimestamp(),
         });
 

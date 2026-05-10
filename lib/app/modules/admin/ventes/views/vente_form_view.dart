@@ -8,6 +8,7 @@ import '../../../../data/models/produit_model.dart';
 import '../../../../data/models/variante_model.dart';
 import '../../../../data/models/vente_model.dart';
 import '../../../../data/repositories/produit_repository.dart';
+import '../../../../routes/app_routes.dart';
 import '../../../../theme/app_colors.dart';
 import '../controllers/vente_form_controller.dart';
 
@@ -227,6 +228,25 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                         'Choisir un client',
                         style: TextStyle(
                             fontSize: 17, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    // Création rapide : ferme le sheet, ouvre le formulaire
+                    // client puis auto-sélectionne le client créé au retour.
+                    TextButton.icon(
+                      onPressed: () async {
+                        Get.back(); // ferme le bottom sheet
+                        final result = await Get.toNamed(
+                          AppRoutes.adminClientForm,
+                        );
+                        if (result is String && result.isNotEmpty) {
+                          widget.controller.selectClient(result);
+                        }
+                      },
+                      icon: const Icon(Icons.person_add_alt_1_rounded,
+                          size: 18),
+                      label: const Text(
+                        'Nouveau',
+                        style: TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
                     IconButton(

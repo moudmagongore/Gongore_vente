@@ -35,8 +35,8 @@ class AdminHomeView extends StatelessWidget {
       drawer: const AdminDrawer(currentRoute: AppRoutes.adminHome),
       // FAB « Vendre » : visible uniquement quand l'utilisateur cumule le
       // rôle gestionnaire (admin avec `alsoGestionnaire = true`, ou rôle
-      // vendeur direct). Réactif via Obx pour qu'un admin qui active le
-      // cumul depuis son profil voie le bouton apparaître immédiatement.
+      // vendeur direct). Caché pour le super-admin sur le tableau de bord
+      // (il a accès à la création depuis la liste des ventes).
       floatingActionButton: Obx(
         () => UserController.to.isVendeur
             ? FloatingActionButton.extended(

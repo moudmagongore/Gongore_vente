@@ -71,8 +71,8 @@ class VentesController extends GetxController {
       filterVendeurId.value = user?.id;
       filterBoutiqueId.value = user?.boutiqueId;
     } else if (isAdmin) {
-      // Admin de boutique : ne voit que les ventes de sa boutique
-      filterBoutiqueId.value = UserController.to.boutiqueId;
+      // Admin de boutique : ne voit que les ventes de sa boutique active
+      filterBoutiqueId.value = UserController.to.scopeBoutiqueId;
     }
 
     _bind();

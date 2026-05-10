@@ -67,10 +67,10 @@ class FournisseursListView extends GetView<FournisseursController> {
           ],
         ),
       ),
-      // FAB réservé au vendeur (création = opération métier).
+      // FAB ouvert au super-admin (sans restriction) ou au gestionnaire.
       // Obx → réagit au cumul admin+gestionnaire en direct.
       floatingActionButton: Obx(
-        () => UserController.to.isVendeur
+        () => UserController.to.canPerformSales
             ? FloatingActionButton.extended(
                 onPressed: () => Get.toNamed(AppRoutes.adminFournisseurForm),
                 icon: const Icon(Icons.add_business_rounded),
@@ -348,7 +348,7 @@ class _FournisseurTile extends StatelessWidget {
               // vendeur. admin/super-admin sont en lecture seule.
               // Obx → réagit au cumul admin+gestionnaire en direct.
               Obx(
-                () => UserController.to.isVendeur
+                () => UserController.to.canPerformSales
                     ? PopupMenuButton<String>(
                         tooltip: 'Plus',
                         icon: Icon(Icons.more_vert_rounded,

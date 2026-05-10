@@ -29,6 +29,12 @@ class UserFormController extends GetxController {
 
   final Rx<UserRole> role = UserRole.vendeur.obs;
   final RxnString boutiqueId = RxnString();
+
+  /// Boutiques additionnelles accessibles par l'admin (en plus de la
+  /// boutique principale `boutiqueId`). Réservé au rôle admin et géré
+  /// par le super-admin via le picker multi-sélection.
+  final RxList<String> additionalBoutiqueIds = <String>[].obs;
+
   final RxBool active = true.obs;
   final RxBool obscurePassword = true.obs;
   final RxBool sendResetEmail = true.obs;
@@ -101,13 +107,28 @@ class UserFormController extends GetxController {
       telephoneCtrl.text = arg.telephone ?? '+224 ';
       role.value = arg.role;
       boutiqueId.value = arg.boutiqueId;
+      additionalBoutiqueIds.assignAll(arg.additionalBoutiqueIds);
       active.value = arg.active;
       alsoGestionnaire.value = arg.alsoGestionnaire;
     } else if (!canCreateAdmin) {
-      // Création par un admin de boutique : forcer rôle vendeur
-      // et pré-remplir sa boutique.
+      // Création par un admin de boutique : forcer rôle vendeur et
+      // pré-remplir avec la boutique active (un admin multi-boutique
+      // crée le vendeur dans la boutique actuellement sélectionnée).
       role.value = UserRole.vendeur;
-      boutiqueId.value = UserController.to.boutiqueId;
+      boutiqueId.value = UserController.to.scopeBoutiqueId;
+    }
+  }
+
+  /// Bascule l'inclusion d'une boutique dans la liste additionnelle (pour
+  /// un admin multi-boutique). La boutique principale ne peut pas être
+  /// désélectionnée ici — il faut changer `boutiqueId.value` si on veut
+  /// la déplacer.
+  void toggleAdditionalBoutique(String bid) {
+    if (bid == boutiqueId.value) return; // ne pas dupliquer la principale
+    if (additionalBoutiqueIds.contains(bid)) {
+      additionalBoutiqueIds.remove(bid);
+    } else {
+      additionalBoutiqueIds.add(bid);
     }
   }
 
@@ -248,6 +269,13 @@ class UserFormController extends GetxController {
   Future<void> _saveCreate() async {
     final boutiqueIdToSave =
         role.value == UserRole.superAdmin ? null : boutiqueId.value;
+    // Boutiques additionnelles : uniquement pour role admin, et on retire
+    // la principale si elle s'y trouve par accident (évite la duplication).
+    final additionalToSave = role.value == UserRole.admin
+        ? additionalBoutiqueIds
+            .where((b) => b.isNotEmpty && b != boutiqueIdToSave)
+            .toList()
+        : const <String>[];
     final result = await _creation.createUser(
       email: emailCtrl.text,
       password: passwordCtrl.text,
@@ -255,6 +283,7 @@ class UserFormController extends GetxController {
       telephone: telephoneCtrl.text,
       role: role.value,
       boutiqueId: boutiqueIdToSave,
+      additionalBoutiqueIds: additionalToSave,
       active: active.value,
       alsoGestionnaire:
           role.value == UserRole.admin ? alsoGestionnaire.value : false,
@@ -293,19 +322,26 @@ class UserFormController extends GetxController {
 
   Future<void> _saveEdit() async {
     final previous = editing.value!;
+    final newBoutiqueId =
+        role.value == UserRole.superAdmin ? null : boutiqueId.value;
+    final newAdditional = role.value == UserRole.admin
+        ? additionalBoutiqueIds
+            .where((b) => b.isNotEmpty && b != newBoutiqueId)
+            .toList()
+        : const <String>[];
     final updated = previous.copyWith(
       nom: nomCtrl.text.trim(),
       telephone: telephoneCtrl.text.trim().isEmpty
           ? null
           : telephoneCtrl.text.trim(),
       role: role.value,
-      boutiqueId:
-          role.value == UserRole.superAdmin ? null : boutiqueId.value,
+      boutiqueId: newBoutiqueId,
       active: active.value,
       // Le flag n'a de sens que pour un admin ; remis à false pour les
       // autres rôles (cohérence si on rétrograde un user admin → vendeur).
       alsoGestionnaire:
           role.value == UserRole.admin ? alsoGestionnaire.value : false,
+      additionalBoutiqueIds: newAdditional,
     );
     await _userRepo.update(updated);
 

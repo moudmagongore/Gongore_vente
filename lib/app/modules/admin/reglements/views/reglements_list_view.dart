@@ -84,10 +84,10 @@ class ReglementsListView extends GetView<ReglementsController> {
         ],
         ),
       ),
-      // FAB réservé au vendeur (action métier). admin/super-admin sont
-      // en lecture seule. Obx → réagit au cumul admin+gestionnaire en direct.
+      // FAB ouvert au super-admin (sans restriction) ou au gestionnaire.
+      // Obx → réagit au cumul admin+gestionnaire en direct.
       floatingActionButton: Obx(
-        () => UserController.to.isVendeur
+        () => UserController.to.canPerformSales
             ? FloatingActionButton.extended(
                 onPressed: () => EncaissementGlobalSheet.open(context),
                 icon: const Icon(Icons.payments_rounded),
@@ -603,7 +603,7 @@ class _ReglementTile extends StatelessWidget {
               // Suppression : VENDEUR uniquement (admin/super-admin lecture seule).
               // Obx → réagit au cumul admin+gestionnaire en direct.
               Obx(
-                () => UserController.to.isVendeur
+                () => UserController.to.canPerformSales
                     ? IconButton(
                         visualDensity: VisualDensity.compact,
                         tooltip: 'Supprimer',

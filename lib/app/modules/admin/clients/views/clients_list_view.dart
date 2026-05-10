@@ -66,10 +66,10 @@ class ClientsListView extends GetView<ClientsController> {
         ],
         ),
       ),
-      // FAB réservé au vendeur (création client = opération métier).
+      // FAB ouvert au super-admin (sans restriction) ou au gestionnaire.
       // Obx → réactif au cumul admin+gestionnaire toggle en live.
       floatingActionButton: Obx(
-        () => UserController.to.isVendeur
+        () => UserController.to.canPerformSales
             ? FloatingActionButton.extended(
                 onPressed: () => Get.toNamed(AppRoutes.adminClientForm),
                 icon: const Icon(Icons.person_add_alt_1_rounded),
@@ -340,7 +340,7 @@ class _ClientTile extends StatelessWidget {
               // vendeur. admin/super-admin sont en lecture seule.
               // Obx → réagit au cumul admin+gestionnaire en direct.
               Obx(
-                () => UserController.to.isVendeur
+                () => UserController.to.canPerformSales
                     ? PopupMenuButton<String>(
                         tooltip: 'Plus',
                         icon: Icon(Icons.more_vert_rounded,

@@ -27,7 +27,7 @@ class FournisseurDetailView extends GetView<FournisseurDetailController> {
           ),
           actions: [
             Obx(() {
-              if (!UserController.to.isVendeur) return const SizedBox.shrink();
+              if (!UserController.to.canPerformSales) return const SizedBox.shrink();
               final f = controller.fournisseur.value;
               if (f == null) return const SizedBox.shrink();
               return IconButton(
@@ -219,7 +219,7 @@ class _Header extends StatelessWidget {
           // VENDEUR. admin/super-admin sont en lecture seule.
           // Obx → réagit au cumul admin+gestionnaire en direct.
           Obx(
-            () => UserController.to.isVendeur
+            () => UserController.to.canPerformSales
                 ? Padding(
                     padding: const EdgeInsets.only(top: 12),
                     child: Row(
@@ -604,7 +604,7 @@ class _ReglementTile extends StatelessWidget {
           // Suppression : VENDEUR uniquement (admin/super-admin lecture seule).
           // Obx → réagit au cumul admin+gestionnaire en direct.
           Obx(
-            () => UserController.to.isVendeur
+            () => UserController.to.canPerformSales
                 ? IconButton(
                     visualDensity: VisualDensity.compact,
                     tooltip: 'Supprimer',

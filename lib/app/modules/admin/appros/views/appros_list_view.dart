@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/services/user_controller.dart';
 import '../../../../core/utils/bottom_sheet_helpers.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../core/widgets/admin_drawer.dart';
@@ -89,10 +90,10 @@ class ApprosListView extends GetView<ApprosController> {
           ],
         ),
       ),
-      // FAB réservé au vendeur (création = opération métier).
+      // FAB ouvert au super-admin (sans restriction) ou au gestionnaire.
       // Obx → réagit au cumul admin+gestionnaire en direct.
       floatingActionButton: Obx(
-        () => controller.isVendeur
+        () => UserController.to.canPerformSales
             ? FloatingActionButton.extended(
                 onPressed: () => Get.toNamed(AppRoutes.approForm),
                 icon: const Icon(Icons.add_rounded),

@@ -3,9 +3,12 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../data/models/boutique_model.dart';
+import '../../data/repositories/boutique_repository.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
+import '../services/subscription_guard.dart';
 import '../services/user_controller.dart';
 import 'sign_out_dialog.dart';
 
@@ -398,8 +401,204 @@ class _Header extends StatelessWidget {
               );
             },
           ),
+          // Switcher de boutique : visible uniquement pour un admin ayant
+          // accès à plusieurs boutiques. Permet de basculer la boutique
+          // active utilisée pour scoper toutes les requêtes.
+          Obx(() {
+            final user = UserController.to.user;
+            if (user == null || !user.hasMultipleBoutiques) {
+              return const SizedBox.shrink();
+            }
+            return Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: _BoutiqueSwitcher(),
+            );
+          }),
         ],
       ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Bandeau cliquable affichant la boutique active de l'admin multi-boutique.
+/// Au clic, ouvre une bottom sheet listant toutes les boutiques accessibles
+/// pour permettre le switch. Après switch, la stack est réinitialisée
+/// (`Get.offAllNamed(adminHome)`) pour que tous les contrôleurs ré-init
+/// leurs streams avec le nouveau scope.
+class _BoutiqueSwitcher extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final activeId = UserController.to.currentBoutiqueId.value;
+      return InkWell(
+        onTap: () => _openSwitchSheet(context),
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.store_rounded,
+                  color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FutureBuilder<BoutiqueModel?>(
+                  // FutureBuilder se ré-exécute quand `activeId` change car
+                  // l'Obx parent rebuild et recrée un nouveau Future.
+                  future: activeId == null
+                      ? Future.value(null)
+                      : BoutiqueRepository().getById(activeId),
+                  builder: (context, snap) {
+                    final name = snap.data?.nom ??
+                        (snap.connectionState == ConnectionState.waiting
+                            ? '...'
+                            : 'Boutique');
+                    return Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Icon(Icons.swap_horiz_rounded,
+                  color: Colors.white, size: 18),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  void _openSwitchSheet(BuildContext context) {
+    final ids = UserController.to.accessibleBoutiqueIds;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                child: Text(
+                  'Changer de boutique',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.greyText(ctx, 800),
+                  ),
+                ),
+              ),
+              FutureBuilder<List<BoutiqueModel?>>(
+                future: Future.wait(
+                  ids.map((id) => BoutiqueRepository().getById(id)),
+                ),
+                builder: (context, snap) {
+                  if (!snap.hasData) {
+                    return const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  final boutiques =
+                      snap.data!.whereType<BoutiqueModel>().toList();
+                  return Obx(() {
+                    final activeId =
+                        UserController.to.currentBoutiqueId.value;
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: boutiques.map((b) {
+                        final isActive = b.id == activeId;
+                        return ListTile(
+                          leading: Icon(
+                            Icons.store_rounded,
+                            color: isActive
+                                ? AppColors.primary(context)
+                                : null,
+                          ),
+                          title: Text(
+                            b.nom,
+                            style: TextStyle(
+                              fontWeight: isActive
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: isActive
+                                  ? AppColors.primary(context)
+                                  : null,
+                            ),
+                          ),
+                          trailing: isActive
+                              ? Icon(
+                                  Icons.check_rounded,
+                                  color: AppColors.primary(context),
+                                )
+                              : null,
+                          onTap: () async {
+                            if (isActive) {
+                              Navigator.of(ctx).pop();
+                              return;
+                            }
+                            // Vérifie l'abonnement de la boutique cible
+                            // AVANT de basculer. Si pas d'abonnement actif
+                            // ou expiré au-delà de la grâce, on bloque
+                            // avec un message et on n'effectue pas le
+                            // switch (l'admin reste sur sa boutique
+                            // précédente).
+                            final blockMsg =
+                                await SubscriptionGuard.checkBoutiqueAccess(
+                                    b.id);
+                            if (!ctx.mounted) return;
+                            Navigator.of(ctx).pop();
+                            if (blockMsg != null) {
+                              Get.snackbar(
+                                'Switch impossible',
+                                blockMsg,
+                                snackPosition: SnackPosition.TOP,
+                                backgroundColor: Colors.red.shade50,
+                                colorText: Colors.red.shade900,
+                                icon: Icon(
+                                  Icons.lock_outline_rounded,
+                                  color: Colors.red.shade900,
+                                ),
+                                duration: const Duration(seconds: 5),
+                                isDismissible: true,
+                                margin: const EdgeInsets.all(12),
+                              );
+                              return;
+                            }
+                            UserController.to.setCurrentBoutique(b.id);
+                            // Repart sur le tableau de bord pour que
+                            // tous les contrôleurs ré-init leurs streams
+                            // avec la nouvelle boutique active.
+                            Get.offAllNamed(AppRoutes.adminHome);
+                          },
+                        );
+                      }).toList(),
+                    );
+                  });
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

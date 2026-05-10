@@ -103,11 +103,11 @@ class VentesListView extends GetView<VentesController> {
         ],
         ),
       ),
-      // FAB réservé au gestionnaire — réactif (Obx) pour qu'un admin qui
-      // active « Aussi gestionnaire » sur son profil voie le bouton
-      // apparaître immédiatement sans rouvrir la page.
+      // FAB ouvert au super-admin (sans restriction) ou au gestionnaire.
+      // Réactif (Obx) pour qu'un admin qui active « Aussi gestionnaire »
+      // voie le bouton apparaître immédiatement.
       floatingActionButton: Obx(
-        () => UserController.to.isVendeur
+        () => UserController.to.canPerformSales
             ? FloatingActionButton.extended(
                 onPressed: () => Get.toNamed(AppRoutes.venteForm),
                 icon: const Icon(Icons.add_rounded),

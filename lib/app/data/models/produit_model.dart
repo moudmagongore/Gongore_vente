@@ -46,6 +46,15 @@ class ProduitModel {
   final bool hasVariantes;
 
   final bool active;
+
+  /// Vrai dès qu'au moins UN approvisionnement a été enregistré sur ce
+  /// produit. Posé par la transaction `ApprovisionnementRepository.create`
+  /// et jamais remis à false (audit). Permet de verrouiller la saisie
+  /// manuelle de `prixAchat` côté UI : une fois un appro passé, le CMUP
+  /// est calculé automatiquement et toute modification manuelle
+  /// corromprait la valorisation du stock.
+  final bool hasAppros;
+
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -61,6 +70,7 @@ class ProduitModel {
     this.seuilAlerte = 0,
     this.hasVariantes = false,
     this.active = true,
+    this.hasAppros = false,
     this.createdAt,
     this.updatedAt,
   });
@@ -78,6 +88,7 @@ class ProduitModel {
       seuilAlerte: (map['seuilAlerte'] as num?)?.toInt() ?? 0,
       hasVariantes: (map['hasVariantes'] ?? false) as bool,
       active: (map['active'] ?? true) as bool,
+      hasAppros: (map['hasAppros'] ?? false) as bool,
       createdAt: (map['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
     );
@@ -100,6 +111,7 @@ class ProduitModel {
         'seuilAlerte': seuilAlerte,
         'hasVariantes': hasVariantes,
         'active': active,
+        'hasAppros': hasAppros,
         // Le champ legacy `unite` n'est plus géré par l'app. Les anciens
         // documents Firestore qui en ont un seront ignorés à la lecture.
         if (createdAt != null) 'createdAt': Timestamp.fromDate(createdAt!),
@@ -122,6 +134,7 @@ class ProduitModel {
     int? seuilAlerte,
     bool? hasVariantes,
     bool? active,
+    bool? hasAppros,
   }) {
     return ProduitModel(
       id: id,
@@ -135,6 +148,7 @@ class ProduitModel {
       seuilAlerte: seuilAlerte ?? this.seuilAlerte,
       hasVariantes: hasVariantes ?? this.hasVariantes,
       active: active ?? this.active,
+      hasAppros: hasAppros ?? this.hasAppros,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
     );

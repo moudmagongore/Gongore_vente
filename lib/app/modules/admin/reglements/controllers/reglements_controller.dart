@@ -41,7 +41,7 @@ class ReglementsController extends GetxController {
     final scope = UserController.to.scopeBoutiqueId;
 
     if (!isSuperAdmin) {
-      filterBoutiqueId.value = UserController.to.boutiqueId;
+      filterBoutiqueId.value = UserController.to.scopeBoutiqueId;
     } else {
       // IMPORTANT : enregistre l'auto-select AVANT bindStream pour ne pas
       // rater la 1re émission du stream (cache Firestore peut émettre

@@ -24,12 +24,18 @@ class SubscriptionGuard {
     if (user.isSuperAdmin) return null;
     final bid = user.boutiqueId;
     if (bid == null || bid.isEmpty) return null;
+    return checkBoutiqueAccess(bid);
+  }
 
-    final boutique = await BoutiqueRepository().getById(bid);
+  /// Variante per-boutique : vérifie l'abonnement d'une boutique précise
+  /// (utilisée par le switcher multi-boutique pour bloquer le switch
+  /// vers une boutique sans abonnement actif).
+  static Future<String?> checkBoutiqueAccess(String boutiqueId) async {
+    final boutique = await BoutiqueRepository().getById(boutiqueId);
     if (boutique == null) return null; // tolérant : laissez passer
     if (boutique.subscriptionEndsAt == null) {
-      return 'Aucun abonnement actif pour votre boutique. '
-          'Contactez le support pour activer votre compte.';
+      return 'Cette boutique n\'a aucun abonnement actif. '
+          'Contactez le support pour l\'activer.';
     }
 
     final params = await AbonnementParamsRepository().get();
@@ -43,8 +49,8 @@ class SubscriptionGuard {
 
     final daysSince =
         now.difference(boutique.subscriptionEndsAt!).inDays;
-    return 'Votre abonnement a expiré depuis $daysSince jours. '
-        'Contactez le support pour le réactiver.';
+    return 'L\'abonnement de cette boutique a expiré depuis $daysSince '
+        'jours. Contactez le support pour le réactiver.';
   }
 
   /// Récupère un éventuel **avertissement non-bloquant** à afficher après

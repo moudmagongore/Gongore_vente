@@ -115,7 +115,7 @@ class ProduitFormController extends GetxController {
       }
     } else if (!canPickBoutique) {
       // Admin de boutique : pré-remplir sa boutique
-      boutiqueId.value = UserController.to.boutiqueId;
+      boutiqueId.value = UserController.to.scopeBoutiqueId;
     }
   }
 
@@ -199,9 +199,14 @@ class ProduitFormController extends GetxController {
 
   String? validatePrixAchat(String? v) {
     final value = v?.trim().replaceAll(',', '.') ?? '';
-    if (value.isEmpty) return null;
+    // À la création, le PA est requis : il sert de base au CMUP avant
+    // qu'aucun appro n'ait pu le calculer. À l'édition, on tolère vide
+    // (les anciens produits saisis sans PA restent valides).
+    if (value.isEmpty) {
+      return isEdit ? null : 'Prix d\'achat requis';
+    }
     final n = double.tryParse(value);
-    if (n == null || n < 0) return 'Prix invalide';
+    if (n == null || n <= 0) return 'Prix invalide';
     return null;
   }
 

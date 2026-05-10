@@ -49,7 +49,7 @@ class ClientFormController extends GetxController {
       boutiqueId.value = arg.boutiqueId;
     } else if (!canPickBoutique) {
       // Admin de boutique : pré-remplir sa boutique
-      boutiqueId.value = UserController.to.boutiqueId;
+      boutiqueId.value = UserController.to.scopeBoutiqueId;
     }
   }
 
@@ -125,8 +125,12 @@ class ClientFormController extends GetxController {
           boutiqueId: bId!,
           solde: solde,
         );
-        await _repo.create(newClient);
-        Get.back();
+        // Renvoie l'ID créé via Get.back(result:) afin que les appelants
+        // (ex. picker client dans la vente) puissent auto-sélectionner
+        // le nouveau client. Les autres appelants ignorent simplement
+        // le résultat.
+        final createdId = await _repo.create(newClient);
+        Get.back(result: createdId);
         Get.snackbar(
           'Client créé',
           newClient.nom,

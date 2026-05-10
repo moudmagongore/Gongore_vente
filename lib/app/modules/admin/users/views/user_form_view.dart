@@ -200,24 +200,38 @@ class UserFormView extends GetView<UserFormController> {
                         .any((b) => b.id == controller.boutiqueId.value)
                     ? controller.boutiqueId.value
                     : null;
-                return _LabeledField(
-                  label: 'Boutique *',
-                  child: DropdownButtonFormField<String>(
-                    initialValue: safeId,
-                    decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.store_outlined),
+                final isAdminRole = controller.role.value == UserRole.admin;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _LabeledField(
+                      label: isAdminRole
+                          ? 'Boutique principale *'
+                          : 'Boutique *',
+                      child: DropdownButtonFormField<String>(
+                        initialValue: safeId,
+                        decoration: const InputDecoration(
+                          prefixIcon: Icon(Icons.store_outlined),
+                        ),
+                        items: controller.boutiques
+                            .map(
+                              (b) => DropdownMenuItem<String>(
+                                value: b.id,
+                                child: Text(b.nom),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) => controller.boutiqueId.value = v,
+                        validator: controller.validateBoutique,
+                      ),
                     ),
-                    items: controller.boutiques
-                        .map(
-                          (b) => DropdownMenuItem<String>(
-                            value: b.id,
-                            child: Text(b.nom),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) => controller.boutiqueId.value = v,
-                    validator: controller.validateBoutique,
-                  ),
+                    // Boutiques additionnelles : uniquement pour les admins.
+                    // Permet d'affecter un admin à plusieurs boutiques.
+                    if (isAdminRole) ...[
+                      const SizedBox(height: 14),
+                      _AdditionalBoutiquesPicker(controller: controller),
+                    ],
+                  ],
                 );
               })
             else
@@ -620,6 +634,84 @@ class _RoleReadOnly extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Picker multi-sélection des boutiques additionnelles pour un admin.
+/// Affiche en chips toutes les boutiques disponibles SAUF la principale
+/// (déjà gérée par le dropdown au-dessus). Cliquer sur une chip bascule
+/// l'inclusion dans `additionalBoutiqueIds`.
+class _AdditionalBoutiquesPicker extends StatelessWidget {
+  final UserFormController controller;
+  const _AdditionalBoutiquesPicker({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final primary = controller.boutiqueId.value;
+      final available =
+          controller.boutiques.where((b) => b.id != primary).toList();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 6),
+            child: Text(
+              'Boutiques supplémentaires',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.greyText(context, 700),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
+            child: Text(
+              'Donnez accès à d\'autres boutiques. L\'admin pourra basculer '
+              'entre elles depuis le menu.',
+              style: TextStyle(
+                fontSize: 11.5,
+                color: AppColors.greyText(context, 600),
+              ),
+            ),
+          ),
+          if (available.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.greyText(context, 200).withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                'Aucune autre boutique disponible.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.greyText(context, 700),
+                ),
+              ),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: available.map((b) {
+                final selected =
+                    controller.additionalBoutiqueIds.contains(b.id);
+                return FilterChip(
+                  label: Text(b.nom),
+                  selected: selected,
+                  onSelected: (_) =>
+                      controller.toggleAdditionalBoutique(b.id),
+                  selectedColor:
+                      AppColors.primary(context).withValues(alpha: 0.15),
+                  checkmarkColor: AppColors.primary(context),
+                );
+              }).toList(),
+            ),
+        ],
+      );
+    });
   }
 }
 

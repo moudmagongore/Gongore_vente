@@ -19,9 +19,10 @@ class StockListView extends GetView<StockController> {
 
   @override
   Widget build(BuildContext context) {
-    // Seul l'admin peut modifier le stock manuellement (mouvements).
-    // Le gestionnaire est en lecture seule : il consulte mais n'agit pas.
-    final canEdit = UserController.to.isAdmin;
+    // Modification du stock manuel (mouvements) : super-admin (sans
+    // restriction) ou admin de boutique. Le gestionnaire est en lecture
+    // seule (consultation uniquement, pas d'action).
+    final canEdit = UserController.to.canManageCatalog;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Stock'),

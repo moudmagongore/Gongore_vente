@@ -41,7 +41,7 @@ class CategorieFormController extends GetxController {
       boutiqueId.value = arg.boutiqueId;
     } else if (!canPickBoutique) {
       // Admin de boutique : pré-remplir sa boutique
-      boutiqueId.value = UserController.to.boutiqueId;
+      boutiqueId.value = UserController.to.scopeBoutiqueId;
     }
   }
 

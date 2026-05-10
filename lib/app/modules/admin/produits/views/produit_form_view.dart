@@ -176,7 +176,7 @@ class _VarianteRow extends StatelessWidget {
           Expanded(
             flex: 3,
             child: _LabeledField(
-              label: 'Libellé',
+              label: 'Libellé 1 *',
               child: TextFormField(
                 controller: v.libelleCtrl,
                 decoration: const InputDecoration(
@@ -185,6 +185,12 @@ class _VarianteRow extends StatelessWidget {
                       EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                 ),
                 textCapitalization: TextCapitalization.characters,
+                validator: (val) {
+                  // Champ obligatoire : sans libellé 1 on ne peut pas
+                  // identifier la variante (le libellé 2 reste optionnel).
+                  if ((val ?? '').trim().isEmpty) return 'Requis';
+                  return null;
+                },
               ),
             ),
           ),
@@ -192,7 +198,7 @@ class _VarianteRow extends StatelessWidget {
           Expanded(
             flex: 3,
             child: _LabeledField(
-              label: 'Couleur',
+              label: 'Libellé 2',
               child: TextFormField(
                 controller: v.couleurCtrl,
                 decoration: const InputDecoration(
@@ -402,25 +408,47 @@ class ProduitFormView extends GetView<ProduitFormController> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: _LabeledField(
-                          label: 'Prix d\'achat',
-                          child: TextFormField(
-                            controller: controller.prixAchatCtrl,
-                            decoration: const InputDecoration(
-                              prefixIcon:
-                                  Icon(Icons.shopping_cart_outlined),
-                            ),
-                            keyboardType:
-                                const TextInputType.numberWithOptions(
-                                    decimal: true),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(
-                                RegExp(r'[0-9.,]'),
+                        child: Obx(() {
+                          // Verrou CMUP : dès qu'un appro a été enregistré sur
+                          // ce produit (`hasAppros == true`), le PA devient
+                          // une valeur calculée automatiquement par la formule
+                          // du Coût Moyen Unitaire Pondéré. Toute édition
+                          // manuelle corromprait la valorisation du stock.
+                          final locked = controller.isEdit &&
+                              (controller.editing.value?.hasAppros ?? false);
+                          return _LabeledField(
+                            label: locked
+                                ? 'Prix d\'achat (CMUP — verrouillé)'
+                                : (controller.isEdit
+                                    ? 'Prix d\'achat'
+                                    : 'Prix d\'achat *'),
+                            child: TextFormField(
+                              controller: controller.prixAchatCtrl,
+                              enabled: !locked,
+                              decoration: InputDecoration(
+                                prefixIcon: Icon(
+                                  locked
+                                      ? Icons.lock_outline_rounded
+                                      : Icons.shopping_cart_outlined,
+                                ),
+                                helperText: locked
+                                    ? 'Mis à jour automatiquement à chaque '
+                                        'approvisionnement.'
+                                    : null,
+                                helperMaxLines: 2,
                               ),
-                            ],
-                            validator: controller.validatePrixAchat,
-                          ),
-                        ),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(
+                                  RegExp(r'[0-9.,]'),
+                                ),
+                              ],
+                              validator: controller.validatePrixAchat,
+                            ),
+                          );
+                        }),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
