@@ -27,8 +27,13 @@ class VendeurHomeController extends GetxController {
     final user = UserController.to.user;
     if (user == null) return;
 
-    if (user.boutiqueId != null && user.boutiqueId!.isNotEmpty) {
-      boutique.value = await _boutiqueRepo.getById(user.boutiqueId!);
+    // Boutique ACTIVE (et non la principale) — important pour un admin
+    // multi-boutique qui cumule le rôle gestionnaire et a switché de
+    // boutique via le drawer. Les ventes du jour affichées doivent
+    // correspondre à la boutique sélectionnée.
+    final scope = UserController.to.scopeBoutiqueId;
+    if (scope != null && scope.isNotEmpty) {
+      boutique.value = await _boutiqueRepo.getById(scope);
     }
 
     final now = DateTime.now();
@@ -37,7 +42,7 @@ class VendeurHomeController extends GetxController {
     ventesAujourdhui.bindStream(
       _venteRepo.watchAll(
         vendeurId: user.id,
-        boutiqueId: user.boutiqueId,
+        boutiqueId: scope,
         after: startOfDay,
       ),
     );

@@ -66,10 +66,14 @@ class VentesController extends GetxController {
     produits.bindStream(_produitRepo.watchAll(boutiqueId: scope));
 
     if (isVendeur) {
-      // Vendeur : ne voit que ses propres ventes
+      // Vendeur (ou admin+alsoGestionnaire) : ne voit que ses propres
+      // ventes, filtrées par la boutique ACTIVE (et non la principale).
+      // Important pour un admin multi-boutique qui switche : les ventes
+      // affichées correspondent à la boutique sélectionnée dans le drawer,
+      // pas à sa boutique principale.
       final user = UserController.to.user;
       filterVendeurId.value = user?.id;
-      filterBoutiqueId.value = user?.boutiqueId;
+      filterBoutiqueId.value = UserController.to.scopeBoutiqueId;
     } else if (isAdmin) {
       // Admin de boutique : ne voit que les ventes de sa boutique active
       filterBoutiqueId.value = UserController.to.scopeBoutiqueId;
