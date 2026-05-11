@@ -108,6 +108,35 @@ class HistoriqueMouvementsView
                       fontSize: 18, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 16),
+                // Filtre boutique : visible uniquement pour le super-admin.
+                // Obligatoire (les mouvements sont scopés par boutique).
+                if (controller.isSuperAdmin) ...[
+                  const Text('Boutique', style: TextStyle(fontSize: 12)),
+                  const SizedBox(height: 6),
+                  Obx(
+                    () => DropdownButtonFormField<String?>(
+                      initialValue: controller.filterBoutiqueId.value,
+                      decoration: const InputDecoration(isDense: true),
+                      isExpanded: true,
+                      items: [
+                        const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('— Sélectionner —')),
+                        ...controller.boutiques.map(
+                          (b) => DropdownMenuItem(
+                            value: b.id,
+                            child: Text(b.nom,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis),
+                          ),
+                        ),
+                      ],
+                      onChanged: (v) =>
+                          controller.filterBoutiqueId.value = v,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 const Text('Produit', style: TextStyle(fontSize: 12)),
                 const SizedBox(height: 6),
                 Obx(

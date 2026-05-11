@@ -41,22 +41,46 @@ class CategoriesListView extends GetView<CategoriesController> {
       body: SafeArea(
         top: false,
         bottom: false,
-        child: Obx(() {
-          if (controller.isLoading.value) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final list = controller.filtered;
-          if (list.isEmpty) {
-            return _Empty(hasSearch: controller.search.value.isNotEmpty);
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-            itemCount: list.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 10),
-            itemBuilder: (_, i) =>
-                _CategorieTile(categorie: list[i], canEdit: canEdit),
-          );
-        }),
+        child: Column(
+          children: [
+            // Filtre boutique : visible uniquement pour le super-admin.
+            Obx(() {
+              if (!controller.isSuperAdmin ||
+                  controller.boutiques.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: _BoutiqueFilterChip(
+                    value: controller.filterBoutiqueId.value,
+                    boutiques: controller.boutiques,
+                    onChanged: (v) => controller.filterBoutiqueId.value = v,
+                  ),
+                ),
+              );
+            }),
+            Expanded(
+              child: Obx(() {
+                if (controller.isLoading.value) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final list = controller.filtered;
+                if (list.isEmpty) {
+                  return _Empty(hasSearch: controller.search.value.isNotEmpty);
+                }
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+                  itemCount: list.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+                  itemBuilder: (_, i) =>
+                      _CategorieTile(categorie: list[i], canEdit: canEdit),
+                );
+              }),
+            ),
+          ],
+        ),
       ),
       floatingActionButton: canEdit
           ? FloatingActionButton.extended(
@@ -231,6 +255,106 @@ class _Empty extends StatelessWidget {
                 ),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Chip de filtre boutique pour super-admin. Click → bottom sheet de
+/// sélection avec option "Toutes les boutiques".
+class _BoutiqueFilterChip extends StatelessWidget {
+  final String? value;
+  final List<dynamic> boutiques;
+  final void Function(String?) onChanged;
+  const _BoutiqueFilterChip({
+    required this.value,
+    required this.boutiques,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = boutiques.firstWhereOrNull((b) => b.id == value);
+    final label = selected?.nom ?? 'Toutes boutiques';
+    return InputChip(
+      avatar: Icon(
+        Icons.store_rounded,
+        size: 16,
+        color: value != null
+            ? AppColors.primary(context)
+            : AppColors.greyText(context, 600),
+      ),
+      label: Text(label,
+          style: const TextStyle(fontSize: 12),
+          overflow: TextOverflow.ellipsis),
+      selected: value != null,
+      showCheckmark: false,
+      onPressed: () => _open(context),
+      onDeleted: value == null ? null : () => onChanged(null),
+      deleteIconColor: AppColors.greyText(context, 700),
+    );
+  }
+
+  void _open(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(
+                Icons.all_inclusive_rounded,
+                color: value == null ? AppColors.primary(ctx) : null,
+              ),
+              title: Text(
+                'Toutes les boutiques',
+                style: TextStyle(
+                  fontWeight:
+                      value == null ? FontWeight.w700 : FontWeight.w500,
+                  color: value == null ? AppColors.primary(ctx) : null,
+                ),
+              ),
+              trailing: value == null
+                  ? Icon(Icons.check_rounded, color: AppColors.primary(ctx))
+                  : null,
+              onTap: () {
+                Navigator.of(ctx).pop();
+                onChanged(null);
+              },
+            ),
+            const Divider(height: 1),
+            ...boutiques.map((b) {
+              final isActive = b.id == value;
+              return ListTile(
+                leading: Icon(
+                  Icons.store_rounded,
+                  color: isActive ? AppColors.primary(ctx) : null,
+                ),
+                title: Text(
+                  b.nom,
+                  style: TextStyle(
+                    fontWeight:
+                        isActive ? FontWeight.w700 : FontWeight.w500,
+                    color: isActive ? AppColors.primary(ctx) : null,
+                  ),
+                ),
+                trailing: isActive
+                    ? Icon(Icons.check_rounded,
+                        color: AppColors.primary(ctx))
+                    : null,
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  onChanged(b.id);
+                },
+              );
+            }),
+            const SizedBox(height: 8),
           ],
         ),
       ),

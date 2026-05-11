@@ -314,6 +314,11 @@ class _FilterChips extends StatelessWidget {
                 const SizedBox(width: 4),
                 _CategorieDropdown(c: c),
               ],
+              // Filtre boutique : visible uniquement pour le super-admin.
+              if (c.isSuperAdmin && c.boutiques.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                _BoutiqueDropdown(c: c),
+              ],
             ],
           ),
         ),
@@ -355,6 +360,44 @@ class _CategorieDropdown extends StatelessWidget {
               ),
             ],
             onChanged: (v) => c.filterCategorieId.value = v,
+          )),
+    );
+  }
+}
+
+class _BoutiqueDropdown extends StatelessWidget {
+  final StockController c;
+  const _BoutiqueDropdown({required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.borderOf(context)),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Obx(() => DropdownButton<String?>(
+            value: c.filterBoutiqueId.value,
+            underline: const SizedBox.shrink(),
+            isDense: true,
+            hint: const Text('Boutique',
+                style: TextStyle(fontSize: 12)),
+            items: [
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text('Toutes boutiques',
+                    style: TextStyle(fontSize: 12)),
+              ),
+              ...c.boutiques.map(
+                (b) => DropdownMenuItem(
+                  value: b.id,
+                  child: Text(b.nom,
+                      style: const TextStyle(fontSize: 12)),
+                ),
+              ),
+            ],
+            onChanged: (v) => c.filterBoutiqueId.value = v,
           )),
     );
   }

@@ -202,6 +202,13 @@ class _Filters extends StatelessWidget {
           runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
+            // Filtre boutique : visible uniquement pour le super-admin.
+            if (controller.isSuperAdmin && controller.boutiques.isNotEmpty)
+              _BoutiqueFilterChip(
+                value: controller.filterBoutiqueId.value,
+                boutiques: controller.boutiques,
+                onChanged: (v) => controller.filterBoutiqueId.value = v,
+              ),
             FilterChip(
               avatar: Icon(
                 controller.onlyAvecDette.value
@@ -449,6 +456,106 @@ class _Empty extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Chip de filtre boutique pour super-admin. Click → bottom sheet de
+/// sélection avec option "Toutes les boutiques".
+class _BoutiqueFilterChip extends StatelessWidget {
+  final String? value;
+  final List<dynamic> boutiques;
+  final void Function(String?) onChanged;
+  const _BoutiqueFilterChip({
+    required this.value,
+    required this.boutiques,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = boutiques.firstWhereOrNull((b) => b.id == value);
+    final label = selected?.nom ?? 'Toutes boutiques';
+    return InputChip(
+      avatar: Icon(
+        Icons.store_rounded,
+        size: 16,
+        color: value != null
+            ? AppColors.primary(context)
+            : AppColors.greyText(context, 600),
+      ),
+      label: Text(label,
+          style: const TextStyle(fontSize: 12),
+          overflow: TextOverflow.ellipsis),
+      selected: value != null,
+      showCheckmark: false,
+      onPressed: () => _open(context),
+      onDeleted: value == null ? null : () => onChanged(null),
+      deleteIconColor: AppColors.greyText(context, 700),
+    );
+  }
+
+  void _open(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(
+                Icons.all_inclusive_rounded,
+                color: value == null ? AppColors.primary(ctx) : null,
+              ),
+              title: Text(
+                'Toutes les boutiques',
+                style: TextStyle(
+                  fontWeight:
+                      value == null ? FontWeight.w700 : FontWeight.w500,
+                  color: value == null ? AppColors.primary(ctx) : null,
+                ),
+              ),
+              trailing: value == null
+                  ? Icon(Icons.check_rounded, color: AppColors.primary(ctx))
+                  : null,
+              onTap: () {
+                Navigator.of(ctx).pop();
+                onChanged(null);
+              },
+            ),
+            const Divider(height: 1),
+            ...boutiques.map((b) {
+              final isActive = b.id == value;
+              return ListTile(
+                leading: Icon(
+                  Icons.store_rounded,
+                  color: isActive ? AppColors.primary(ctx) : null,
+                ),
+                title: Text(
+                  b.nom,
+                  style: TextStyle(
+                    fontWeight:
+                        isActive ? FontWeight.w700 : FontWeight.w500,
+                    color: isActive ? AppColors.primary(ctx) : null,
+                  ),
+                ),
+                trailing: isActive
+                    ? Icon(Icons.check_rounded,
+                        color: AppColors.primary(ctx))
+                    : null,
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  onChanged(b.id);
+                },
+              );
+            }),
+            const SizedBox(height: 8),
           ],
         ),
       ),

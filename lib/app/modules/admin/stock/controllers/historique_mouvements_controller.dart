@@ -1,9 +1,11 @@
 import 'package:get/get.dart';
 
 import '../../../../core/services/user_controller.dart';
+import '../../../../data/models/boutique_model.dart';
 import '../../../../data/models/mouvement_stock_model.dart';
 import '../../../../data/models/produit_model.dart';
 import '../../../../data/models/user_model.dart';
+import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/mouvement_stock_repository.dart';
 import '../../../../data/repositories/produit_repository.dart';
 import '../../../../data/repositories/user_repository.dart';
@@ -14,19 +16,25 @@ class HistoriqueMouvementsController extends GetxController {
   final MouvementStockRepository _repo = MouvementStockRepository();
   final ProduitRepository _produitRepo = ProduitRepository();
   final UserRepository _userRepo = UserRepository();
+  final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
 
   final RxList<MouvementStockModel> _all = <MouvementStockModel>[].obs;
   final RxList<ProduitModel> produits = <ProduitModel>[].obs;
   final RxList<UserModel> users = <UserModel>[].obs;
+  final RxList<BoutiqueModel> boutiques = <BoutiqueModel>[].obs;
 
   final RxBool isLoading = true.obs;
   final Rx<PeriodeMouvement> periode = PeriodeMouvement.mois.obs;
   final RxnString filterProduitId = RxnString();
   final RxnString filterUserId = RxnString();
   final Rxn<MouvementStockType> filterType = Rxn<MouvementStockType>();
+  /// Filtre boutique (super-admin uniquement). Requis pour afficher des
+  /// mouvements (la query est scopée par boutique côté repository).
+  final RxnString filterBoutiqueId = RxnString();
   final RxString search = ''.obs;
 
   bool get isAnyAdmin => UserController.to.isAnyAdmin;
+  bool get isSuperAdmin => UserController.to.isSuperAdmin;
 
   @override
   void onInit() {
@@ -34,23 +42,29 @@ class HistoriqueMouvementsController extends GetxController {
     final scope = UserController.to.scopeBoutiqueId;
     produits.bindStream(_produitRepo.watchAll(boutiqueId: scope));
     users.bindStream(_userRepo.watchScoped(scope: scope));
+    boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
+    // Pour non-super-admin : verrouille le filtre sur leur boutique active.
+    if (!isSuperAdmin && scope != null && scope.isNotEmpty) {
+      filterBoutiqueId.value = scope;
+    }
     _bind();
-    everAll([periode], (_) => _bind());
+    everAll([periode, filterBoutiqueId], (_) => _bind());
   }
 
   void _bind() {
     isLoading.value = true;
-    final scope = UserController.to.scopeBoutiqueId;
-    if (scope == null || scope.isEmpty) {
-      // Super-admin sans filtre boutique : on n'affiche rien (la query
-      // sans boutiqueId échouerait sur les rules pour les non-super-admin
-      // et serait trop large même pour eux). Le cas est rare.
+    // Pour super-admin : utilise le filtre boutique manuel.
+    // Pour admin/vendeur : déjà verrouillé sur leur boutique active.
+    final boutiqueId =
+        filterBoutiqueId.value ?? UserController.to.scopeBoutiqueId;
+    if (boutiqueId == null || boutiqueId.isEmpty) {
+      // Super-admin n'a pas encore choisi de boutique → liste vide.
       _all.value = [];
       isLoading.value = false;
       return;
     }
     _all.bindStream(_repo.watchByBoutique(
-      scope,
+      boutiqueId,
       after: _afterDate(periode.value),
       limit: 500,
     ));

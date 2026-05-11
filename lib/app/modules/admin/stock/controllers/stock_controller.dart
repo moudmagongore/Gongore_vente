@@ -24,6 +24,8 @@ class StockController extends GetxController {
   final RxString search = ''.obs;
   final RxnString filterCategorieId = RxnString();
   final Rx<StockFiltreEtat> filterEtat = StockFiltreEtat.tous.obs;
+  /// Filtre boutique (super-admin uniquement). null = toutes.
+  final RxnString filterBoutiqueId = RxnString();
   /// false = on cache les inactifs, true = on les inclut.
   final RxBool inclureInactifs = false.obs;
 
@@ -66,8 +68,13 @@ class StockController extends GetxController {
   /// l'attention sur les produits à réapprovisionner.
   List<ProduitModel> get filtered {
     final q = search.value.trim().toLowerCase();
+    final boutiqueFilter = filterBoutiqueId.value;
     final list = _all.where((p) {
       if (!inclureInactifs.value && !p.active) return false;
+      // Filtre boutique (super-admin)
+      if (boutiqueFilter != null && p.boutiqueId != boutiqueFilter) {
+        return false;
+      }
       if (filterCategorieId.value != null &&
           p.categorieId != filterCategorieId.value) {
         return false;
@@ -84,27 +91,40 @@ class StockController extends GetxController {
     return list;
   }
 
-  // ===== Stats =====
-  /// Filtre les produits actifs (les inactifs sortent des stats même
-  /// si « inclureInactifs » est coché — la valorisation doit être
-  /// cohérente).
-  List<ProduitModel> get _actifs => _all.where((p) => p.active).toList();
+  // ===== Stats scopées au filtre boutique (super-admin) =====
+  /// Produits actifs respectant le filtre boutique courant. Utilisé pour
+  /// calculer les statistiques (nb produits, ruptures, valeurs) afin que
+  /// les chiffres reflètent la boutique sélectionnée.
+  List<ProduitModel> get _actifsScopes {
+    final boutiqueFilter = filterBoutiqueId.value;
+    return _all.where((p) {
+      if (!p.active) return false;
+      if (boutiqueFilter != null && p.boutiqueId != boutiqueFilter) {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
 
-  int get nbProduits => _actifs.length;
+  // ===== Stats =====
+  // Les stats utilisent `_actifsScopes` (défini plus haut) qui respecte
+  // le filtre boutique — pour le super-admin avec un filtre actif, les
+  // chiffres reflètent la boutique sélectionnée.
+  int get nbProduits => _actifsScopes.length;
   int get nbRuptures =>
-      _actifs.where((p) => p.quantiteStock <= 0).length;
-  int get nbStockBas => _actifs
+      _actifsScopes.where((p) => p.quantiteStock <= 0).length;
+  int get nbStockBas => _actifsScopes
       .where((p) =>
           p.quantiteStock > 0 && p.quantiteStock <= p.seuilAlerte)
       .length;
 
   /// Valeur totale du stock au PA (CMUP).
   double get valeurStock =>
-      _actifs.fold(0.0, (acc, p) => acc + p.valeurStock);
+      _actifsScopes.fold(0.0, (acc, p) => acc + p.valeurStock);
 
   /// Valeur potentielle au prix de vente (CA potentiel).
-  double get valeurStockVente =>
-      _actifs.fold(0.0, (acc, p) => acc + p.quantiteStock * p.prixVente);
+  double get valeurStockVente => _actifsScopes.fold(
+      0.0, (acc, p) => acc + p.quantiteStock * p.prixVente);
 
   /// Marge potentielle = valeur vente - valeur achat.
   double get margePotentielle => valeurStockVente - valeurStock;

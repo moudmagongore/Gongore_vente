@@ -16,6 +16,9 @@ class CategoriesController extends GetxController {
   final RxBool isLoading = true.obs;
   final RxString search = ''.obs;
 
+  /// Filtre boutique (super-admin uniquement). null = toutes.
+  final RxnString filterBoutiqueId = RxnString();
+
   bool get isSuperAdmin => UserController.to.isSuperAdmin;
   bool get isAnyAdmin => UserController.to.isAnyAdmin;
 
@@ -37,13 +40,16 @@ class CategoriesController extends GetxController {
 
   List<CategorieModel> get filtered {
     final q = search.value.trim().toLowerCase();
-    final base = q.isEmpty
-        ? _all.toList()
-        : _all
-            .where((c) =>
-                c.nom.toLowerCase().contains(q) ||
-                (c.description?.toLowerCase().contains(q) ?? false))
-            .toList();
+    final boutiqueFilter = filterBoutiqueId.value;
+    final base = _all.where((c) {
+      // Filtre boutique (super-admin)
+      if (boutiqueFilter != null && c.boutiqueId != boutiqueFilter) {
+        return false;
+      }
+      if (q.isEmpty) return true;
+      return c.nom.toLowerCase().contains(q) ||
+          (c.description?.toLowerCase().contains(q) ?? false);
+    }).toList();
     // Plus récent en haut (les anciens documents sans createdAt finissent en bas)
     return base
       ..sort((a, b) => (b.createdAt ?? DateTime(0))
