@@ -269,6 +269,9 @@ class _BoutiqueAbonnementTile extends StatelessWidget {
   final BoutiqueModel boutique;
   const _BoutiqueAbonnementTile({required this.boutique});
 
+  String _fmt(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+
   @override
   Widget build(BuildContext context) {
     final status = SubscriptionStatus.from(boutique.subscriptionEndsAt);
@@ -316,16 +319,44 @@ class _BoutiqueAbonnementTile extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    if (status.subtitle != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        status.subtitle!,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.greyText(context, 600),
-                        ),
-                      ),
-                    ],
+                    // Affiche la période complète du dernier paiement
+                    // (Du JJ/MM/AAAA au JJ/MM/AAAA) — plus parlant que
+                    // la seule date de fin. Fallback sur le subtitle
+                    // du statut si aucun paiement n'a encore été enregistré.
+                    //
+                    // Wrappé dans Obx pour réagir aux changements de
+                    // `_allAbonnements` du controller (suppression / création
+                    // de paiement → la ligne se met à jour sans refresh
+                    // manuel).
+                    Obx(() {
+                      final latest = Get.find<AbonnementsController>()
+                          .latestForBoutique(boutique.id);
+                      if (latest != null) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            'Du ${_fmt(latest.dateDebut)} au ${_fmt(latest.dateFin)}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.greyText(context, 600),
+                            ),
+                          ),
+                        );
+                      }
+                      if (status.subtitle != null) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            status.subtitle!,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.greyText(context, 600),
+                            ),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    }),
                   ],
                 ),
               ),

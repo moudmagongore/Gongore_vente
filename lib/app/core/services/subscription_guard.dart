@@ -17,22 +17,59 @@ import '../../data/repositories/boutique_repository.dart';
 class SubscriptionGuard {
   SubscriptionGuard._();
 
-  /// Renvoie `null` si l'accès est autorisé, ou un message d'erreur prêt
-  /// à afficher si l'abonnement est expiré (au-delà de la grâce) ou
-  /// jamais souscrit.
+  /// Renvoie `null` si l'utilisateur peut accéder à l'app, sinon un
+  /// message d'erreur prêt à afficher.
+  ///
+  /// Multi-boutique : autorise dès qu'**au moins une** des boutiques
+  /// accessibles a un abonnement valide. Bloque uniquement si toutes
+  /// sont expirées / sans abonnement.
   static Future<String?> checkAccess(UserModel user) async {
     if (user.isSuperAdmin) return null;
-    final bid = user.boutiqueId;
-    if (bid == null || bid.isEmpty) return null;
-    return checkBoutiqueAccess(bid);
+    final ids = user.accessibleBoutiqueIds;
+    if (ids.isEmpty) return null; // tolérant
+    String? lastBlockMsg;
+    for (final bid in ids) {
+      final msg = await checkBoutiqueAccess(bid);
+      if (msg == null) return null; // au moins une boutique valide
+      lastBlockMsg = msg;
+    }
+    return lastBlockMsg ??
+        'Aucune boutique active pour votre compte. Contactez le support.';
   }
 
-  /// Variante per-boutique : vérifie l'abonnement d'une boutique précise
-  /// (utilisée par le switcher multi-boutique pour bloquer le switch
-  /// vers une boutique sans abonnement actif).
+  /// Renvoie l'ID de la première boutique accessible avec un abonnement
+  /// valide (priorité à la principale), ou `null` si aucune n'est valide.
+  /// Utilisé au login pour rediriger l'admin vers sa boutique fonctionnelle.
+  static Future<String?> firstActiveBoutiqueId(UserModel user) async {
+    if (user.isSuperAdmin) return null;
+    final primary = user.boutiqueId;
+    if (primary != null && primary.isNotEmpty) {
+      final msg = await checkBoutiqueAccess(primary);
+      if (msg == null) return primary;
+    }
+    for (final bid in user.accessibleBoutiqueIds) {
+      if (bid == primary) continue;
+      final msg = await checkBoutiqueAccess(bid);
+      if (msg == null) return bid;
+    }
+    return null;
+  }
+
+  /// Vérifie l'accessibilité d'une boutique précise. Renvoie un message
+  /// de blocage si elle est inaccessible :
+  ///   • Supprimée
+  ///   • Désactivée (`active: false`)
+  ///   • Sans abonnement actif (`subscriptionEndsAt == null`)
+  ///   • Abonnement expiré au-delà de la grâce
+  /// Sinon renvoie `null` (accessible).
   static Future<String?> checkBoutiqueAccess(String boutiqueId) async {
     final boutique = await BoutiqueRepository().getById(boutiqueId);
-    if (boutique == null) return null; // tolérant : laissez passer
+    if (boutique == null) {
+      return 'Cette boutique a été supprimée.';
+    }
+    if (!boutique.active) {
+      return 'Cette boutique a été désactivée.';
+    }
     if (boutique.subscriptionEndsAt == null) {
       return 'Cette boutique n\'a aucun abonnement actif. '
           'Contactez le support pour l\'activer.';

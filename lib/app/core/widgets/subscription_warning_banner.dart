@@ -24,32 +24,38 @@ class SubscriptionWarningBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = UserController.to.user;
-    if (user == null || user.isSuperAdmin) return const SizedBox.shrink();
-    final bid = user.boutiqueId;
-    if (bid == null || bid.isEmpty) return const SizedBox.shrink();
-    final canOpenDetails = user.isAdmin;
+    // Obx pour réagir au switch de boutique active d'un admin multi-boutique.
+    return Obx(() {
+      final user = UserController.to.user;
+      if (user == null || user.isSuperAdmin) return const SizedBox.shrink();
+      // Boutique ACTIVE (et non principale) — important pour un admin
+      // multi-boutique qui a switché vers une boutique additionnelle.
+      final bid = UserController.to.scopeBoutiqueId;
+      if (bid == null || bid.isEmpty) return const SizedBox.shrink();
+      final canOpenDetails = user.isAdmin;
 
-    return StreamBuilder<List<BoutiqueModel>>(
-      stream: BoutiqueRepository().watchScoped(scope: bid),
-      builder: (context, snap) {
-        final boutique = snap.data?.firstOrNull;
-        if (boutique == null) return const SizedBox.shrink();
-        return StreamBuilder<AbonnementParamsModel>(
-          stream: AbonnementParamsRepository().watch(),
-          builder: (context, paramsSnap) {
-            final params = paramsSnap.data ?? const AbonnementParamsModel();
-            final info = _WarningInfo.compute(
-              endsAt: boutique.subscriptionEndsAt,
-              graceDays: params.graceDays,
-              warningThresholdDays: params.warningThresholdDays,
-            );
-            if (info == null) return const SizedBox.shrink();
-            return _BannerCard(info: info, tappable: canOpenDetails);
-          },
-        );
-      },
-    );
+      return StreamBuilder<List<BoutiqueModel>>(
+        stream: BoutiqueRepository().watchScoped(scope: bid),
+        builder: (context, snap) {
+          final boutique = snap.data?.firstOrNull;
+          if (boutique == null) return const SizedBox.shrink();
+          return StreamBuilder<AbonnementParamsModel>(
+            stream: AbonnementParamsRepository().watch(),
+            builder: (context, paramsSnap) {
+              final params =
+                  paramsSnap.data ?? const AbonnementParamsModel();
+              final info = _WarningInfo.compute(
+                endsAt: boutique.subscriptionEndsAt,
+                graceDays: params.graceDays,
+                warningThresholdDays: params.warningThresholdDays,
+              );
+              if (info == null) return const SizedBox.shrink();
+              return _BannerCard(info: info, tappable: canOpenDetails);
+            },
+          );
+        },
+      );
+    });
   }
 }
 

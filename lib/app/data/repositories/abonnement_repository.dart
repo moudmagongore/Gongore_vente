@@ -115,6 +115,109 @@ class AbonnementRepository {
     return created;
   }
 
+  /// Met à jour un paiement existant (montant, période, devise, note).
+  /// Recalcule la `dateFin` à partir de la `dateDebut` immuable + nouvelle
+  /// période, puis recalcule `boutique.subscriptionEndsAt` comme étant le
+  /// max(dateFin) sur tous les paiements de la boutique.
+  ///
+  /// Important : la `dateDebut` n'est PAS modifiable — elle reste celle
+  /// fixée à la création (chaînage des périodes). Modifier la période ne
+  /// déplace pas le point de départ, seulement la durée couverte.
+  Future<void> update({
+    required String id,
+    required AbonnementPeriode periode,
+    required double montant,
+    required String devise,
+    String? note,
+  }) async {
+    if (id.isEmpty) throw ArgumentError('id requis');
+    if (montant < 0) {
+      throw ArgumentError('Le montant ne peut pas être négatif');
+    }
+
+    // Lit le paiement existant pour récupérer dateDebut + boutiqueId
+    // (immuables) avant la transaction.
+    final aboSnap = await _col.doc(id).get();
+    if (!aboSnap.exists) {
+      throw StateError('Paiement introuvable : $id');
+    }
+    final existing = AbonnementModel.fromFirestore(aboSnap);
+    final newDateFin = _addMonths(existing.dateDebut, periode.nbMois);
+
+    // Cherche la 2e plus grande dateFin parmi les autres paiements de la
+    // boutique (top 2 en cas où le paiement édité soit lui-même le max).
+    // Utilisé pour recalculer `subscriptionEndsAt` après la modification.
+    final others = await _col
+        .where('boutiqueId', isEqualTo: existing.boutiqueId)
+        .orderBy('dateFin', descending: true)
+        .limit(2)
+        .get();
+    DateTime maxOtherDateFin =
+        DateTime.fromMillisecondsSinceEpoch(0);
+    for (final d in others.docs) {
+      if (d.id == id) continue;
+      maxOtherDateFin = (d.data()['dateFin'] as Timestamp).toDate();
+      break;
+    }
+    final newSubscriptionEndsAt =
+        newDateFin.isAfter(maxOtherDateFin) ? newDateFin : maxOtherDateFin;
+
+    await _fs.db.runTransaction((tx) async {
+      tx.update(_col.doc(id), {
+        'periode': periode.name,
+        'montant': montant,
+        'devise': devise,
+        'dateFin': Timestamp.fromDate(newDateFin),
+        if (note != null && note.isNotEmpty)
+          'note': note
+        else
+          'note': FieldValue.delete(),
+      });
+      tx.update(_boutiques.doc(existing.boutiqueId), {
+        'subscriptionEndsAt': Timestamp.fromDate(newSubscriptionEndsAt),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  /// Supprime un paiement. Recalcule `boutique.subscriptionEndsAt` comme
+  /// étant le max(dateFin) sur les paiements RESTANTS. Si plus aucun
+  /// paiement, le champ est supprimé (la boutique repasse "sans abonnement").
+  Future<void> delete(String id) async {
+    if (id.isEmpty) throw ArgumentError('id requis');
+
+    // Lit le paiement avant suppression pour récupérer son boutiqueId.
+    final aboSnap = await _col.doc(id).get();
+    if (!aboSnap.exists) {
+      throw StateError('Paiement introuvable : $id');
+    }
+    final boutiqueId = aboSnap.data()!['boutiqueId'] as String;
+
+    // Top 2 des dateFin pour identifier la nouvelle max après suppression
+    // (le paiement à supprimer peut être lui-même le max, d'où limit 2).
+    final remaining = await _col
+        .where('boutiqueId', isEqualTo: boutiqueId)
+        .orderBy('dateFin', descending: true)
+        .limit(2)
+        .get();
+    DateTime? newSubscriptionEndsAt;
+    for (final d in remaining.docs) {
+      if (d.id == id) continue;
+      newSubscriptionEndsAt = (d.data()['dateFin'] as Timestamp).toDate();
+      break;
+    }
+
+    await _fs.db.runTransaction((tx) async {
+      tx.delete(_col.doc(id));
+      tx.update(_boutiques.doc(boutiqueId), {
+        'subscriptionEndsAt': newSubscriptionEndsAt != null
+            ? Timestamp.fromDate(newSubscriptionEndsAt)
+            : FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
   /// Réactive (active=true) tous les utilisateurs admin et gestionnaire
   /// d'une boutique qui sont actuellement inactifs. Best-effort : les
   /// éventuelles erreurs réseau ne font pas échouer la création du paiement.

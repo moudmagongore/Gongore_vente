@@ -1,12 +1,21 @@
 import 'package:get/get.dart';
 
+import '../../../../data/models/abonnement_model.dart';
 import '../../../../data/models/boutique_model.dart';
+import '../../../../data/repositories/abonnement_repository.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 
 class AbonnementsController extends GetxController {
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
+  final AbonnementRepository _aboRepo = AbonnementRepository();
 
   final RxList<BoutiqueModel> boutiques = <BoutiqueModel>[].obs;
+
+  /// Tous les paiements, triés par `dateFin` desc. Permet de retrouver
+  /// le dernier paiement d'une boutique sans faire de read additionnel
+  /// par tuile (`firstWhereOrNull` côté client).
+  final RxList<AbonnementModel> _allAbonnements = <AbonnementModel>[].obs;
+
   final RxBool isLoading = true.obs;
   final RxString search = ''.obs;
 
@@ -17,8 +26,17 @@ class AbonnementsController extends GetxController {
   void onInit() {
     super.onInit();
     boutiques.bindStream(_boutiqueRepo.watchScoped(scope: null));
+    _allAbonnements.bindStream(_aboRepo.watchAll());
     debounce(boutiques, (_) => isLoading.value = false,
         time: const Duration(milliseconds: 200));
+  }
+
+  /// Renvoie le dernier paiement enregistré pour une boutique (le plus
+  /// récent par `dateFin`). Lecture mémoire — pas de read Firestore.
+  AbonnementModel? latestForBoutique(String boutiqueId) {
+    return _allAbonnements.firstWhereOrNull(
+      (a) => a.boutiqueId == boutiqueId,
+    );
   }
 
   /// Liste filtrée triée : expirées d'abord (urgent), puis par jours

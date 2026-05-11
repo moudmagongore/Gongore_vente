@@ -16,7 +16,10 @@ class MonAbonnementController extends GetxController {
   final RxList<AbonnementModel> historique = <AbonnementModel>[].obs;
   final RxBool isLoading = true.obs;
 
-  String? get _boutiqueId => UserController.to.user?.boutiqueId;
+  /// Utilise la boutique ACTIVE (scopeBoutiqueId) et non la boutique
+  /// principale, pour qu'un admin multi-boutique voie l'abonnement de la
+  /// boutique sur laquelle il a switché.
+  String? get _boutiqueId => UserController.to.scopeBoutiqueId;
 
   BoutiqueModel? get boutique => _boutiques.firstOrNull;
 

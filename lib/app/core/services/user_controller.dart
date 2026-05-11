@@ -7,9 +7,11 @@ import 'package:get/get.dart';
 
 import '../../data/models/boutique_model.dart';
 import '../../data/models/user_model.dart';
+import '../../data/repositories/abonnement_params_repository.dart';
 import '../../routes/app_routes.dart';
 import 'auth_service.dart';
 import 'firestore_service.dart';
+import 'subscription_guard.dart';
 
 /// Controller global qui maintient le UserModel courant en mémoire.
 /// Réagit automatiquement aux changements de l'auth Firebase.
@@ -33,6 +35,13 @@ class UserController extends GetxController {
   final RxnString currentBoutiqueId = RxnString();
 
   StreamSubscription<User?>? _authSub;
+
+  // Cache de `graceDays` (paramètres globaux d'abonnement). Lu UNE seule
+  // fois au login. Utilisé par le check inline dans le stream boutique
+  // pour évaluer si l'abonnement a expiré au-delà de la grâce, sans
+  // faire de read Firestore supplémentaire à chaque émission.
+  int? _cachedGraceDays;
+
   // Subscription au doc Firestore du user courant : permet aux changements
   // (ex. admin qui coche `alsoGestionnaire` sur son propre profil, ou
   // super-admin qui désactive un compte) de se propager immédiatement à
@@ -102,6 +111,19 @@ class UserController extends GetxController {
   void onInit() {
     super.onInit();
     _authSub = AuthService.to.authStateChanges.listen(_onAuthChanged);
+    // Le stream du doc boutique surveille TOUJOURS la boutique ACTIVE
+    // (`currentBoutiqueId`), pas la boutique principale. Quand l'admin
+    // switche via le drawer, on cancel l'ancien stream et on bind sur
+    // la nouvelle. Coût : 1 read par switch (négligeable, déjà payé
+    // par l'utilisateur qui prend l'action).
+    //
+    // Avantages :
+    //   • La désactivation / modification d'une boutique NON-active ne
+    //     déclenche pas le listener (zéro impact sur les autres
+    //     boutiques de l'admin)
+    //   • La désactivation / modification de la boutique active est
+    //     détectée en temps réel (sign-out + re-routage au re-login)
+    ever(currentBoutiqueId, _bindBoutiqueDocStream);
   }
 
   @override
@@ -122,6 +144,7 @@ class UserController extends GetxController {
     await _boutiqueAdminsSub?.cancel();
     _boutiqueAdminsSub = null;
     _watchedBoutiqueId = null;
+    _cachedGraceDays = null;
 
     if (firebaseUser == null) {
       _user.value = null;
@@ -131,11 +154,30 @@ class UserController extends GetxController {
     await _loadUserDoc(firebaseUser.uid);
     // Charge réussi → bascule en mode live pour que les modifs serveur
     // (alsoGestionnaire toggled, active toggled, etc.) propagent en direct.
+    //
+    // Note : le bind du stream du doc boutique est déclenché
+    // automatiquement par `ever(currentBoutiqueId, ...)` dans `onInit`
+    // (la valeur de `currentBoutiqueId` a été posée par `_loadUserDoc`
+    // sur la première boutique active).
     if (_user.value != null) {
       final u = _user.value!;
       _bindUserDocStream(firebaseUser.uid);
-      _bindBoutiqueDocStream(u.boutiqueId);
+      // Charge les paramètres d'abonnement EN PARALLÈLE des bindings.
+      // Lecture unique par session, mise en cache pour le check inline
+      // dans le listener du doc boutique (0 read récurrent ensuite).
+      unawaited(_cacheGraceDays());
       _bindBoutiqueAdminsStream(u);
+    }
+  }
+
+  /// Charge `graceDays` depuis Firestore et le met en cache mémoire.
+  /// Best-effort : valeur par défaut conservatrice si la lecture échoue.
+  Future<void> _cacheGraceDays() async {
+    try {
+      final params = await AbonnementParamsRepository().get();
+      _cachedGraceDays = params.graceDays;
+    } catch (_) {
+      _cachedGraceDays = 3;
     }
   }
 
@@ -181,9 +223,14 @@ class UserController extends GetxController {
   /// peuvent contenir un état périmé (ex. boutique désactivée à l'ancienne
   /// session). On attend la confirmation serveur avant de forcer un signOut.
   void _bindBoutiqueDocStream(String? boutiqueId) {
-    if (boutiqueId == null || boutiqueId.isEmpty) return;
-    if (_watchedBoutiqueId == boutiqueId) return; // déjà observé
+    // Déjà observée → no-op
+    if (_watchedBoutiqueId == boutiqueId) return;
+    // Cancel le stream précédent (switch de boutique active ou signOut)
+    _boutiqueDocSub?.cancel();
+    _boutiqueDocSub = null;
     _watchedBoutiqueId = boutiqueId;
+    // Nouvelle boutique null/vide (signOut) → on s'arrête là
+    if (boutiqueId == null || boutiqueId.isEmpty) return;
     _boutiqueDocSub =
         FirestoreService.to.boutiques.doc(boutiqueId).snapshots().listen(
       (snap) async {
@@ -198,6 +245,31 @@ class UserController extends GetxController {
         if (!boutique.active) {
           await _forceSignOut(
             'Votre boutique a été désactivée. Contactez l\'administrateur.',
+          );
+          return;
+        }
+        // Check inline d'expiration de l'abonnement : 0 read Firestore
+        // supplémentaire (toutes les données viennent du snapshot et du
+        // cache local `_cachedGraceDays`). Déclenché à chaque émission
+        // du stream, c'est-à-dire quand la boutique change réellement
+        // côté serveur (super-admin modifie / supprime un paiement).
+        final grace = _cachedGraceDays;
+        if (grace == null) return; // params pas encore chargés
+        final endsAt = boutique.subscriptionEndsAt;
+        if (endsAt == null) {
+          await _forceSignOut(
+            'Aucun abonnement actif pour votre boutique. '
+            'Contactez le support pour activer votre compte.',
+          );
+          return;
+        }
+        final now = DateTime.now();
+        final deadline = endsAt.add(Duration(days: grace));
+        if (now.isAfter(deadline)) {
+          final daysSince = now.difference(endsAt).inDays;
+          await _forceSignOut(
+            'Votre abonnement a expiré depuis $daysSince jours. '
+            'Contactez le support pour le réactiver.',
           );
         }
       },
@@ -311,23 +383,23 @@ class UserController extends GetxController {
 
       // Vérifie la boutique (sauf super-admin qui n'a pas de boutiqueId).
       final loadedBoutiqueId = loaded.boutiqueId;
-      if (!loaded.isSuperAdmin &&
-          loadedBoutiqueId != null &&
-          loadedBoutiqueId.isNotEmpty) {
-        final boutiqueSnap = await FirestoreService.to.boutiques
-            .doc(loadedBoutiqueId)
-            .get(const GetOptions(source: Source.server));
-        if (!boutiqueSnap.exists) {
-          errorMessage.value =
-              'Votre boutique a été supprimée. Contactez l\'administrateur.';
-          await AuthService.to.signOut();
-          _user.value = null;
-          return false;
-        }
-        final boutique = BoutiqueModel.fromFirestore(boutiqueSnap);
-        if (!boutique.active) {
-          errorMessage.value =
-              'Votre boutique a été désactivée. Contactez l\'administrateur.';
+      // Pour non-super-admin : cherche la PREMIÈRE boutique accessible
+      // utilisable (existe, active, abonnement valide). Permet à un admin
+      // multi-boutique de se connecter même si sa principale est
+      // désactivée / sans abonnement, tant qu'il a au moins une autre
+      // boutique fonctionnelle. Le résultat est réutilisé plus bas pour
+      // initialiser `currentBoutiqueId` (évite un double appel).
+      String? firstAccessibleBoutiqueId;
+      if (!loaded.isSuperAdmin && loaded.accessibleBoutiqueIds.isNotEmpty) {
+        firstAccessibleBoutiqueId =
+            await SubscriptionGuard.firstActiveBoutiqueId(loaded);
+        if (firstAccessibleBoutiqueId == null) {
+          // Aucune boutique accessible n'est utilisable. Récupère le
+          // message de blocage le plus pertinent (statut de la dernière
+          // boutique vérifiée) via `checkAccess`.
+          final blockMsg = await SubscriptionGuard.checkAccess(loaded);
+          errorMessage.value = blockMsg ??
+              'Aucune de vos boutiques n\'est accessible. Contactez le support.';
           await AuthService.to.signOut();
           _user.value = null;
           return false;
@@ -357,15 +429,12 @@ class UserController extends GetxController {
       }
 
       _user.value = loaded;
-      // Initialise la boutique active. Pour un admin multi-boutique on
-      // garde sa sélection précédente si elle reste valide, sinon on
-      // retombe sur sa boutique principale.
+      // Initialise la boutique active sur la première boutique
+      // accessible utilisable (calculée plus haut, on évite un 2e appel).
+      // Si tout était bloqué, on aurait déjà return false plus haut.
       if (!loaded.isSuperAdmin) {
-        final selected = currentBoutiqueId.value;
-        if (selected == null ||
-            !loaded.accessibleBoutiqueIds.contains(selected)) {
-          currentBoutiqueId.value = loaded.boutiqueId;
-        }
+        currentBoutiqueId.value =
+            firstAccessibleBoutiqueId ?? loaded.boutiqueId;
       } else {
         currentBoutiqueId.value = null;
       }

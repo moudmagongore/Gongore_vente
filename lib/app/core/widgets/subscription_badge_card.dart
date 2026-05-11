@@ -18,17 +18,23 @@ class SubscriptionBadgeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = UserController.to.user;
-    if (user == null) return const SizedBox.shrink();
-    if (user.isSuperAdmin) return const SizedBox.shrink();
-    final boutiqueId = user.boutiqueId;
-    if (boutiqueId == null || boutiqueId.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    // Obx pour réagir au switch de boutique active d'un admin multi-boutique :
+    // quand `currentBoutiqueId` change, le card se rebuilde et le
+    // StreamBuilder se réabonne au flux de la nouvelle boutique active.
+    return Obx(() {
+      final user = UserController.to.user;
+      if (user == null) return const SizedBox.shrink();
+      if (user.isSuperAdmin) return const SizedBox.shrink();
+      // Boutique ACTIVE (et non principale) — important pour un admin
+      // multi-boutique qui a switché vers une boutique additionnelle.
+      final boutiqueId = UserController.to.scopeBoutiqueId;
+      if (boutiqueId == null || boutiqueId.isEmpty) {
+        return const SizedBox.shrink();
+      }
 
-    return StreamBuilder<List<BoutiqueModel>>(
-      stream: BoutiqueRepository().watchScoped(scope: boutiqueId),
-      builder: (context, snapshot) {
+      return StreamBuilder<List<BoutiqueModel>>(
+        stream: BoutiqueRepository().watchScoped(scope: boutiqueId),
+        builder: (context, snapshot) {
         final boutique = snapshot.data?.firstOrNull;
         if (boutique == null) return const SizedBox.shrink();
         final status = SubscriptionStatus.from(boutique.subscriptionEndsAt);
@@ -91,7 +97,8 @@ class SubscriptionBadgeCard extends StatelessWidget {
           ),
         );
       },
-    );
+      );
+    });
   }
 }
 

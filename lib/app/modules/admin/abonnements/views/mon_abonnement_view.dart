@@ -46,8 +46,10 @@ class MonAbonnementView extends GetView<MonAbonnementController> {
               if (controller.historique.isEmpty)
                 _EmptyHistorique()
               else
-                ...controller.historique
-                    .map((a) => _AbonnementTile(abonnement: a)),
+                ...controller.historique.map((a) => _AbonnementTile(
+                      abonnement: a,
+                      boutiqueNom: boutique.nom,
+                    )),
             ],
           );
         }),
@@ -163,7 +165,11 @@ class _SectionTitle extends StatelessWidget {
 
 class _AbonnementTile extends StatelessWidget {
   final AbonnementModel abonnement;
-  const _AbonnementTile({required this.abonnement});
+  final String boutiqueNom;
+  const _AbonnementTile({
+    required this.abonnement,
+    required this.boutiqueNom,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -189,6 +195,30 @@ class _AbonnementTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Nom de la boutique en première ligne — utile pour un
+                  // admin multi-boutique qui consulte l'historique de la
+                  // boutique active.
+                  Row(
+                    children: [
+                      Icon(Icons.store_rounded,
+                          size: 14,
+                          color: AppColors.greyText(context, 700)),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          boutiqueNom,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.greyText(context, 800),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
                       Text(

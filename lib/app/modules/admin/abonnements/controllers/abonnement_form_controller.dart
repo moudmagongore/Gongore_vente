@@ -28,12 +28,25 @@ class AbonnementFormController extends GetxController {
       const AbonnementParamsModel().obs;
   final RxBool isSaving = false.obs;
 
-  /// Dernier paiement enregistré pour la boutique sélectionnée.
+  /// Liste complète des paiements de la boutique sélectionnée, du plus
+  /// récent au plus ancien. Sert à afficher l'historique et à permettre
+  /// l'édition / suppression individuelle de chaque paiement.
+  final RxList<AbonnementModel> historyAbonnements =
+      <AbonnementModel>[].obs;
+  StreamSubscription<List<AbonnementModel>>? _historySub;
+
+  /// Raccourci : dernier paiement (premier de la liste triée desc).
   /// Affiché dans la fiche pour que le super-admin voie immédiatement
-  /// les données exactes du dernier abonnement (montant, période, dates,
-  /// note) — utile pour vérifier ou renouveler à l'identique.
-  final Rxn<AbonnementModel> latestAbonnement = Rxn<AbonnementModel>();
-  StreamSubscription<List<AbonnementModel>>? _latestSub;
+  /// les données exactes du dernier abonnement.
+  AbonnementModel? get latestAbonnement =>
+      historyAbonnements.isEmpty ? null : historyAbonnements.first;
+
+  /// Quand non-null, le formulaire est en mode ÉDITION d'un paiement
+  /// existant (au lieu d'en créer un nouveau). Le `save()` appelle
+  /// `update` au lieu de `create`, la boutique est verrouillée, et un
+  /// bouton "Supprimer" apparaît dans l'UI.
+  final Rxn<AbonnementModel> editing = Rxn<AbonnementModel>();
+  bool get isEditing => editing.value != null;
 
   /// Drapeau interne : quand on pré-remplit le formulaire avec les valeurs
   /// du dernier paiement, on doit éviter que les listeners `ever(periode)`
@@ -76,26 +89,33 @@ class AbonnementFormController extends GetxController {
     }
   }
 
-  /// Appelé à chaque changement de boutique : abonne au flux du dernier
-  /// paiement de cette boutique et pré-remplit le formulaire (période,
-  /// montant exact, note) avec les valeurs du dernier abonnement trouvé.
+  /// Appelé à chaque changement de boutique : abonne au flux des paiements
+  /// de cette boutique. Tant qu'on n'est PAS en mode édition, pré-remplit
+  /// aussi le formulaire avec les valeurs exactes du dernier paiement
+  /// (période, montant, note). En mode édition, le formulaire affiche les
+  /// valeurs de `editing` et ne doit pas être écrasé par le dernier
+  /// paiement.
   void _onBoutiqueChanged(String? bid) {
-    _latestSub?.cancel();
-    _latestSub = null;
+    _historySub?.cancel();
+    _historySub = null;
     if (bid == null || bid.isEmpty) {
-      latestAbonnement.value = null;
+      historyAbonnements.clear();
       _refillMontant(force: false);
       return;
     }
-    _latestSub = _aboRepo.watchByBoutique(bid).listen((list) {
+    _historySub = _aboRepo.watchByBoutique(bid).listen((list) {
+      historyAbonnements.assignAll(list);
+
+      // En mode édition, on ne touche pas au formulaire — les champs
+      // reflètent le paiement en cours d'édition.
+      if (isEditing) return;
+
       if (list.isEmpty) {
-        latestAbonnement.value = null;
         // Pas de précédent paiement : retombe sur le tarif standard.
         _refillMontant(force: false);
         return;
       }
       final latest = list.first; // déjà trié par dateFin desc
-      latestAbonnement.value = latest;
 
       // Pré-remplit période + montant + note avec les valeurs EXACTES.
       // Le drapeau évite que l'écouteur `ever(periode)` n'écrase le
@@ -125,7 +145,7 @@ class AbonnementFormController extends GetxController {
 
   @override
   void onClose() {
-    _latestSub?.cancel();
+    _historySub?.cancel();
     montantCtrl.dispose();
     noteCtrl.dispose();
     super.onClose();
@@ -141,6 +161,41 @@ class AbonnementFormController extends GetxController {
     return null;
   }
 
+  /// Bascule le formulaire en mode ÉDITION pour le paiement passé.
+  /// Charge ses valeurs exactes dans les champs et verrouille la boutique.
+  void startEdit(AbonnementModel abo) {
+    editing.value = abo;
+    _suppressMontantRefill = true;
+    boutiqueId.value = abo.boutiqueId;
+    if (periode.value != abo.periode) {
+      periode.value = abo.periode;
+    }
+    montantCtrl.text = abo.montant.toStringAsFixed(0);
+    noteCtrl.text = abo.note ?? '';
+    _suppressMontantRefill = false;
+  }
+
+  /// Quitte le mode édition et restaure le pré-remplissage à partir du
+  /// dernier paiement de la boutique (comportement de création).
+  void cancelEdit() {
+    editing.value = null;
+    // Force le re-pré-remplissage depuis le dernier paiement de la boutique
+    // (qui peut être différent de celui qu'on éditait).
+    final latest = latestAbonnement;
+    if (latest != null) {
+      _suppressMontantRefill = true;
+      if (periode.value != latest.periode) {
+        periode.value = latest.periode;
+      }
+      montantCtrl.text = latest.montant.toStringAsFixed(0);
+      noteCtrl.text = latest.note ?? '';
+      _suppressMontantRefill = false;
+    } else {
+      noteCtrl.text = '';
+      _refillMontant(force: false);
+    }
+  }
+
   Future<void> save() async {
     if (!formKey.currentState!.validate()) return;
     final bid = boutiqueId.value;
@@ -150,8 +205,31 @@ class AbonnementFormController extends GetxController {
     }
     final montant =
         double.parse(montantCtrl.text.trim().replaceAll(',', '.'));
+    final note =
+        noteCtrl.text.trim().isEmpty ? null : noteCtrl.text.trim();
+
     isSaving.value = true;
     try {
+      final editingAbo = editing.value;
+      if (editingAbo != null) {
+        // MODE ÉDITION : update + recompute boutique.subscriptionEndsAt
+        await _aboRepo.update(
+          id: editingAbo.id,
+          periode: periode.value,
+          montant: montant,
+          devise: devise,
+          note: note,
+        );
+        Get.back();
+        Get.snackbar(
+          'Paiement modifié',
+          '${selectedBoutique?.nom ?? 'Boutique'} — ${periode.value.label}',
+          snackPosition: SnackPosition.TOP,
+        );
+        return;
+      }
+
+      // MODE CRÉATION : create + extension de l'abonnement boutique
       final user = UserController.to.user;
       if (user == null) throw StateError('Utilisateur non connecté');
       await _aboRepo.create(
@@ -160,7 +238,7 @@ class AbonnementFormController extends GetxController {
         montant: montant,
         devise: devise,
         enregistrePar: user.id,
-        note: noteCtrl.text.trim().isEmpty ? null : noteCtrl.text.trim(),
+        note: note,
       );
       Get.back();
       Get.snackbar(
@@ -172,6 +250,49 @@ class AbonnementFormController extends GetxController {
       _snackError('Erreur : $e');
     } finally {
       isSaving.value = false;
+    }
+  }
+
+  /// Supprime le paiement passé après confirmation. Recalcule
+  /// `boutique.subscriptionEndsAt` dans la même transaction. Si le
+  /// paiement supprimé était celui en cours d'édition, on quitte le
+  /// mode édition pour repasser en création.
+  Future<void> deleteAbonnement(AbonnementModel abo) async {
+    final ok = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Supprimer ce paiement ?'),
+        content: Text(
+          'Le paiement de ${abo.montant.toStringAsFixed(0)} ${abo.devise} '
+          '(${abo.periode.label}) sera supprimé. La date de fin '
+          'd\'abonnement de la boutique sera recalculée automatiquement.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Get.back(result: true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      await _aboRepo.delete(abo.id);
+      if (editing.value?.id == abo.id) {
+        cancelEdit();
+      }
+      Get.snackbar(
+        'Paiement supprimé',
+        'Date de fin recalculée pour la boutique.',
+        snackPosition: SnackPosition.TOP,
+      );
+    } catch (e) {
+      _snackError('Erreur : $e');
     }
   }
 
