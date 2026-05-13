@@ -10,6 +10,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 import '../services/subscription_guard.dart';
 import '../services/user_controller.dart';
+import '../services/user_manual_pdf_service.dart';
 import 'sign_out_dialog.dart';
 
 class AdminDrawer extends StatelessWidget {
@@ -236,6 +237,25 @@ class AdminDrawer extends StatelessWidget {
                         onTap: () {
                           Navigator.of(ctx).pop();
                           Get.toNamed(AppRoutes.parametres);
+                        },
+                      ),
+                    ),
+                    Builder(
+                      builder: (ctx) => ListTile(
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.zero,
+                        ),
+                        leading: const Icon(Icons.menu_book_outlined),
+                        title: const Text(
+                          'Manuel utilisateur',
+                          style: TextStyle(
+                            fontFamily: AppTheme.fontFamily,
+                            fontWeight: FontWeight.normal,
+                          ),
+                        ),
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          UserManualPdfService.openAndPreview();
                         },
                       ),
                     ),

@@ -18,12 +18,14 @@ Future<void> sharePdfBytes({
   required Uint8List bytes,
   required String filename,
   String previewTitle = 'Aperçu',
+  double dpi = 400,
 }) async {
   await Get.to<void>(
     () => PdfPreviewScreen(
       bytes: bytes,
       filename: filename,
       title: previewTitle,
+      dpi: dpi,
     ),
   );
 }
