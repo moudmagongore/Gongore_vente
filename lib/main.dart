@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +12,7 @@ import 'app/core/services/auth_service.dart';
 import 'app/core/services/biometric_service.dart';
 import 'app/core/services/firestore_service.dart';
 import 'app/core/services/user_controller.dart';
+import 'app/routes/app_routes.dart';
 import 'app/routes/app_pages.dart';
 import 'app/theme/app_theme.dart';
 import 'app/theme/theme_controller.dart';
@@ -59,14 +62,45 @@ class GongoreApp extends StatelessWidget {
         initialRoute: AppPages.initial,
         getPages: AppPages.routes,
         defaultTransition: Transition.cupertino,
+        routingCallback: (routing) {
+          if (routing != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              themeController.currentRoute.value = routing.current;
+            });
+          }
+        },
         // Force NunitoSans à hériter sur tous les `Text` avec un TextStyle
         // custom qui ne précise pas la fontFamily (boutons, sous-titres,
         // headers de drawer custom, etc.). Sans ce wrap, les TextStyle
         // construits inline cassent l'héritage du theme.
-        builder: (context, child) => DefaultTextStyle.merge(
-          style: const TextStyle(fontFamily: AppTheme.fontFamily),
-          child: child ?? const SizedBox.shrink(),
-        ),
+        builder: (context, child) {
+          final appChild = child ?? const SizedBox.shrink();
+
+          return Obx(() {
+            final currentRoute = themeController.currentRoute.value;
+            final isExcluded = currentRoute == AppRoutes.splash || currentRoute == '/pdf-preview';
+            
+            Widget currentChild = appChild;
+
+            if (Platform.isAndroid && !isExcluded) {
+              currentChild = Container(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                child: SafeArea(
+                  top: false,
+                  bottom: true,
+                  left: false,
+                  right: false,
+                  child: appChild,
+                ),
+              );
+            }
+
+            return DefaultTextStyle.merge(
+              style: const TextStyle(fontFamily: AppTheme.fontFamily),
+              child: currentChild,
+            );
+          });
+        },
       ),
     );
   }

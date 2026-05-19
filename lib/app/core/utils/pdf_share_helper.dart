@@ -27,5 +27,6 @@ Future<void> sharePdfBytes({
       title: previewTitle,
       dpi: dpi,
     ),
+    routeName: '/pdf-preview',
   );
 }

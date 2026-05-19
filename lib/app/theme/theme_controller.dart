@@ -11,6 +11,7 @@ class ThemeController extends GetxController {
   // compris les widgets qui utilisent les getters adaptatifs comme
   // AppColors.primary(context) / AppColors.greyText).
   late final Rx<ThemeMode> mode = _loadInitialMode().obs;
+  final currentRoute = '/'.obs;
 
   ThemeMode _loadInitialMode() {
     final saved = _box.read<String>(_storageKey);
