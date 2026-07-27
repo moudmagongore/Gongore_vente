@@ -8,6 +8,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 import '../services/user_controller.dart';
 import '../services/user_manual_pdf_service.dart';
+import 'drawer_open_guard.dart';
 import 'sign_out_dialog.dart';
 
 class VendeurDrawer extends StatelessWidget {
@@ -17,7 +18,11 @@ class VendeurDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      child: Obx(() {
+      // DrawerOpenGuard : ignore les taps tant que le drawer n'a pas fini de
+      // s'ouvrir. Sans ça, un tap qui arrive pendant le slide-in atterrit sur
+      // le contenu du drawer et déclenche un item au hasard (voir le widget).
+      child: DrawerOpenGuard(
+        child: Obx(() {
         final user = UserController.to.user;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -238,7 +243,8 @@ class VendeurDrawer extends StatelessWidget {
             ),
           ],
         );
-      }),
+        }),
+      ),
     );
   }
 }
@@ -251,27 +257,21 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final topInset = MediaQuery.of(context).padding.top;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        // Tap sur le header → ouvre "Mon compte" (édition de son propre profil).
-        onTap: () {
-          Navigator.of(context).pop();
-          final me = UserController.to.user;
-          if (me != null) {
-            Get.toNamed(AppRoutes.adminUserForm, arguments: me);
-          }
-        },
-        child: Container(
-          padding: EdgeInsets.fromLTRB(20, 20 + topInset, 20, 18),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [AppColors.primary(context), AppColors.primaryDark],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: Column(
+    // Header volontairement NON cliquable : il couvrait tout le coin
+    // haut-gauche (là où se trouve le bouton hamburger) et se déclenchait par
+    // erreur à l'ouverture du drawer, surtout sur tablette — le drawer se
+    // refermait aussitôt en poussant « Mon compte ».
+    // « Mon compte » reste accessible via l'item dédié de la liste ci-dessus.
+    return Container(
+      padding: EdgeInsets.fromLTRB(20, 20 + topInset, 20, 18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.primary(context), AppColors.primaryDark],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CircleAvatar(
@@ -325,8 +325,6 @@ class _Header extends StatelessWidget {
             ),
           ),
         ],
-      ),
-        ),
       ),
     );
   }
