@@ -49,5 +49,19 @@
 		<false/>
 		<key>NSFaceIDUsageDescription</key>
 		<string>Utilisez Face ID pour vous connecter rapidement à votre compte Gongoré.</string>
+		<!-- Schémas interrogés par canLaunchUrl (url_launcher) : sans cette
+		     liste, iOS répond toujours false et les liens support de la page
+		     de connexion / le lien store de la mise à jour forcée échouent. -->
+		<key>LSApplicationQueriesSchemes</key>
+		<array>
+			<string>tel</string>
+			<string>mailto</string>
+			<string>https</string>
+			<string>itms-apps</string>
+		</array>
+		<!-- L'app n'utilise que le chiffrement HTTPS standard : évite la
+		     question de conformité export à chaque build sur App Store Connect. -->
+		<key>ITSAppUsesNonExemptEncryption</key>
+		<false/>
 	</dict>
 </plist>

@@ -5,6 +5,10 @@ abstract class AppRoutes {
 
   static const splash = '/';
 
+  /// Présentation de première ouverture. Atteinte uniquement depuis le
+  /// splash, tant que [OnboardingService.hasSeen] est faux.
+  static const onboarding = '/onboarding';
+
   // Auth
   static const login = '/login';
   static const forgotPassword = '/forgot-password';

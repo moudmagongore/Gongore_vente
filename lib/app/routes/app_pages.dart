@@ -62,6 +62,8 @@ import '../modules/admin/users/views/users_list_view.dart';
 import '../modules/apropos/views/apropos_view.dart';
 import '../modules/auth/bindings/login_binding.dart';
 import '../modules/auth/views/login_view.dart';
+import '../modules/onboarding/bindings/onboarding_binding.dart';
+import '../modules/onboarding/views/onboarding_view.dart';
 import '../modules/parametres/views/parametres_view.dart';
 import '../modules/splash/bindings/splash_binding.dart';
 import '../modules/splash/views/splash_view.dart';
@@ -81,6 +83,16 @@ class AppPages {
       name: AppRoutes.splash,
       page: () => const SplashView(),
       binding: SplashBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.onboarding,
+      page: () => const OnboardingView(),
+      transitionDuration: Duration.zero,
+      binding: OnboardingBinding(),
+      // Fondu plutôt que le push cupertino par défaut : le splash et
+      // l'onboarding partagent le même dégradé, la transition doit être
+      // invisible.
+      transition: Transition.fadeIn,
     ),
     GetPage(
       name: AppRoutes.login,

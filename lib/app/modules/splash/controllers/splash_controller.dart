@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../../core/services/app_update_service.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/onboarding_service.dart';
 import '../../../core/services/subscription_guard.dart';
 import '../../../core/services/user_controller.dart';
 import '../../../core/widgets/force_update_dialog.dart';
@@ -36,9 +37,14 @@ class SplashController extends GetxController {
       return;
     }
 
+    // Pas de session : première ouverture après installation → onboarding,
+    // ensuite login. Le flag est posé par l'onboarding lui-même, qui
+    // enchaîne sur le login une fois parcouru ou passé.
     if (!AuthService.to.isLoggedIn) {
       await _waitMinDuration(stopwatch);
-      Get.offAllNamed(AppRoutes.login);
+      Get.offAllNamed(
+        OnboardingService.hasSeen ? AppRoutes.login : AppRoutes.onboarding,
+      );
       return;
     }
 
