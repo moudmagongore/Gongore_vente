@@ -78,7 +78,13 @@ class GongoreApp extends StatelessWidget {
 
           return Obx(() {
             final currentRoute = themeController.currentRoute.value;
-            final isExcluded = currentRoute == AppRoutes.splash || currentRoute == '/pdf-preview';
+            // L'onboarding est exclu comme le splash : son dégradé doit
+            // couvrir l'écran jusqu'au bord bas. Le wrapper ci-dessous
+            // peindrait sinon une bande opaque à la hauteur de la barre de
+            // navigation Android. L'écran gère lui-même son inset bas.
+            final isExcluded = currentRoute == AppRoutes.splash ||
+                currentRoute == AppRoutes.onboarding ||
+                currentRoute == '/pdf-preview';
             
             Widget currentChild = appChild;
 

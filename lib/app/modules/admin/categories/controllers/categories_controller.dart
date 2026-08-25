@@ -4,15 +4,53 @@ import 'package:get/get.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/boutique_model.dart';
 import '../../../../data/models/categorie_model.dart';
+import '../../../../data/models/produit_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/categorie_repository.dart';
+import '../../../../data/repositories/produit_repository.dart';
+
+/// Agrégat de stock d'une catégorie, recalculé à chaque snapshot produits.
+class CategorieStock {
+  /// Nombre de produits actifs rattachés à la catégorie.
+  final int nbProduits;
+
+  /// Somme des `quantiteStock` de ces produits (variantes incluses : le
+  /// champ est déjà le miroir de la somme des variantes).
+  final int quantite;
+
+  /// Produits à 0 (rupture).
+  final int nbRupture;
+
+  /// Produits sous ou au seuil d'alerte (mais > 0).
+  final int nbBas;
+
+  const CategorieStock({
+    this.nbProduits = 0,
+    this.quantite = 0,
+    this.nbRupture = 0,
+    this.nbBas = 0,
+  });
+
+  int get nbNormal => nbProduits - nbRupture - nbBas;
+  bool get isEmpty => nbProduits == 0;
+  bool get hasAlerte => nbRupture > 0 || nbBas > 0;
+}
 
 class CategoriesController extends GetxController {
   final CategorieRepository _repo = CategorieRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
+  final ProduitRepository _produitRepo = ProduitRepository();
 
   final RxList<CategorieModel> _all = <CategorieModel>[].obs;
   final RxList<BoutiqueModel> boutiques = <BoutiqueModel>[].obs;
+  final RxList<ProduitModel> _produits = <ProduitModel>[].obs;
+
+  /// Stock agrégé par `categorieId`. Recalculé une seule fois par snapshot
+  /// produits (et non par tuile) pour éviter un coût O(catégories × produits)
+  /// à chaque rebuild de la liste.
+  final RxMap<String, CategorieStock> stockParCategorie =
+      <String, CategorieStock>{}.obs;
+
   final RxBool isLoading = true.obs;
   final RxString search = ''.obs;
 
@@ -29,9 +67,37 @@ class CategoriesController extends GetxController {
     // Super-admin voit toutes ; admin de boutique : filtre côté Firestore
     _all.bindStream(_repo.watchAll(boutiqueId: scope));
     boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
+    // Pas de filtre `active` côté Firestore : pour le super-admin le scope
+    // est nul, et `where(active) + orderBy(nom)` sans boutiqueId n'a pas
+    // d'index composite. Les inactifs sont écartés dans _recalculerStock.
+    _produits.bindStream(_produitRepo.watchAll(boutiqueId: scope));
+    ever(_produits, (_) => _recalculerStock());
     debounce(_all, (_) => isLoading.value = false,
         time: const Duration(milliseconds: 200));
   }
+
+  void _recalculerStock() {
+    final acc = <String, CategorieStock>{};
+    for (final p in _produits) {
+      // Un produit désactivé ne doit pas gonfler le stock de la catégorie.
+      if (!p.active) continue;
+      final id = p.categorieId;
+      if (id == null || id.isEmpty) continue;
+      final cur = acc[id] ?? const CategorieStock();
+      final rupture = p.quantiteStock <= 0;
+      final bas = !rupture && p.quantiteStock <= p.seuilAlerte;
+      acc[id] = CategorieStock(
+        nbProduits: cur.nbProduits + 1,
+        quantite: cur.quantite + p.quantiteStock,
+        nbRupture: cur.nbRupture + (rupture ? 1 : 0),
+        nbBas: cur.nbBas + (bas ? 1 : 0),
+      );
+    }
+    stockParCategorie.assignAll(acc);
+  }
+
+  CategorieStock stockDe(String categorieId) =>
+      stockParCategorie[categorieId] ?? const CategorieStock();
 
   String boutiqueNom(String? id) {
     if (id == null || id.isEmpty) return '—';

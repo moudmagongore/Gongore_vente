@@ -22,6 +22,12 @@ import '../modules/admin/clients/bindings/clients_binding.dart';
 import '../modules/admin/clients/views/client_detail_view.dart';
 import '../modules/admin/clients/views/client_form_view.dart';
 import '../modules/admin/clients/views/clients_list_view.dart';
+import '../modules/admin/depenses/bindings/depenses_binding.dart';
+import '../modules/admin/depenses/bindings/nature_depense_form_binding.dart';
+import '../modules/admin/depenses/bindings/natures_depense_binding.dart';
+import '../modules/admin/depenses/views/depenses_list_view.dart';
+import '../modules/admin/depenses/views/nature_depense_form_view.dart';
+import '../modules/admin/depenses/views/natures_depense_list_view.dart';
 import '../modules/admin/fournisseurs/bindings/fournisseur_detail_binding.dart';
 import '../modules/admin/fournisseurs/bindings/fournisseur_form_binding.dart';
 import '../modules/admin/fournisseurs/bindings/fournisseurs_binding.dart';
@@ -260,6 +266,26 @@ class AppPages {
       page: () => const VenteDetailView(),
       binding: VenteDetailBinding(),
       middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.adminDepenses,
+      page: () => const DepensesListView(),
+      binding: DepensesBinding(),
+      // AuthGuard : admin comme gestionnaire déclarent des dépenses.
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.adminNaturesDepense,
+      page: () => const NaturesDepenseListView(),
+      binding: NaturesDepenseBinding(),
+      // Le référentiel des natures est paramétré par l'admin uniquement.
+      middlewares: [AdminGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.adminNatureDepenseForm,
+      page: () => const NatureDepenseFormView(),
+      binding: NatureDepenseFormBinding(),
+      middlewares: [AdminGuard()],
     ),
     GetPage(
       name: AppRoutes.adminRapports,

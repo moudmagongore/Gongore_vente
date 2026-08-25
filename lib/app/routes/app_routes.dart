@@ -42,6 +42,12 @@ abstract class AppRoutes {
   static const venteDetail = '/ventes/detail';
   static const adminRapports = '/admin/rapports';
 
+  // Dépenses : la déclaration est ouverte à l'admin comme au gestionnaire,
+  // le paramétrage des natures est réservé à l'admin de la boutique.
+  static const adminDepenses = '/admin/depenses';
+  static const adminNaturesDepense = '/admin/depenses/natures';
+  static const adminNatureDepenseForm = '/admin/depenses/natures/form';
+
   // Abonnements (super-admin)
   static const adminAbonnements = '/admin/abonnements';
   static const adminAbonnementForm = '/admin/abonnements/form';

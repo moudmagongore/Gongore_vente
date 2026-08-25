@@ -83,6 +83,13 @@ class RapportsView extends GetView<RapportsController> {
             _AchatsSection(c: controller),
             const SizedBox(height: 20),
 
+            // ====== Section Dépenses ======
+            const _SectionTitle(
+                label: 'Dépenses', icon: Icons.savings_outlined),
+            const SizedBox(height: 10),
+            _DepensesSection(c: controller),
+            const SizedBox(height: 20),
+
             // ====== Section Top fournisseurs ======
             const _SectionTitle(
                 label: 'Top fournisseurs',
@@ -140,6 +147,12 @@ class RapportsView extends GetView<RapportsController> {
           margePeriode: c.margePeriode,
           detteFournisseurPeriode: c.detteFournisseurPeriode,
           detteFournisseurGlobale: c.detteFournisseurGlobale,
+          nbDepenses: c.nbDepenses,
+          totalDepenses: c.totalDepenses,
+          resultatNet: c.resultatNet,
+          depensesParNature: c.depensesParNature
+              .map((d) => (nom: d.nom, nb: d.nb, total: d.total))
+              .toList(),
           topFournisseurs: c.topFournisseurs
               .map((t) =>
                   (nom: t.nom, nbAppros: t.nbAppros, total: t.total))
@@ -488,6 +501,16 @@ class _FinancierSection extends StatelessWidget {
                 _Row('Chiffre d\'affaires annulé',
                     Fmt.money(c.caAnnule, currency: 'GNF'),
                     color: c.caAnnule > 0 ? Colors.red : null),
+                const Divider(),
+                _Row('Dépenses de la période',
+                    Fmt.money(c.totalDepenses, currency: 'GNF'),
+                    color: c.totalDepenses > 0 ? AppColors.danger : null),
+                _Row('Résultat net estimé',
+                    Fmt.money(c.resultatNet, currency: 'GNF'),
+                    color: c.resultatNet >= 0
+                        ? AppColors.success
+                        : AppColors.danger,
+                    big: true),
               ],
             ),
           ),
@@ -650,6 +673,122 @@ class _AchatsSection extends StatelessWidget {
             ),
           ),
         ));
+  }
+}
+
+class _DepensesSection extends StatelessWidget {
+  final RapportsController c;
+  const _DepensesSection({required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final parNature = c.depensesParNature;
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            children: [
+              _Row(
+                'Total dépensé',
+                Fmt.money(c.totalDepenses, currency: 'GNF'),
+                color: AppColors.danger,
+                big: true,
+              ),
+              const Divider(),
+              _Row('Nombre de dépenses', '${c.nbDepenses}'),
+              _Row(
+                'Résultat net (bénéfice - dépenses)',
+                Fmt.money(c.resultatNet, currency: 'GNF'),
+                color: c.resultatNet >= 0
+                    ? AppColors.success
+                    : AppColors.danger,
+              ),
+              if (parNature.isNotEmpty) ...[
+                const Divider(),
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'PAR NATURE',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.6,
+                      color: AppColors.greyText(context, 700),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...parNature.take(10).map((n) {
+                  final pct = c.totalDepenses == 0
+                      ? 0.0
+                      : (n.total / c.totalDepenses) * 100;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                n.nom,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 12.5),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${pct.toStringAsFixed(1)} %',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.greyText(context, 600),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              Fmt.money(n.total, currency: 'GNF'),
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 5),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(3),
+                          child: LinearProgressIndicator(
+                            value: c.totalDepenses == 0
+                                ? 0
+                                : n.total / c.totalDepenses,
+                            minHeight: 5,
+                            backgroundColor:
+                                AppColors.danger.withValues(alpha: 0.10),
+                            valueColor: const AlwaysStoppedAnimation(
+                                AppColors.danger),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ] else ...[
+                const Divider(),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    'Aucune dépense sur cette période',
+                    style: TextStyle(color: AppColors.greyText(context, 600)),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    });
   }
 }
 

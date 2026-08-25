@@ -442,6 +442,71 @@ service cloud.firestore {
       allow update, delete: if isSuperAdmin();
     }
 
+    // ================== Natures de dépense (référentiel) ==================
+    // Politique : paramétrage du référentiel par l'ADMIN de la boutique
+    // (comme les catégories produit). Le gestionnaire le consomme en
+    // lecture seule depuis le formulaire de dépense. super-admin : accès
+    // complet sur n'importe quelle boutique.
+    match /naturesDepense/{nid} {
+      allow read: if isSuperAdmin()
+                  || (isAuthed() && userHasBoutique(resource.data.boutiqueId));
+
+      allow create: if isSuperAdmin()
+                    || (isAdmin() && createBoutiqueIdMatches());
+
+      allow update: if isSuperAdmin()
+                    || (isAdmin()
+                        && resourceBoutiqueIdMatches()
+                        && boutiqueIdNotChanged());
+
+      allow delete: if isSuperAdmin()
+                    || (isAdmin() && resourceBoutiqueIdMatches());
+    }
+
+    // ================== Dépenses ==================
+    // Politique : la déclaration est ouverte à l'ADMIN comme au
+    // GESTIONNAIRE de la boutique (contrairement aux ventes, réservées au
+    // gestionnaire, et au catalogue, réservé à l'admin).
+    //
+    // Contraintes à la création :
+    //   • `userId` doit être l'auteur réel (pas d'imputation à autrui)
+    //   • `montant` strictement positif
+    //
+    // Correction / suppression :
+    //   • admin de la boutique : sur toutes les dépenses de sa boutique
+    //   • gestionnaire : uniquement sur SES propres saisies
+    //   • `date`, `boutiqueId` et `userId` restent immuables (audit) —
+    //     seuls la nature, le montant et le commentaire sont éditables.
+    match /depenses/{did} {
+      allow read: if isSuperAdmin()
+                  || (isAuthed() && userHasBoutique(resource.data.boutiqueId));
+
+      allow create: if isSuperAdmin()
+                    || ((isAdmin() || isVendeur())
+                        && createBoutiqueIdMatches()
+                        && request.resource.data.userId == request.auth.uid
+                        && request.resource.data.montant is number
+                        && request.resource.data.montant > 0);
+
+      allow update: if isSuperAdmin()
+                    || ((isAdmin()
+                         || (isVendeur()
+                             && resource.data.userId == request.auth.uid))
+                        && resourceBoutiqueIdMatches()
+                        && request.resource.data.montant is number
+                        && request.resource.data.montant > 0
+                        && request.resource.data.diff(resource.data)
+                            .affectedKeys()
+                            .hasOnly(['natureId', 'natureNom', 'montant',
+                                      'commentaire']));
+
+      allow delete: if isSuperAdmin()
+                    || (isAdmin() && resourceBoutiqueIdMatches())
+                    || (isVendeur()
+                        && resourceBoutiqueIdMatches()
+                        && resource.data.userId == request.auth.uid);
+    }
+
     // ================== Compteurs (numéros séquentiels) ==================
     // Document ID = boutiqueId. Champs `ventes{ANNEE}`, `appros{ANNEE}`
     // incrémentés atomiquement dans les transactions correspondantes.

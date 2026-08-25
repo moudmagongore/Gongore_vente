@@ -3,12 +3,14 @@ import 'package:get/get.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/approvisionnement_model.dart';
 import '../../../../data/models/boutique_model.dart';
+import '../../../../data/models/depense_model.dart';
 import '../../../../data/models/fournisseur_model.dart';
 import '../../../../data/models/produit_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/models/vente_model.dart';
 import '../../../../data/repositories/approvisionnement_repository.dart';
 import '../../../../data/repositories/boutique_repository.dart';
+import '../../../../data/repositories/depense_repository.dart';
 import '../../../../data/repositories/fournisseur_repository.dart';
 import '../../../../data/repositories/produit_repository.dart';
 import '../../../../data/repositories/user_repository.dart';
@@ -24,6 +26,7 @@ class RapportsController extends GetxController {
   final ApprovisionnementRepository _approRepo =
       ApprovisionnementRepository();
   final FournisseurRepository _fournRepo = FournisseurRepository();
+  final DepenseRepository _depenseRepo = DepenseRepository();
 
   // ====== Filtres ======
   final Rx<PeriodePreset> preset = PeriodePreset.mois.obs;
@@ -40,6 +43,7 @@ class RapportsController extends GetxController {
   final RxList<UserModel> users = <UserModel>[].obs;
   final RxList<ProduitModel> produits = <ProduitModel>[].obs;
   final RxList<FournisseurModel> fournisseurs = <FournisseurModel>[].obs;
+  final RxList<DepenseModel> depenses = <DepenseModel>[].obs;
 
   final RxBool isLoading = true.obs;
 
@@ -134,6 +138,14 @@ class RapportsController extends GetxController {
       before: dateFin.value.add(const Duration(seconds: 1)),
       limit: 1000,
     ));
+    depenses.bindStream(_depenseRepo.watchAll(
+      boutiqueId: boutiqueId.value,
+      // Comme pour les appros : pas de filtre par utilisateur. Une dépense
+      // engage la boutique entière, pas le gestionnaire qui l'a saisie.
+      after: dateDebut.value,
+      before: dateFin.value.add(const Duration(seconds: 1)),
+      limit: 1000,
+    ));
     debounce(ventes, (_) => isLoading.value = false,
         time: const Duration(milliseconds: 250));
   }
@@ -209,6 +221,44 @@ class RapportsController extends GetxController {
               fournisseurId: e.key,
               nom: e.value.nom,
               nbAppros: e.value.nbAppros,
+              total: e.value.total,
+            ))
+        .toList()
+      ..sort((a, b) => b.total.compareTo(a.total));
+    return list;
+  }
+
+  // ====== Dépenses ======
+  int get nbDepenses => depenses.length;
+
+  double get totalDepenses =>
+      depenses.fold(0.0, (acc, d) => acc + d.montant);
+
+  /// Résultat net estimé = bénéfice sur ventes - dépenses de la période.
+  /// C'est le seul indicateur qui tienne compte des charges de la boutique
+  /// (loyer, salaires, transport...), le bénéfice seul n'étant qu'une marge
+  /// commerciale.
+  double get resultatNet => beneficeTotal - totalDepenses;
+
+  /// Répartition des dépenses par nature, de la plus lourde à la plus
+  /// légère. Le regroupement se fait sur `natureId` mais affiche le libellé
+  /// dénormalisé, pour que les natures supprimées restent lisibles.
+  List<({String natureId, String nom, int nb, double total})>
+      get depensesParNature {
+    final byNature = <String, ({String nom, int nb, double total})>{};
+    for (final d in depenses) {
+      final cur = byNature[d.natureId] ?? (nom: d.natureNom, nb: 0, total: 0.0);
+      byNature[d.natureId] = (
+        nom: cur.nom,
+        nb: cur.nb + 1,
+        total: cur.total + d.montant,
+      );
+    }
+    final list = byNature.entries
+        .map((e) => (
+              natureId: e.key,
+              nom: e.value.nom,
+              nb: e.value.nb,
               total: e.value.total,
             ))
         .toList()

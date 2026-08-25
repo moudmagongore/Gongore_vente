@@ -4,195 +4,412 @@
       "collectionGroup": "boutiques",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "active", "order": "ASCENDING"},
-        {"fieldPath": "nom", "order": "ASCENDING"}
+        {
+          "fieldPath": "active",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nom",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "ventes",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
-        {"fieldPath": "date", "order": "DESCENDING"}
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "ventes",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "vendeurId", "order": "ASCENDING"},
-        {"fieldPath": "date", "order": "DESCENDING"}
+        {
+          "fieldPath": "vendeurId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "ventes",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
-        {"fieldPath": "vendeurId", "order": "ASCENDING"},
-        {"fieldPath": "date", "order": "DESCENDING"}
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "vendeurId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "produits",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
-        {"fieldPath": "nom", "order": "ASCENDING"}
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nom",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "produits",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
-        {"fieldPath": "active", "order": "ASCENDING"},
-        {"fieldPath": "nom", "order": "ASCENDING"}
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "active",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nom",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "produits",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
-        {"fieldPath": "categorieId", "order": "ASCENDING"},
-        {"fieldPath": "nom", "order": "ASCENDING"}
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "categorieId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nom",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "categories",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
-        {"fieldPath": "nom", "order": "ASCENDING"}
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nom",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "mouvementsStock",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
-        {"fieldPath": "date", "order": "DESCENDING"}
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "mouvementsStock",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "produitId", "order": "ASCENDING"},
-        {"fieldPath": "date", "order": "DESCENDING"}
+        {
+          "fieldPath": "produitId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "users",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
-        {"fieldPath": "nom", "order": "ASCENDING"}
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nom",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "approvisionnements",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
-        {"fieldPath": "date", "order": "DESCENDING"}
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "approvisionnements",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
-        {"fieldPath": "fournisseurId", "order": "ASCENDING"},
-        {"fieldPath": "date", "order": "DESCENDING"}
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fournisseurId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "approvisionnements",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
-        {"fieldPath": "userId", "order": "ASCENDING"},
-        {"fieldPath": "date", "order": "DESCENDING"}
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "approvisionnements",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
-        {"fieldPath": "fournisseurId", "order": "ASCENDING"},
-        {"fieldPath": "statut", "order": "ASCENDING"},
-        {"fieldPath": "date", "order": "ASCENDING"}
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fournisseurId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "statut",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "reglements",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
-        {"fieldPath": "date", "order": "DESCENDING"}
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "reglements",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
-        {"fieldPath": "clientId", "order": "ASCENDING"},
-        {"fieldPath": "date", "order": "DESCENDING"}
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "clientId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "reglementsFournisseurs",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
-        {"fieldPath": "date", "order": "DESCENDING"}
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "reglementsFournisseurs",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
-        {"fieldPath": "fournisseurId", "order": "ASCENDING"},
-        {"fieldPath": "date", "order": "DESCENDING"}
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fournisseurId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fournisseurs",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
-        {"fieldPath": "nom", "order": "ASCENDING"}
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nom",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "clients",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
-        {"fieldPath": "nom", "order": "ASCENDING"}
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nom",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "ventes",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
-        {"fieldPath": "clientId", "order": "ASCENDING"},
-        {"fieldPath": "statut", "order": "ASCENDING"},
-        {"fieldPath": "date", "order": "ASCENDING"}
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "clientId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "statut",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "abonnements",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
-        {"fieldPath": "dateFin", "order": "DESCENDING"}
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dateFin",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "naturesDepense",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nom",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "depenses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "depenses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "natureId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     }
   ],

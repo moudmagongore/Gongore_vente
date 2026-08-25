@@ -7,7 +7,9 @@ import '../../data/repositories/abonnement_params_repository.dart';
 import '../../data/repositories/boutique_repository.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
+import '../constants/app_constants.dart';
 import '../services/user_controller.dart';
+import 'support_contact_block.dart';
 
 /// Bandeau d'avertissement affiché en haut du tableau de bord d'un admin
 /// ou d'un gestionnaire quand son abonnement entre en zone critique :
@@ -73,36 +75,59 @@ class _BannerCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: info.color.withValues(alpha: 0.45)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(info.icon, color: info.color, size: 22),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  info.title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                    color: info.color,
-                  ),
+          Row(
+            children: [
+              Icon(info.icon, color: info.color, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      info.title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                        color: info.color,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      info.message,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.greyText(context, 800),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  info.message,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.greyText(context, 800),
-                  ),
-                ),
-              ],
+              ),
+              // Chevron affiché uniquement quand le bandeau est cliquable
+              // (admin de boutique). Le gestionnaire le voit en lecture seule.
+              if (tappable)
+                Icon(Icons.chevron_right_rounded, color: info.color),
+            ],
+          ),
+          // Coordonnées de l'éditeur : le bandeau ne s'affiche que quand
+          // l'abonnement touche à sa fin, c'est précisément le moment où
+          // l'utilisateur doit pouvoir joindre Gongore App en un tap. Les
+          // puces sont cliquables et interceptent le geste avant l'InkWell
+          // du bandeau (hit-test le plus profond).
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Divider(
+              height: 1,
+              color: info.color.withValues(alpha: 0.30),
             ),
           ),
-          // Chevron affiché uniquement quand le bandeau est cliquable
-          // (admin de boutique). Le gestionnaire le voit en lecture seule.
-          if (tappable) Icon(Icons.chevron_right_rounded, color: info.color),
+          const SizedBox(height: 10),
+          SupportContactBlock(
+            accent: info.color,
+            intro: info.contactIntro,
+          ),
         ],
       ),
     );
@@ -125,11 +150,16 @@ class _WarningInfo {
   final Color color;
   final IconData icon;
 
+  /// Phrase d'accroche au-dessus des coordonnées du support, adaptée à la
+  /// situation (renouvellement à prévoir vs réactivation urgente).
+  final String contactIntro;
+
   const _WarningInfo({
     required this.title,
     required this.message,
     required this.color,
     required this.icon,
+    required this.contactIntro,
   });
 
   static _WarningInfo? compute({
@@ -152,6 +182,7 @@ class _WarningInfo {
         message: 'Il reste $j avant la fin de votre abonnement.',
         color: AppColors.warning,
         icon: Icons.warning_amber_rounded,
+        contactIntro: 'Pour renouveler, contactez ${AppConstants.appName} :',
       );
     }
 
@@ -168,6 +199,8 @@ class _WarningInfo {
             'Abonnement expiré. Il reste $j avant le blocage de la boutique.',
         color: AppColors.danger,
         icon: Icons.error_outline_rounded,
+        contactIntro:
+            'Réactivez votre abonnement — contactez ${AppConstants.appName} :',
       );
     }
     return null;

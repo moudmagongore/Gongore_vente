@@ -15,8 +15,14 @@ class OnboardingFooter extends GetView<OnboardingController> {
 
   @override
   Widget build(BuildContext context) {
+    // La vue laisse le bord bas non protégé pour que le dégradé aille
+    // jusqu'à l'écran ; c'est donc ici qu'on réserve la hauteur de la barre
+    // de navigation, afin que le CTA reste atteignable. Le minimum couvre le
+    // cas où l'inset est nul (navigation par gestes sur certains appareils).
+    final bottomInset = math.max(MediaQuery.viewPaddingOf(context).bottom, 16.0);
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(28, 0, 28, 24),
+      padding: EdgeInsets.fromLTRB(28, 0, 28, bottomInset),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

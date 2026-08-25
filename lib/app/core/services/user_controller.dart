@@ -74,6 +74,11 @@ class UserController extends GetxController {
   /// super-admin ou gestionnaire (vendeur OU admin avec alsoGestionnaire).
   bool get canPerformSales => isSuperAdmin || isVendeur;
 
+  /// Vrai si l'utilisateur peut DÉCLARER une dépense : super-admin, admin
+  /// de boutique ou gestionnaire. Le PARAMÉTRAGE des natures de dépense
+  /// reste, lui, réservé à l'admin (voir [canManageCatalog]).
+  bool get canDeclareDepense => isSuperAdmin || isAdmin || isVendeur;
+
   /// Boutique principale de l'utilisateur (admin/vendeur). null pour super-admin.
   /// Note : pour un admin multi-boutique, ne pas utiliser pour scoper les
   /// requêtes — préférer `scopeBoutiqueId` qui retourne la boutique active.

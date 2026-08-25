@@ -49,7 +49,7 @@ class LoginView extends GetView<LoginController> {
           // indicator iOS) pour que le blanc soit continu jusqu'en bas.
           SingleChildScrollView(
             physics: const ClampingScrollPhysics(),
-            padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
+            // padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
             child: ConstrainedBox(
               constraints: BoxConstraints(
                 minHeight: mq.size.height,

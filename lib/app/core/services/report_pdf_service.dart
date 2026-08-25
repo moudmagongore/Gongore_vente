@@ -30,6 +30,15 @@ class ReportData {
   final double detteFournisseurGlobale;
   final List<({String nom, int nbAppros, double total})> topFournisseurs;
 
+  // ====== Dépenses ======
+  final int nbDepenses;
+  final double totalDepenses;
+
+  /// Bénéfice sur ventes diminué des dépenses de la période.
+  final double resultatNet;
+
+  final List<({String nom, int nb, double total})> depensesParNature;
+
   final String devise;
 
   ReportData({
@@ -50,6 +59,10 @@ class ReportData {
     this.detteFournisseurPeriode = 0,
     this.detteFournisseurGlobale = 0,
     this.topFournisseurs = const [],
+    this.nbDepenses = 0,
+    this.totalDepenses = 0,
+    this.resultatNet = 0,
+    this.depensesParNature = const [],
     this.devise = 'GNF',
   });
 }
@@ -281,6 +294,78 @@ class ReportPdfService {
               ),
             ],
           ),
+          pw.SizedBox(height: 24),
+
+          // ====== Dépenses ======
+          pw.Text(
+            'Dépenses',
+            style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 10),
+          pw.Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _kpiBox(
+                'Total dépensé',
+                Fmt.money(data.totalDepenses, currency: data.devise),
+                PdfColors.red700,
+              ),
+              _kpiBox(
+                'Nombre de dépenses',
+                '${data.nbDepenses}',
+                PdfColors.indigo,
+              ),
+              _kpiBox(
+                'Résultat net estimé',
+                Fmt.money(data.resultatNet, currency: data.devise),
+                data.resultatNet >= 0
+                    ? PdfColors.green700
+                    : PdfColors.red700,
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 10),
+          if (data.depensesParNature.isEmpty)
+            pw.Text('Aucune dépense sur cette période',
+                style: pw.TextStyle(color: PdfColors.grey))
+          else
+            pw.TableHelper.fromTextArray(
+              headerStyle: pw.TextStyle(
+                fontWeight: pw.FontWeight.bold,
+                fontSize: 10,
+              ),
+              cellStyle: const pw.TextStyle(fontSize: 9),
+              cellAlignment: pw.Alignment.centerLeft,
+              cellAlignments: {
+                0: pw.Alignment.centerRight,
+                2: pw.Alignment.centerRight,
+                3: pw.Alignment.centerRight,
+                4: pw.Alignment.centerRight,
+              },
+              headerDecoration:
+                  const pw.BoxDecoration(color: PdfColors.grey200),
+              data: [
+                ['#', 'Nature', 'Nombre', 'Montant', '% du total'],
+                ...data.depensesParNature
+                    .take(20)
+                    .toList()
+                    .asMap()
+                    .entries
+                    .map((e) {
+                  final pct = data.totalDepenses == 0
+                      ? 0
+                      : (e.value.total / data.totalDepenses) * 100;
+                  return [
+                    '${e.key + 1}',
+                    e.value.nom,
+                    '${e.value.nb}',
+                    Fmt.money(e.value.total, currency: data.devise),
+                    '${pct.toStringAsFixed(1)} %',
+                  ];
+                }),
+              ],
+            ),
           pw.SizedBox(height: 24),
 
           // ====== Top fournisseurs ======

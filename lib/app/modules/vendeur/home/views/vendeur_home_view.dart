@@ -71,6 +71,12 @@ class VendeurHomeView extends GetView<VendeurHomeController> {
                   color: AppColors.secondary,
                   onTap: () => EncaissementGlobalSheet.open(context),
                 ),
+                const _ActionTile(
+                  icon: Icons.savings_outlined,
+                  label: 'Dépenses',
+                  color: AppColors.danger,
+                  route: AppRoutes.adminDepenses,
+                ),
               ],
             ),
             const SizedBox(height: 24),

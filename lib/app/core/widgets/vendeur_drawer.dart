@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../routes/app_routes.dart';
@@ -132,6 +133,12 @@ class VendeurDrawer extends StatelessWidget {
                       ],
                     ),
                     _Item(
+                      icon: Icons.savings_outlined,
+                      label: 'Dépenses',
+                      route: AppRoutes.adminDepenses,
+                      currentRoute: currentRoute,
+                    ),
+                    _Item(
                       icon: Icons.bar_chart_rounded,
                       label: 'Mes rapports',
                       route: AppRoutes.adminRapports,
@@ -152,6 +159,7 @@ class VendeurDrawer extends StatelessWidget {
                           ),
                         ),
                         onTap: () {
+                          HapticFeedback.vibrate();
                           Navigator.of(ctx).pop();
                           final me = UserController.to.user;
                           if (me != null) {
@@ -178,6 +186,7 @@ class VendeurDrawer extends StatelessWidget {
                           ),
                         ),
                         onTap: () {
+                          HapticFeedback.vibrate();
                           Navigator.of(ctx).pop();
                           Get.toNamed(AppRoutes.parametres);
                         },
@@ -197,6 +206,7 @@ class VendeurDrawer extends StatelessWidget {
                           ),
                         ),
                         onTap: () {
+                          HapticFeedback.vibrate();
                           Navigator.of(ctx).pop();
                           UserManualPdfService.openAndPreview();
                         },
@@ -216,6 +226,7 @@ class VendeurDrawer extends StatelessWidget {
                           ),
                         ),
                         onTap: () {
+                          HapticFeedback.vibrate();
                           Navigator.of(ctx).pop();
                           Get.toNamed(AppRoutes.apropos);
                         },
@@ -232,7 +243,10 @@ class VendeurDrawer extends StatelessWidget {
                   'Déconnexion',
                   style: TextStyle(color: Colors.red),
                 ),
-                onTap: () => confirmSignOut(ctx),
+                onTap: () {
+                  HapticFeedback.vibrate();
+                  confirmSignOut(ctx);
+                },
               ),
             ),
             // Marge basse uniquement sur Android (iOS gère son home indicator).
@@ -360,6 +374,7 @@ class _Item extends StatelessWidget {
       selected: selected,
       selectedTileColor: AppColors.primary(context).withValues(alpha: 0.08),
       onTap: () {
+        HapticFeedback.vibrate();
         Navigator.of(context).pop();
         if (selected) return;
         Get.offNamed(route);
@@ -406,6 +421,8 @@ class _ExpansionGroup extends StatelessWidget {
           ),
         ),
         initiallyExpanded: containsCurrent,
+        // Le déplié/replié d'une section est un clic comme un autre.
+        onExpansionChanged: (_) => HapticFeedback.vibrate(),
         childrenPadding: const EdgeInsets.only(left: 12),
         children: children,
       ),

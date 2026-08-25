@@ -16,6 +16,14 @@ abstract class FirestoreKeys {
   static const reglementsFournisseurs = 'reglementsFournisseurs';
   static const mouvementsStock = 'mouvementsStock';
 
+  /// Natures de dépense paramétrées par l'admin d'une boutique
+  /// (loyer, électricité, transport, salaires, ...).
+  static const naturesDepense = 'naturesDepense';
+
+  /// Dépenses déclarées (une par sortie d'argent), rattachées à une
+  /// nature de dépense de la même boutique.
+  static const depenses = 'depenses';
+
   /// Compteurs par boutique pour la génération des numéros séquentiels.
   /// Document = boutiqueId, champs = "ventesYYYY", "approsYYYY".
   static const counters = 'counters';

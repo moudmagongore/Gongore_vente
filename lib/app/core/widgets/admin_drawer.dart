@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../data/models/boutique_model.dart';
@@ -156,6 +157,29 @@ class AdminDrawer extends StatelessWidget {
                         ),
                       ],
                     ),
+                    _ExpansionGroup(
+                      icon: Icons.savings_outlined,
+                      title: 'Dépenses',
+                      currentRoute: currentRoute,
+                      childrenRoutes: const [
+                        AppRoutes.adminDepenses,
+                        AppRoutes.adminNaturesDepense,
+                      ],
+                      children: [
+                        _Item(
+                          icon: Icons.receipt_long_rounded,
+                          label: 'Dépenses',
+                          route: AppRoutes.adminDepenses,
+                          currentRoute: currentRoute,
+                        ),
+                        _Item(
+                          icon: Icons.tune_rounded,
+                          label: 'Natures de dépense',
+                          route: AppRoutes.adminNaturesDepense,
+                          currentRoute: currentRoute,
+                        ),
+                      ],
+                    ),
                     _Item(
                       icon: Icons.bar_chart_rounded,
                       label: 'Rapports',
@@ -191,6 +215,7 @@ class AdminDrawer extends StatelessWidget {
                             ),
                           ),
                           onTap: () {
+                            HapticFeedback.vibrate();
                             Navigator.of(ctx).pop();
                             Get.toNamed(AppRoutes.monAbonnement);
                           },
@@ -214,6 +239,7 @@ class AdminDrawer extends StatelessWidget {
                           ),
                         ),
                         onTap: () {
+                          HapticFeedback.vibrate();
                           Navigator.of(ctx).pop();
                           final me = UserController.to.user;
                           if (me != null) {
@@ -240,6 +266,7 @@ class AdminDrawer extends StatelessWidget {
                           ),
                         ),
                         onTap: () {
+                          HapticFeedback.vibrate();
                           Navigator.of(ctx).pop();
                           Get.toNamed(AppRoutes.parametres);
                         },
@@ -259,6 +286,7 @@ class AdminDrawer extends StatelessWidget {
                           ),
                         ),
                         onTap: () {
+                          HapticFeedback.vibrate();
                           Navigator.of(ctx).pop();
                           UserManualPdfService.openAndPreview();
                         },
@@ -278,6 +306,7 @@ class AdminDrawer extends StatelessWidget {
                           ),
                         ),
                         onTap: () {
+                          HapticFeedback.vibrate();
                           Navigator.of(ctx).pop();
                           Get.toNamed(AppRoutes.apropos);
                         },
@@ -294,7 +323,10 @@ class AdminDrawer extends StatelessWidget {
                   'Déconnexion',
                   style: TextStyle(color: Colors.red),
                 ),
-                onTap: () => confirmSignOut(ctx),
+                onTap: () {
+                  HapticFeedback.vibrate();
+                  confirmSignOut(ctx);
+                },
               ),
             ),
             // Marge basse uniquement sur Android (iOS gère son home indicator).
@@ -451,7 +483,10 @@ class _BoutiqueSwitcher extends StatelessWidget {
     return Obx(() {
       final activeId = UserController.to.currentBoutiqueId.value;
       return InkWell(
-        onTap: () => _openSwitchSheet(context),
+        onTap: () {
+          HapticFeedback.vibrate();
+          _openSwitchSheet(context);
+        },
         borderRadius: BorderRadius.circular(10),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -571,6 +606,7 @@ class _BoutiqueSwitcher extends StatelessWidget {
                                 )
                               : null,
                           onTap: () async {
+                            HapticFeedback.vibrate();
                             if (isActive) {
                               Navigator.of(ctx).pop();
                               return;
@@ -683,6 +719,7 @@ class _Item extends StatelessWidget {
       selected: selected,
       selectedTileColor: AppColors.primary(context).withValues(alpha: 0.08),
       onTap: () {
+        HapticFeedback.vibrate();
         Navigator.of(context).pop();
         if (selected) return;
         Get.offNamed(route);
@@ -734,6 +771,8 @@ class _ExpansionGroup extends StatelessWidget {
           ),
         ),
         initiallyExpanded: containsCurrent,
+        // Le déplié/replié d'une section est un clic comme un autre.
+        onExpansionChanged: (_) => HapticFeedback.vibrate(),
         childrenPadding: const EdgeInsets.only(left: 12),
         children: children,
       ),
