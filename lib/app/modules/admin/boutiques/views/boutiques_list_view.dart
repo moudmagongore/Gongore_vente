@@ -31,32 +31,35 @@ class BoutiquesListView extends GetView<BoutiquesController> {
         ),
       ),
       drawer: const AdminDrawer(currentRoute: AppRoutes.adminBoutiques),
-      body: Column(
-        children: [
-          _FilterBar(controller: controller),
-          Expanded(
-            child: Obx(() {
-              if (controller.isLoading.value) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final list = controller.filtered;
-              if (list.isEmpty) {
-                return _EmptyState(hasSearch: controller.search.value.isNotEmpty);
-              }
-              return RefreshIndicator(
-                onRefresh: () async => Future.delayed(
-                  const Duration(milliseconds: 300),
-                ),
-                child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
-                  itemCount: list.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
-                  itemBuilder: (_, i) => _BoutiqueTile(boutique: list[i]),
-                ),
-              );
-            }),
-          ),
-        ],
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            _FilterBar(controller: controller),
+            Expanded(
+              child: Obx(() {
+                if (controller.isLoading.value) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final list = controller.filtered;
+                if (list.isEmpty) {
+                  return _EmptyState(hasSearch: controller.search.value.isNotEmpty);
+                }
+                return RefreshIndicator(
+                  onRefresh: () async => Future.delayed(
+                    const Duration(milliseconds: 300),
+                  ),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
+                    itemCount: list.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    itemBuilder: (_, i) => _BoutiqueTile(boutique: list[i]),
+                  ),
+                );
+              }),
+            ),
+          ],
+        ),
       ),
       floatingActionButton: controller.isSuperAdmin
           ? FloatingActionButton.extended(
@@ -83,13 +86,13 @@ class _FilterBar extends StatelessWidget {
         return Row(
           children: [
             _Chip(
-              label: 'Toutes (${controller.totalCount})',
+              label: 'Toutes',
               selected: f == null,
               onTap: () => controller.setFilter(null),
             ),
             const SizedBox(width: 8),
             _Chip(
-              label: 'Actives (${controller.activeCount})',
+              label: 'Actives',
               selected: f == true,
               onTap: () => controller.setFilter(true),
             ),
@@ -126,14 +129,14 @@ class _Chip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: selected
-              ? AppColors.primary
-              : AppColors.primary.withValues(alpha: 0.08),
+              ? AppColors.primary(context)
+              : AppColors.primary(context).withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Colors.white : AppColors.primary,
+            color: selected ? Colors.white : AppColors.primary(context),
             fontSize: 12,
             fontWeight: FontWeight.w600,
           ),
@@ -166,12 +169,12 @@ class _BoutiqueTile extends StatelessWidget {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
+                  color: AppColors.primary(context).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.store_rounded,
-                  color: AppColors.primary,
+                  color: AppColors.primary(context),
                 ),
               ),
               const SizedBox(width: 14),
@@ -227,7 +230,7 @@ class _BoutiqueTile extends StatelessWidget {
                             child: Text(
                               boutique.adresse!,
                               style: TextStyle(
-                                color: Colors.grey.shade700,
+                                color: AppColors.greyText(context, 700),
                                 fontSize: 12,
                               ),
                               maxLines: 1,
@@ -248,7 +251,7 @@ class _BoutiqueTile extends StatelessWidget {
                           Text(
                             boutique.telephone!,
                             style: TextStyle(
-                              color: Colors.grey.shade700,
+                              color: AppColors.greyText(context, 700),
                               fontSize: 12,
                             ),
                           ),
@@ -353,7 +356,7 @@ class _EmptyState extends StatelessWidget {
                   ? 'Aucune boutique ne correspond à votre recherche'
                   : 'Aucune boutique pour l\'instant',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(color: AppColors.greyText(context, 600)),
             ),
             if (!hasSearch) ...[
               const SizedBox(height: 8),
@@ -361,7 +364,7 @@ class _EmptyState extends StatelessWidget {
                 'Appuyez sur « Nouvelle boutique » pour commencer.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.grey.shade500,
+                  color: AppColors.greyText(context, 500),
                   fontSize: 12,
                 ),
               ),

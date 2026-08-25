@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/services/user_controller.dart';
 import '../../../../core/widgets/admin_drawer.dart';
+import '../../../../core/widgets/vendeur_drawer.dart';
 import '../../../../data/models/categorie_model.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../../theme/app_colors.dart';
@@ -12,6 +14,9 @@ class CategoriesListView extends GetView<CategoriesController> {
 
   @override
   Widget build(BuildContext context) {
+    // Gestion catalogue : super-admin (sans restriction) ou admin de
+    // boutique. Vendeur en lecture seule (pas de FAB ni d'actions tile).
+    final canEdit = UserController.to.canManageCatalog;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Catégories'),
@@ -30,35 +35,69 @@ class CategoriesListView extends GetView<CategoriesController> {
           ),
         ),
       ),
-      drawer: const AdminDrawer(currentRoute: AppRoutes.adminCategories),
-      body: Obx(() {
-        if (controller.isLoading.value) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final list = controller.filtered;
-        if (list.isEmpty) {
-          return _Empty(hasSearch: controller.search.value.isNotEmpty);
-        }
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-          itemCount: list.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 10),
-          itemBuilder: (_, i) => _CategorieTile(categorie: list[i]),
-        );
-      }),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Get.toNamed(AppRoutes.adminCategorieForm),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Nouvelle catégorie'),
+      drawer: canEdit
+          ? const AdminDrawer(currentRoute: AppRoutes.adminCategories)
+          : const VendeurDrawer(currentRoute: AppRoutes.adminCategories),
+      body: SafeArea(
+        top: false,
+        bottom: false,
+        child: Column(
+          children: [
+            // Filtre boutique : visible uniquement pour le super-admin.
+            Obx(() {
+              if (!controller.isSuperAdmin ||
+                  controller.boutiques.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: _BoutiqueFilterChip(
+                    value: controller.filterBoutiqueId.value,
+                    boutiques: controller.boutiques,
+                    onChanged: (v) => controller.filterBoutiqueId.value = v,
+                  ),
+                ),
+              );
+            }),
+            Expanded(
+              child: Obx(() {
+                if (controller.isLoading.value) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final list = controller.filtered;
+                if (list.isEmpty) {
+                  return _Empty(hasSearch: controller.search.value.isNotEmpty);
+                }
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+                  itemCount: list.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+                  itemBuilder: (_, i) =>
+                      _CategorieTile(categorie: list[i], canEdit: canEdit),
+                );
+              }),
+            ),
+          ],
+        ),
       ),
+      floatingActionButton: canEdit
+          ? FloatingActionButton.extended(
+              onPressed: () => Get.toNamed(AppRoutes.adminCategorieForm),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Nouvelle catégorie'),
+            )
+          : null,
     );
   }
 }
 
 class _CategorieTile extends StatelessWidget {
   final CategorieModel categorie;
+  final bool canEdit;
 
-  const _CategorieTile({required this.categorie});
+  const _CategorieTile({required this.categorie, required this.canEdit});
 
   @override
   Widget build(BuildContext context) {
@@ -66,10 +105,12 @@ class _CategorieTile extends StatelessWidget {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: () => Get.toNamed(
-          AppRoutes.adminCategorieForm,
-          arguments: categorie,
-        ),
+        onTap: canEdit
+            ? () => Get.toNamed(
+                  AppRoutes.adminCategorieForm,
+                  arguments: categorie,
+                )
+            : null,
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
@@ -111,7 +152,7 @@ class _CategorieTile extends StatelessWidget {
                       Text(
                         categorie.description!,
                         style: TextStyle(
-                          color: Colors.grey.shade600,
+                          color: AppColors.greyText(context, 600),
                           fontSize: 12,
                         ),
                         maxLines: 2,
@@ -121,17 +162,19 @@ class _CategorieTile extends StatelessWidget {
                   ],
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.edit_outlined),
-                onPressed: () => Get.toNamed(
-                  AppRoutes.adminCategorieForm,
-                  arguments: categorie,
+              if (canEdit) ...[
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () => Get.toNamed(
+                    AppRoutes.adminCategorieForm,
+                    arguments: categorie,
+                  ),
                 ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.red),
-                onPressed: () => controller.confirmDelete(categorie),
-              ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  onPressed: () => controller.confirmDelete(categorie),
+                ),
+              ],
             ],
           ),
         ),
@@ -149,24 +192,24 @@ class _BoutiqueBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.10),
+        color: AppColors.primary(context).withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             Icons.store_rounded,
             size: 12,
-            color: AppColors.primary,
+            color: AppColors.primary(context),
           ),
           const SizedBox(width: 4),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: AppColors.primary,
+              color: AppColors.primary(context),
             ),
           ),
         ],
@@ -199,7 +242,7 @@ class _Empty extends StatelessWidget {
               hasSearch
                   ? 'Aucune catégorie ne correspond.'
                   : 'Aucune catégorie pour l\'instant.',
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(color: AppColors.greyText(context, 600)),
               textAlign: TextAlign.center,
             ),
             if (!hasSearch) ...[
@@ -207,11 +250,111 @@ class _Empty extends StatelessWidget {
               Text(
                 'Exemples : Boissons, Alimentaire, Cosmétiques...',
                 style: TextStyle(
-                  color: Colors.grey.shade500,
+                  color: AppColors.greyText(context, 500),
                   fontSize: 12,
                 ),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Chip de filtre boutique pour super-admin. Click → bottom sheet de
+/// sélection avec option "Toutes les boutiques".
+class _BoutiqueFilterChip extends StatelessWidget {
+  final String? value;
+  final List<dynamic> boutiques;
+  final void Function(String?) onChanged;
+  const _BoutiqueFilterChip({
+    required this.value,
+    required this.boutiques,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = boutiques.firstWhereOrNull((b) => b.id == value);
+    final label = selected?.nom ?? 'Toutes boutiques';
+    return InputChip(
+      avatar: Icon(
+        Icons.store_rounded,
+        size: 16,
+        color: value != null
+            ? AppColors.primary(context)
+            : AppColors.greyText(context, 600),
+      ),
+      label: Text(label,
+          style: const TextStyle(fontSize: 12),
+          overflow: TextOverflow.ellipsis),
+      selected: value != null,
+      showCheckmark: false,
+      onPressed: () => _open(context),
+      onDeleted: value == null ? null : () => onChanged(null),
+      deleteIconColor: AppColors.greyText(context, 700),
+    );
+  }
+
+  void _open(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(
+                Icons.all_inclusive_rounded,
+                color: value == null ? AppColors.primary(ctx) : null,
+              ),
+              title: Text(
+                'Toutes les boutiques',
+                style: TextStyle(
+                  fontWeight:
+                      value == null ? FontWeight.w700 : FontWeight.w500,
+                  color: value == null ? AppColors.primary(ctx) : null,
+                ),
+              ),
+              trailing: value == null
+                  ? Icon(Icons.check_rounded, color: AppColors.primary(ctx))
+                  : null,
+              onTap: () {
+                Navigator.of(ctx).pop();
+                onChanged(null);
+              },
+            ),
+            const Divider(height: 1),
+            ...boutiques.map((b) {
+              final isActive = b.id == value;
+              return ListTile(
+                leading: Icon(
+                  Icons.store_rounded,
+                  color: isActive ? AppColors.primary(ctx) : null,
+                ),
+                title: Text(
+                  b.nom,
+                  style: TextStyle(
+                    fontWeight:
+                        isActive ? FontWeight.w700 : FontWeight.w500,
+                    color: isActive ? AppColors.primary(ctx) : null,
+                  ),
+                ),
+                trailing: isActive
+                    ? Icon(Icons.check_rounded,
+                        color: AppColors.primary(ctx))
+                    : null,
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  onChanged(b.id);
+                },
+              );
+            }),
+            const SizedBox(height: 8),
           ],
         ),
       ),

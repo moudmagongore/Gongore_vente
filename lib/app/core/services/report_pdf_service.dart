@@ -2,11 +2,12 @@ import 'dart:typed_data';
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
 import '../../core/utils/format_helpers.dart';
 import '../../data/models/vente_model.dart';
 import '../constants/app_constants.dart';
+import '../utils/pdf_share_helper.dart';
+import 'pdf_theme_service.dart';
 
 class ReportData {
   final DateTime debut;
@@ -16,11 +17,19 @@ class ReportData {
   final int nbVentes;
   final int nbAnnulees;
   final double caTotal;
-  final double caMoyenne;
   final double benefice;
   final int nbArticles;
   final Map<ModePaiement, double> caParPaiement;
   final List<({String nom, int qte, double ca})> topProduits;
+
+  // ====== Achats ======
+  final int nbAppros;
+  final double totalAchats;
+  final double margePeriode;
+  final double detteFournisseurPeriode;
+  final double detteFournisseurGlobale;
+  final List<({String nom, int nbAppros, double total})> topFournisseurs;
+
   final String devise;
 
   ReportData({
@@ -31,23 +40,47 @@ class ReportData {
     required this.nbVentes,
     required this.nbAnnulees,
     required this.caTotal,
-    required this.caMoyenne,
     required this.benefice,
     required this.nbArticles,
     required this.caParPaiement,
     required this.topProduits,
+    this.nbAppros = 0,
+    this.totalAchats = 0,
+    this.margePeriode = 0,
+    this.detteFournisseurPeriode = 0,
+    this.detteFournisseurGlobale = 0,
+    this.topFournisseurs = const [],
     this.devise = 'GNF',
   });
 }
 
 class ReportPdfService {
   static Future<Uint8List> build(ReportData data) async {
-    final pdf = pw.Document();
+    final pdf = pw.Document(theme: await PdfThemeService.theme);
 
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.fromLTRB(28, 28, 28, 28),
+        // Pied de page sur chaque page : signature « © <année> Gongore »
+        // + numéro de page courant.
+        footer: (ctx) => pw.Container(
+          alignment: pw.Alignment.center,
+          padding: const pw.EdgeInsets.only(top: 8),
+          child: pw.Column(
+            children: [
+              PdfThemeService.signatureFooter(fontSize: 8),
+              pw.SizedBox(height: 2),
+              pw.Text(
+                'Page ${ctx.pageNumber} / ${ctx.pagesCount}',
+                style: pw.TextStyle(
+                  fontSize: 7,
+                  color: PdfColors.grey600,
+                ),
+              ),
+            ],
+          ),
+        ),
         build: (ctx) => [
           // ====== En-tête ======
           pw.Container(
@@ -73,7 +106,7 @@ class ReportPdfService {
                 ),
                 pw.SizedBox(height: 6),
                 pw.Text(
-                  'Période : ${Fmt.dateShort(data.debut)} → ${Fmt.dateShort(data.fin)}',
+                  'Période : du ${Fmt.dateShort(data.debut)} au ${Fmt.dateShort(data.fin)}',
                   style: const pw.TextStyle(fontSize: 10),
                 ),
                 if (data.boutiqueNom != null)
@@ -83,7 +116,7 @@ class ReportPdfService {
                   ),
                 if (data.vendeurNom != null)
                   pw.Text(
-                    'Vendeur : ${data.vendeurNom}',
+                    'Gestionnaire : ${data.vendeurNom}',
                     style: const pw.TextStyle(fontSize: 10),
                   ),
                 pw.Text(
@@ -116,11 +149,6 @@ class ReportPdfService {
                 PdfColors.green700,
               ),
               _kpiBox('Ventes validées', '${data.nbVentes}', PdfColors.indigo),
-              _kpiBox(
-                'Panier moyen',
-                Fmt.money(data.caMoyenne, currency: data.devise),
-                PdfColors.orange700,
-              ),
               _kpiBox(
                 'Articles vendus',
                 '${data.nbArticles}',
@@ -210,6 +238,92 @@ class ReportPdfService {
                     ),
               ],
             ),
+          pw.SizedBox(height: 24),
+
+          // ====== Achats ======
+          pw.Text(
+            'Achats & fournisseurs',
+            style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 10),
+          pw.Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _kpiBox(
+                'Total achats',
+                Fmt.money(data.totalAchats, currency: data.devise),
+                PdfColors.deepPurple,
+              ),
+              _kpiBox(
+                'Approvisionnements',
+                '${data.nbAppros}',
+                PdfColors.indigo,
+              ),
+              _kpiBox(
+                'Marge brute (CA - achats)',
+                Fmt.money(data.margePeriode, currency: data.devise),
+                data.margePeriode >= 0
+                    ? PdfColors.green700
+                    : PdfColors.red700,
+              ),
+              _kpiBox(
+                'Dette appros période',
+                Fmt.money(data.detteFournisseurPeriode,
+                    currency: data.devise),
+                PdfColors.orange700,
+              ),
+              _kpiBox(
+                'Dette fournisseur totale',
+                Fmt.money(data.detteFournisseurGlobale,
+                    currency: data.devise),
+                PdfColors.red700,
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 24),
+
+          // ====== Top fournisseurs ======
+          pw.Text(
+            'Top fournisseurs',
+            style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 8),
+          if (data.topFournisseurs.isEmpty)
+            pw.Text('Aucun appro sur cette période',
+                style: pw.TextStyle(color: PdfColors.grey))
+          else
+            pw.TableHelper.fromTextArray(
+              headerStyle: pw.TextStyle(
+                fontWeight: pw.FontWeight.bold,
+                fontSize: 10,
+              ),
+              cellStyle: const pw.TextStyle(fontSize: 9),
+              cellAlignment: pw.Alignment.centerLeft,
+              cellAlignments: {
+                0: pw.Alignment.centerRight,
+                2: pw.Alignment.centerRight,
+                3: pw.Alignment.centerRight,
+              },
+              headerDecoration:
+                  const pw.BoxDecoration(color: PdfColors.grey200),
+              data: [
+                ['#', 'Fournisseur', 'Appros', 'Total acheté'],
+                ...data.topFournisseurs
+                    .take(20)
+                    .toList()
+                    .asMap()
+                    .entries
+                    .map(
+                      (e) => [
+                        '${e.key + 1}',
+                        e.value.nom,
+                        '${e.value.nbAppros}',
+                        Fmt.money(e.value.total, currency: data.devise),
+                      ],
+                    ),
+              ],
+            ),
         ],
       ),
     );
@@ -253,11 +367,12 @@ class ReportPdfService {
 
   static Future<void> sharePrint(ReportData data) async {
     final bytes = await build(data);
-    await Printing.layoutPdf(
-      onLayout: (_) async => bytes,
-      name:
+    await sharePdfBytes(
+      bytes: bytes,
+      filename:
           'Rapport_${Fmt.dateShort(data.debut)}_${Fmt.dateShort(data.fin)}.pdf'
               .replaceAll('/', '-'),
+      previewTitle: 'Rapport',
     );
   }
 }

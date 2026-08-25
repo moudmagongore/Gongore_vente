@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../../../../core/services/report_pdf_service.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../core/widgets/admin_drawer.dart';
+import '../../../../core/widgets/vendeur_drawer.dart';
 import '../../../../data/models/vente_model.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../../theme/app_colors.dart';
@@ -25,8 +26,13 @@ class RapportsView extends GetView<RapportsController> {
           ),
         ],
       ),
-      drawer: const AdminDrawer(currentRoute: AppRoutes.adminRapports),
-      body: Obx(() {
+      drawer: controller.isAnyAdmin
+          ? const AdminDrawer(currentRoute: AppRoutes.adminRapports)
+          : const VendeurDrawer(currentRoute: AppRoutes.adminRapports),
+      body: SafeArea(
+        top: false,
+        bottom: false,
+        child: Obx(() {
         if (controller.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -48,7 +54,7 @@ class RapportsView extends GetView<RapportsController> {
 
             // ====== Section Financier ======
             const _SectionTitle(
-                label: 'Financier', icon: Icons.attach_money_rounded),
+                label: 'Financier', icon: Icons.trending_up_rounded),
             const SizedBox(height: 10),
             _FinancierSection(c: controller),
             const SizedBox(height: 20),
@@ -67,9 +73,26 @@ class RapportsView extends GetView<RapportsController> {
                 icon: Icons.inventory_2_outlined),
             const SizedBox(height: 10),
             _TopProduitsSection(c: controller),
+            const SizedBox(height: 20),
+
+            // ====== Section Achats ======
+            const _SectionTitle(
+                label: 'Achats',
+                icon: Icons.move_to_inbox_rounded),
+            const SizedBox(height: 10),
+            _AchatsSection(c: controller),
+            const SizedBox(height: 20),
+
+            // ====== Section Top fournisseurs ======
+            const _SectionTitle(
+                label: 'Top fournisseurs',
+                icon: Icons.local_shipping_outlined),
+            const SizedBox(height: 10),
+            _TopFournisseursSection(c: controller),
           ],
         );
       }),
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _exporterPdf,
         icon: const Icon(Icons.picture_as_pdf_rounded),
@@ -106,12 +129,20 @@ class RapportsView extends GetView<RapportsController> {
           nbVentes: c.nbVentes,
           nbAnnulees: c.nbAnnulees,
           caTotal: c.caTotal,
-          caMoyenne: c.caMoyenne,
           benefice: c.beneficeTotal,
           nbArticles: c.nbArticlesVendus,
           caParPaiement: c.caParModePaiement,
           topProduits: c.topProduits
               .map((t) => (nom: t.nom, qte: t.qte, ca: t.ca))
+              .toList(),
+          nbAppros: c.nbAppros,
+          totalAchats: c.totalAchats,
+          margePeriode: c.margePeriode,
+          detteFournisseurPeriode: c.detteFournisseurPeriode,
+          detteFournisseurGlobale: c.detteFournisseurGlobale,
+          topFournisseurs: c.topFournisseurs
+              .map((t) =>
+                  (nom: t.nom, nbAppros: t.nbAppros, total: t.total))
               .toList(),
           devise: devise,
         ),
@@ -120,7 +151,7 @@ class RapportsView extends GetView<RapportsController> {
       Get.snackbar(
         'Erreur',
         'Export PDF impossible : $e',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
     }
   }
@@ -139,15 +170,15 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: AppColors.primary),
+        Icon(icon, size: 16, color: AppColors.primary(context)),
         const SizedBox(width: 8),
         Text(
           label.toUpperCase(),
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.6,
-            color: AppColors.lightTextMuted,
+            color: AppColors.greyText(context, 700),
           ),
         ),
       ],
@@ -222,9 +253,9 @@ class _PillTab extends StatelessWidget {
           padding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: selected ? AppColors.primary : Colors.transparent,
+            color: selected ? AppColors.primary(context) : Colors.transparent,
             border: Border.all(
-              color: selected ? AppColors.primary : unselectedBorder,
+              color: selected ? AppColors.primary(context) : unselectedBorder,
               width: 1,
             ),
             borderRadius: BorderRadius.circular(20),
@@ -309,7 +340,7 @@ class _DateBtn extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: AppColors.borderOf(context)),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
@@ -323,7 +354,7 @@ class _DateBtn extends StatelessWidget {
                 Text(
                   label,
                   style:
-                      TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                      TextStyle(fontSize: 10, color: AppColors.greyText(context, 600)),
                 ),
                 Text(
                   Fmt.dateShort(date),
@@ -346,55 +377,70 @@ class _FiltresRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(
-      () => Row(
-        children: [
-          if (c.isSuperAdmin) ...[
+      () {
+        // Le vendeur est verrouillé sur ses propres ventes : aucun filtre
+        // pertinent à afficher (boutique = la sienne, vendeur = lui-même).
+        if (c.isVendeur) return const SizedBox.shrink();
+        return Row(
+          children: [
+            if (c.isSuperAdmin) ...[
+              Expanded(
+                child: DropdownButtonFormField<String?>(
+                  initialValue: c.boutiqueId.value,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Boutique',
+                    isDense: true,
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('Toutes'),
+                    ),
+                    ...c.boutiques.map(
+                      (b) => DropdownMenuItem(
+                        value: b.id,
+                        child:
+                            Text(b.nom, overflow: TextOverflow.ellipsis),
+                      ),
+                    ),
+                  ],
+                  onChanged: (v) => c.boutiqueId.value = v,
+                ),
+              ),
+              const SizedBox(width: 10),
+            ],
             Expanded(
               child: DropdownButtonFormField<String?>(
-                initialValue: c.boutiqueId.value,
+                initialValue: c.vendeurId.value,
+                isExpanded: true,
                 decoration: const InputDecoration(
-                  labelText: 'Boutique',
+                  labelText: 'Gestionnaire',
                   isDense: true,
                 ),
                 items: [
                   const DropdownMenuItem<String?>(
                     value: null,
-                    child: Text('Toutes'),
+                    child: Text('Tous'),
                   ),
-                  ...c.boutiques.map(
-                    (b) => DropdownMenuItem(value: b.id, child: Text(b.nom)),
-                  ),
+                  ...c.users
+                      .where((u) =>
+                          c.isSuperAdmin ||
+                          u.boutiqueId == c.boutiqueId.value)
+                      .map(
+                        (u) => DropdownMenuItem(
+                          value: u.id,
+                          child:
+                              Text(u.nom, overflow: TextOverflow.ellipsis),
+                        ),
+                      ),
                 ],
-                onChanged: (v) => c.boutiqueId.value = v,
+                onChanged: (v) => c.vendeurId.value = v,
               ),
             ),
-            const SizedBox(width: 10),
           ],
-          Expanded(
-            child: DropdownButtonFormField<String?>(
-              initialValue: c.vendeurId.value,
-              decoration: const InputDecoration(
-                labelText: 'Vendeur',
-                isDense: true,
-              ),
-              items: [
-                const DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text('Tous'),
-                ),
-                ...c.users
-                    .where((u) =>
-                        c.isSuperAdmin ||
-                        u.boutiqueId == c.boutiqueId.value)
-                    .map(
-                      (u) => DropdownMenuItem(value: u.id, child: Text(u.nom)),
-                    ),
-              ],
-              onChanged: (v) => c.vendeurId.value = v,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -434,13 +480,11 @@ class _FinancierSection extends StatelessWidget {
               children: [
                 _Row('Chiffre d\'affaires',
                     Fmt.money(c.caTotal, currency: 'GNF'),
-                    color: AppColors.primary, big: true),
+                    color: AppColors.primary(context), big: true),
                 const Divider(),
                 _Row('Bénéfice estimé',
                     Fmt.money(c.beneficeTotal, currency: 'GNF'),
                     color: AppColors.success),
-                _Row('Panier moyen',
-                    Fmt.money(c.caMoyenne, currency: 'GNF')),
                 _Row('Chiffre d\'affaires annulé',
                     Fmt.money(c.caAnnule, currency: 'GNF'),
                     color: c.caAnnule > 0 ? Colors.red : null),
@@ -479,13 +523,13 @@ class _PaiementsSection extends StatelessWidget {
                                 fontSize: 13, fontWeight: FontWeight.w600)),
                       ),
                       Text(Fmt.money(montant, currency: 'GNF'),
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontWeight: FontWeight.w700,
-                              color: AppColors.primary)),
+                              color: AppColors.primary(context))),
                       const SizedBox(width: 8),
                       Text('${pct.toStringAsFixed(0)} %',
                           style: TextStyle(
-                              fontSize: 11, color: Colors.grey.shade600)),
+                              fontSize: 11, color: AppColors.greyText(context, 600))),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -496,7 +540,7 @@ class _PaiementsSection extends StatelessWidget {
                       minHeight: 6,
                       backgroundColor: Colors.grey.shade200,
                       valueColor:
-                          const AlwaysStoppedAnimation(AppColors.primary),
+                          AlwaysStoppedAnimation(AppColors.primary(context)),
                     ),
                   ),
                 ],
@@ -530,10 +574,10 @@ class _TopProduitsSection extends StatelessWidget {
                 ListTile(
                   leading: CircleAvatar(
                     backgroundColor:
-                        AppColors.primary.withValues(alpha: 0.12),
+                        AppColors.primary(context).withValues(alpha: 0.12),
                     child: Text('${i + 1}',
-                        style: const TextStyle(
-                          color: AppColors.primary,
+                        style: TextStyle(
+                          color: AppColors.primary(context),
                           fontWeight: FontWeight.w700,
                         )),
                   ),
@@ -543,9 +587,109 @@ class _TopProduitsSection extends StatelessWidget {
                       style: const TextStyle(fontSize: 11)),
                   trailing: Text(
                     Fmt.money(t.ca, currency: 'GNF'),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
+                      color: AppColors.primary(context),
+                    ),
+                  ),
+                ),
+                if (i < list.length - 1)
+                  Divider(height: 1, color: Colors.grey.shade200),
+              ],
+            );
+          }).toList(),
+        ),
+      );
+    });
+  }
+}
+
+class _AchatsSection extends StatelessWidget {
+  final RapportsController c;
+  const _AchatsSection({required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() => Card(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              children: [
+                _Row(
+                  'Total achats',
+                  Fmt.money(c.totalAchats, currency: 'GNF'),
+                  color: AppColors.primary(context),
+                  big: true,
+                ),
+                const Divider(),
+                _Row('Approvisionnements', '${c.nbAppros}'),
+                _Row(
+                  'Marge brute (CA - achats)',
+                  Fmt.money(c.margePeriode, currency: 'GNF'),
+                  color: c.margePeriode >= 0
+                      ? AppColors.success
+                      : Colors.red,
+                ),
+                _Row(
+                  'Dette sur appros de la période',
+                  Fmt.money(c.detteFournisseurPeriode,
+                      currency: 'GNF'),
+                  color: c.detteFournisseurPeriode > 0
+                      ? AppColors.warning
+                      : null,
+                ),
+                _Row(
+                  'Dette fournisseur totale',
+                  Fmt.money(c.detteFournisseurGlobale,
+                      currency: 'GNF'),
+                  color: c.detteFournisseurGlobale > 0
+                      ? AppColors.warning
+                      : null,
+                ),
+              ],
+            ),
+          ),
+        ));
+  }
+}
+
+class _TopFournisseursSection extends StatelessWidget {
+  final RapportsController c;
+  const _TopFournisseursSection({required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final list = c.topFournisseurs.take(10).toList();
+      if (list.isEmpty) {
+        return const _EmptyCard(message: 'Aucun appro sur cette période');
+      }
+      return Card(
+        child: Column(
+          children: list.asMap().entries.map((e) {
+            final i = e.key;
+            final t = e.value;
+            return Column(
+              children: [
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor:
+                        AppColors.primary(context).withValues(alpha: 0.12),
+                    child: Text('${i + 1}',
+                        style: TextStyle(
+                          color: AppColors.primary(context),
+                          fontWeight: FontWeight.w700,
+                        )),
+                  ),
+                  title: Text(t.nom,
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text('${t.nbAppros} appro(s)',
+                      style: const TextStyle(fontSize: 11)),
+                  trailing: Text(
+                    Fmt.money(t.total, currency: 'GNF'),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary(context),
                     ),
                   ),
                 ),
@@ -572,7 +716,7 @@ class _EmptyCard extends StatelessWidget {
         child: Center(
           child: Text(
             message,
-            style: TextStyle(color: Colors.grey.shade600),
+            style: TextStyle(color: AppColors.greyText(context, 600)),
           ),
         ),
       ),
@@ -600,7 +744,7 @@ class _Row extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: big ? 14 : 12,
-                color: Colors.grey.shade700,
+                color: AppColors.greyText(context, 700),
               ),
             ),
           ),

@@ -1,112 +1,161 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum MouvementType {
-  entree,
+/// Type d'un mouvement de stock manuel.
+enum MouvementStockType {
+  /// Sortie (consommation interne, démonstration, échantillon).
+  /// Décrémente le stock de [quantite].
   sortie,
-  vente,
-  transfert,
+
+  /// Entrée manuelle (don, retour client, correction positive).
+  /// Incrémente le stock de [quantite]. À utiliser pour les entrées
+  /// hors-appro (sinon préférer un appro pour conserver le CMUP).
+  entree,
+
+  /// Ajustement absolu : on FIXE la quantité finale (utile après
+  /// inventaire physique). [quantite] représente la valeur cible.
   ajustement,
+
+  /// Perte (vol, expiration, dégâts d'eau...). Décrémente.
   perte,
+
+  /// Casse (produit endommagé, invendable). Décrémente.
   casse;
 
-  static MouvementType fromString(String? value) {
-    return MouvementType.values.firstWhere(
+  static MouvementStockType fromString(String? value) {
+    return MouvementStockType.values.firstWhere(
       (t) => t.name == value,
-      orElse: () => MouvementType.entree,
+      orElse: () => MouvementStockType.sortie,
     );
   }
 
   String get label {
     switch (this) {
-      case MouvementType.entree:
-        return 'Entrée';
-      case MouvementType.sortie:
+      case MouvementStockType.sortie:
         return 'Sortie';
-      case MouvementType.vente:
-        return 'Vente';
-      case MouvementType.transfert:
-        return 'Transfert';
-      case MouvementType.ajustement:
+      case MouvementStockType.entree:
+        return 'Entrée';
+      case MouvementStockType.ajustement:
         return 'Ajustement';
-      case MouvementType.perte:
+      case MouvementStockType.perte:
         return 'Perte';
-      case MouvementType.casse:
+      case MouvementStockType.casse:
         return 'Casse';
     }
   }
 
-  /// Signe de la quantité appliqué au stock (+ = entrée, - = sortie).
+  /// Direction conceptuelle :
+  /// `+1` ajoute au stock, `-1` retire, `0` (ajustement) = remplace
+  /// la quantité par la valeur saisie.
   int get signe {
     switch (this) {
-      case MouvementType.entree:
+      case MouvementStockType.entree:
         return 1;
-      case MouvementType.sortie:
-      case MouvementType.vente:
-      case MouvementType.perte:
-      case MouvementType.casse:
+      case MouvementStockType.sortie:
+      case MouvementStockType.perte:
+      case MouvementStockType.casse:
         return -1;
-      case MouvementType.transfert:
-      case MouvementType.ajustement:
-        return 0; // géré au cas par cas
+      case MouvementStockType.ajustement:
+        return 0;
     }
   }
 }
 
+/// Trace d'un mouvement de stock manuel (audit).
+/// Les mouvements automatiques (vente / appro) ne passent PAS par cette
+/// collection — ils sont reconstituables depuis `ventes` / `approvisionnements`.
 class MouvementStockModel {
   final String id;
   final String produitId;
+  /// Snapshot du nom au moment du mouvement.
+  final String produitNom;
+
+  /// Variante touchée (uniquement pour les produits à variantes).
+  final String? varianteId;
+  final String? varianteLibelle;
+
   final String boutiqueId;
-  final MouvementType type;
-  final int quantite;
-  final DateTime date;
   final String userId;
+
+  final MouvementStockType type;
+
+  /// Pour `sortie`/`entree`/`perte`/`casse` : nombre d'unités.
+  /// Pour `ajustement` : nouvelle quantité cible (valeur absolue).
+  final int quantite;
+
+  /// Quantité avant le mouvement (snapshot pour audit). Quand le mouvement
+  /// porte sur une variante, c'est le stock de la variante avant.
+  final int qteAvant;
+  /// Quantité après le mouvement (snapshot pour audit).
+  final int qteApres;
+
+  /// Motif libre saisi par l'utilisateur (recommandé pour perte/casse).
   final String? motif;
-  final String? boutiqueDestinationId; // pour les transferts
-  final String? venteId; // pour les mouvements liés à une vente
+
+  final DateTime date;
 
   const MouvementStockModel({
     required this.id,
     required this.produitId,
+    required this.produitNom,
     required this.boutiqueId,
+    required this.userId,
     required this.type,
     required this.quantite,
+    required this.qteAvant,
+    required this.qteApres,
     required this.date,
-    required this.userId,
+    this.varianteId,
+    this.varianteLibelle,
     this.motif,
-    this.boutiqueDestinationId,
-    this.venteId,
   });
 
-  factory MouvementStockModel.fromMap(Map<String, dynamic> map, String id) {
+  /// Libellé combiné "Veste — 40" si variante, sinon "Veste".
+  String get nomComplet =>
+      varianteLibelle != null && varianteLibelle!.isNotEmpty
+          ? '$produitNom — $varianteLibelle'
+          : produitNom;
+
+  factory MouvementStockModel.fromMap(
+    Map<String, dynamic> map,
+    String id,
+  ) {
     return MouvementStockModel(
       id: id,
       produitId: (map['produitId'] ?? '') as String,
+      produitNom: (map['produitNom'] ?? '') as String,
+      varianteId: map['varianteId'] as String?,
+      varianteLibelle: map['varianteLibelle'] as String?,
       boutiqueId: (map['boutiqueId'] ?? '') as String,
-      type: MouvementType.fromString(map['type'] as String?),
-      quantite: (map['quantite'] as num?)?.toInt() ?? 0,
-      date: (map['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
       userId: (map['userId'] ?? '') as String,
+      type: MouvementStockType.fromString(map['type'] as String?),
+      quantite: (map['quantite'] as num?)?.toInt() ?? 0,
+      qteAvant: (map['qteAvant'] as num?)?.toInt() ?? 0,
+      qteApres: (map['qteApres'] as num?)?.toInt() ?? 0,
       motif: map['motif'] as String?,
-      boutiqueDestinationId: map['boutiqueDestinationId'] as String?,
-      venteId: map['venteId'] as String?,
+      date: (map['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
   factory MouvementStockModel.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> doc,
-  ) {
-    return MouvementStockModel.fromMap(doc.data() ?? {}, doc.id);
-  }
+  ) =>
+      MouvementStockModel.fromMap(doc.data() ?? {}, doc.id);
 
   Map<String, dynamic> toMap() => {
         'produitId': produitId,
+        'produitNom': produitNom,
+        if (varianteId != null) 'varianteId': varianteId,
+        if (varianteLibelle != null) 'varianteLibelle': varianteLibelle,
         'boutiqueId': boutiqueId,
+        'userId': userId,
         'type': type.name,
         'quantite': quantite,
-        'date': Timestamp.fromDate(date),
-        'userId': userId,
+        'qteAvant': qteAvant,
+        'qteApres': qteApres,
         'motif': motif,
-        'boutiqueDestinationId': boutiqueDestinationId,
-        'venteId': venteId,
+        'date': Timestamp.fromDate(date),
       };
+
+  /// Variation nette appliquée au stock (signée).
+  int get delta => qteApres - qteAvant;
 }

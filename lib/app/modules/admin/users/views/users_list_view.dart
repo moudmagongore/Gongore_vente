@@ -15,7 +15,7 @@ class UsersListView extends GetView<UsersController> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          controller.isSuperAdmin ? 'Utilisateurs' : 'Mes vendeurs',
+          controller.isSuperAdmin ? 'Utilisateurs' : 'Mes gestionnaires',
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(64),
@@ -33,7 +33,9 @@ class UsersListView extends GetView<UsersController> {
         ),
       ),
       drawer: const AdminDrawer(currentRoute: AppRoutes.adminUsers),
-      body: Column(
+      body: SafeArea(
+        top: false,
+        child: Column(
         children: [
           _FiltersBar(controller: controller),
           Expanded(
@@ -54,12 +56,13 @@ class UsersListView extends GetView<UsersController> {
             }),
           ),
         ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Get.toNamed(AppRoutes.adminUserForm),
         icon: const Icon(Icons.person_add_alt_1_rounded),
         label: Text(
-          controller.isSuperAdmin ? 'Nouvel utilisateur' : 'Nouveau vendeur',
+          controller.isSuperAdmin ? 'Nouvel utilisateur' : 'Nouveau gestionnaire',
         ),
       ),
     );
@@ -81,7 +84,7 @@ class _FiltersBar extends StatelessWidget {
           return Row(
             children: [
               _Chip(
-                label: 'Mes vendeurs (${controller.nbVendeurs})',
+                label: 'Mes gestionnaires',
                 selected: true,
                 onTap: () {},
               ),
@@ -99,13 +102,13 @@ class _FiltersBar extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               _Chip(
-                label: 'Admins (${controller.nbAdmins})',
+                label: 'Admins',
                 selected: controller.filterRole.value == UserRole.admin,
                 onTap: () => controller.setFilterRole(UserRole.admin),
               ),
               const SizedBox(width: 8),
               _Chip(
-                label: 'Vendeurs (${controller.nbVendeurs})',
+                label: 'Gestionnaires',
                 selected: controller.filterRole.value == UserRole.vendeur,
                 onTap: () => controller.setFilterRole(UserRole.vendeur),
               ),
@@ -147,14 +150,14 @@ class _Chip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: selected
-              ? AppColors.primary
-              : AppColors.primary.withValues(alpha: 0.08),
+              ? AppColors.primary(context)
+              : AppColors.primary(context).withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Colors.white : AppColors.primary,
+            color: selected ? Colors.white : AppColors.primary(context),
             fontSize: 12,
             fontWeight: FontWeight.w600,
           ),
@@ -174,7 +177,7 @@ class _BoutiqueDropdown extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderOf(context)),
         borderRadius: BorderRadius.circular(20),
       ),
       child: DropdownButton<String?>(
@@ -208,7 +211,7 @@ class _UserTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<UsersController>();
-    final color = user.isAdmin ? AppColors.primary : AppColors.secondary;
+    final color = user.isAdmin ? AppColors.primary(context) : AppColors.secondary;
 
     return Card(
       child: InkWell(
@@ -238,33 +241,29 @@ class _UserTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            user.nom,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        _RoleBadge(role: user.role),
-                      ],
+                    Text(
+                      user.nom,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
                       user.email,
                       style: TextStyle(
-                        color: Colors.grey.shade700,
+                        color: AppColors.greyText(context, 700),
                         fontSize: 12,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (user.isVendeur)
+                    // Boutique de rattachement : affichée pour admin et
+                    // gestionnaire (vendeur). Cachée pour super-admin qui
+                    // n'est lié à aucune boutique.
+                    if (!user.isSuperAdmin)
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
                         child: Row(
@@ -272,7 +271,7 @@ class _UserTile extends StatelessWidget {
                             Icon(
                               Icons.store_outlined,
                               size: 13,
-                              color: Colors.grey.shade500,
+                              color: AppColors.greyText(context, 500),
                             ),
                             const SizedBox(width: 4),
                             Expanded(
@@ -280,7 +279,7 @@ class _UserTile extends StatelessWidget {
                                 controller.boutiqueNom(user.boutiqueId),
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.grey.shade600,
+                                  color: AppColors.greyText(context, 600),
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -289,28 +288,41 @@ class _UserTile extends StatelessWidget {
                           ],
                         ),
                       ),
-                    if (!user.active)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Text(
-                            'DÉSACTIVÉ',
-                            style: TextStyle(
-                              color: Colors.red,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          // Badge du rôle principal
+                          _RoleBadge(role: user.role),
+                          // Cumul admin + gestionnaire : badge supplémentaire
+                          // GESTIONNAIRE pour signaler le double rôle.
+                          if (user.role == UserRole.admin &&
+                              user.alsoGestionnaire)
+                            const _RoleBadge(role: UserRole.vendeur),
+                          if (!user.active)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Text(
+                                'DÉSACTIVÉ',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
+                        ],
                       ),
+                    ),
                   ],
                 ),
               ),
@@ -325,9 +337,6 @@ class _UserTile extends StatelessWidget {
                       break;
                     case 'toggle':
                       controller.toggleActive(user);
-                      break;
-                    case 'delete':
-                      controller.confirmDelete(user);
                       break;
                   }
                 },
@@ -363,19 +372,6 @@ class _UserTile extends StatelessWidget {
                       dense: true,
                     ),
                   ),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: ListTile(
-                      leading: Icon(Icons.delete_outline, color: Colors.red),
-                      title: Text(
-                        'Supprimer',
-                        style: TextStyle(color: Colors.red),
-                      ),
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
-                    ),
-                  ),
                 ],
               ),
             ],
@@ -393,8 +389,22 @@ class _RoleBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isAdmin = role == UserRole.admin;
-    final color = isAdmin ? AppColors.primary : AppColors.secondary;
+    final String label;
+    final Color color;
+    switch (role) {
+      case UserRole.superAdmin:
+        label = 'SUPER ADMIN';
+        color = const Color(0xFF6A1B9A);
+        break;
+      case UserRole.admin:
+        label = 'ADMIN';
+        color = AppColors.primary(context);
+        break;
+      case UserRole.vendeur:
+        label = 'GESTIONNAIRE';
+        color = AppColors.secondary;
+        break;
+    }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
@@ -402,7 +412,7 @@ class _RoleBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        isAdmin ? 'ADMIN' : 'VENDEUR',
+        label,
         style: TextStyle(
           color: color,
           fontSize: 10,
@@ -437,7 +447,7 @@ class _Empty extends StatelessWidget {
               hasSearch
                   ? 'Aucun utilisateur ne correspond.'
                   : 'Aucun utilisateur (à part vous).',
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(color: AppColors.greyText(context, 600)),
               textAlign: TextAlign.center,
             ),
           ],

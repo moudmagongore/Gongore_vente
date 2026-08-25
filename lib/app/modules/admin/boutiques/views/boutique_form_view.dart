@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../theme/app_colors.dart';
 import '../controllers/boutique_form_controller.dart';
 
 class BoutiqueFormView extends GetView<BoutiqueFormController> {
@@ -12,7 +13,9 @@ class BoutiqueFormView extends GetView<BoutiqueFormController> {
       appBar: AppBar(
         title: Obx(() => Text(controller.title)),
       ),
-      body: Form(
+      body: SafeArea(
+        top: false,
+        child: Form(
         key: controller.formKey,
         child: ListView(
           padding: const EdgeInsets.all(20),
@@ -55,7 +58,7 @@ class BoutiqueFormView extends GetView<BoutiqueFormController> {
                 title: const Text('Boutique active'),
                 subtitle: Text(
                   controller.active.value
-                      ? 'Visible et utilisable par les vendeurs'
+                      ? 'Visible et utilisable par les gestionnaires'
                       : 'Masquée et inutilisable',
                   style: const TextStyle(fontSize: 12),
                 ),
@@ -83,12 +86,25 @@ class BoutiqueFormView extends GetView<BoutiqueFormController> {
               ),
             ),
             const SizedBox(height: 8),
-            TextButton(
+            OutlinedButton(
               onPressed: () => Get.back(),
-              child: const Text('Annuler'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary(context),
+                side: BorderSide(
+                    color: AppColors.primary(context), width: 1.4),
+                minimumSize: const Size.fromHeight(48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Annuler',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
             ),
           ],
         ),
+      ),
       ),
     );
   }

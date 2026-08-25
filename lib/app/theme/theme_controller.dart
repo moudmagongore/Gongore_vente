@@ -6,7 +6,14 @@ class ThemeController extends GetxController {
   static const _storageKey = 'theme_mode';
   final _box = GetStorage();
 
-  ThemeMode get currentMode {
+  // Mode observable pour que GetMaterialApp se reconstruise à chaque
+  // changement (et propage la nouvelle brightness à tout l'arbre, y
+  // compris les widgets qui utilisent les getters adaptatifs comme
+  // AppColors.primary(context) / AppColors.greyText).
+  late final Rx<ThemeMode> mode = _loadInitialMode().obs;
+  final currentRoute = '/'.obs;
+
+  ThemeMode _loadInitialMode() {
     final saved = _box.read<String>(_storageKey);
     switch (saved) {
       case 'light':
@@ -18,11 +25,14 @@ class ThemeController extends GetxController {
     }
   }
 
+  ThemeMode get currentMode => mode.value;
+
   bool get isDark => Get.isDarkMode;
 
-  void setMode(ThemeMode mode) {
-    Get.changeThemeMode(mode);
-    _box.write(_storageKey, mode.name);
+  void setMode(ThemeMode newMode) {
+    mode.value = newMode;
+    Get.changeThemeMode(newMode);
+    _box.write(_storageKey, newMode.name);
   }
 
   void toggle() {

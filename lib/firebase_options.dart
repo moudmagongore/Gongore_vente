@@ -63,6 +63,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '351172306708',
     projectId: 'gongorevente',
     storageBucket: 'gongorevente.firebasestorage.app',
-    iosBundleId: 'com.example.gongoreVente',
+    iosBundleId: 'com.gongore.app.ios',
   );
 }

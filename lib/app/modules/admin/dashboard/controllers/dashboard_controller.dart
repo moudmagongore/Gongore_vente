@@ -99,7 +99,6 @@ class DashboardController extends GetxController {
   // ====== KPIs Mois ======
   double get caMois => _validees.fold(0.0, (acc, v) => acc + v.total);
   int get nbVentesMois => _validees.length;
-  double get caMoyenneVente => nbVentesMois == 0 ? 0 : caMois / nbVentesMois;
 
   // ====== Estimation bénéfice (basée sur prixAchat des produits) ======
   double get beneficeJour {

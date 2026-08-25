@@ -1,21 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/services/user_controller.dart';
+import '../../../../core/utils/bottom_sheet_helpers.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../core/widgets/admin_drawer.dart';
-import '../../../../data/models/mouvement_stock_model.dart';
+import '../../../../core/widgets/vendeur_drawer.dart';
+import '../../../../data/models/produit_model.dart';
+import '../../../../data/models/variante_model.dart';
+import '../../../../data/repositories/produit_repository.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../../theme/app_colors.dart';
 import '../controllers/stock_controller.dart';
+import '../widgets/mouvement_sheet.dart';
 
 class StockListView extends GetView<StockController> {
   const StockListView({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Modification du stock manuel (mouvements) : super-admin (sans
+    // restriction) ou admin de boutique. Le gestionnaire est en lecture
+    // seule (consultation uniquement, pas d'action).
+    final canEdit = UserController.to.canManageCatalog;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Stock'),
+        actions: [
+          IconButton(
+            tooltip: 'Historique des mouvements',
+            icon: const Icon(Icons.history_rounded),
+            onPressed: () => Get.toNamed(AppRoutes.adminStockHistorique),
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(64),
           child: Padding(
@@ -30,164 +47,173 @@ class StockListView extends GetView<StockController> {
             ),
           ),
         ),
-        actions: [
-          IconButton(
-            tooltip: 'Historique',
-            icon: const Icon(Icons.history_rounded),
-            onPressed: () => Get.toNamed(
-              AppRoutes.adminMouvementsHistorique,
-              arguments: controller.currentBoutiqueId.value,
-            ),
-          ),
-        ],
       ),
-      drawer: const AdminDrawer(currentRoute: AppRoutes.adminStock),
-      body: Column(
-        children: [
-          _BoutiqueSelector(controller: controller),
-          _AlertsBar(controller: controller),
-          Expanded(
-            child: Obx(() {
-              if (controller.boutiques.isEmpty) {
-                return const _NoBoutique();
-              }
-              if (controller.isLoading.value) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final list = controller.lines;
-              if (list.isEmpty) {
-                return _Empty(hasSearch: controller.search.value.isNotEmpty);
-              }
-              return ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
-                itemCount: list.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 10),
-                itemBuilder: (_, i) => _StockTile(line: list[i]),
-              );
-            }),
-          ),
-        ],
-      ),
-      floatingActionButton: SpeedDial(controller: controller),
-    );
-  }
-}
-
-class _BoutiqueSelector extends StatelessWidget {
-  final StockController controller;
-  const _BoutiqueSelector({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-      child: Obx(() {
-        if (controller.boutiques.isEmpty) {
-          return const SizedBox.shrink();
-        }
-        // Admin de boutique : juste afficher le nom de sa boutique
-        if (!controller.isSuperAdmin) {
-          final b = controller.boutiques.firstWhereOrNull(
-              (x) => x.id == controller.currentBoutiqueId.value);
-          if (b == null) return const SizedBox.shrink();
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.store_rounded,
-                    color: AppColors.primary, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    b.nom,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.store_rounded,
-                  color: AppColors.primary, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: DropdownButton<String>(
-                  value: controller.currentBoutiqueId.value,
-                  underline: const SizedBox.shrink(),
-                  isExpanded: true,
-                  items: controller.boutiques
-                      .map(
-                        (b) => DropdownMenuItem<String>(
-                          value: b.id,
-                          child: Text(b.nom),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: controller.selectBoutique,
-                ),
-              ),
-            ],
-          ),
-        );
-      }),
-    );
-  }
-}
-
-class _AlertsBar extends StatelessWidget {
-  final StockController controller;
-  const _AlertsBar({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: Obx(
-        () => Row(
+      drawer: UserController.to.isAnyAdmin
+          ? const AdminDrawer(currentRoute: AppRoutes.adminStock)
+          : const VendeurDrawer(currentRoute: AppRoutes.adminStock),
+      body: androidOnlySafeArea(
+        Column(
           children: [
+            const SizedBox(height: 12),
+            _StatsRow(c: controller),
+            const SizedBox(height: 12),
+            _FilterChips(c: controller),
+            const SizedBox(height: 4),
             Expanded(
-              child: _AlertCard(
-                color: Colors.red,
-                icon: Icons.cancel_rounded,
-                value: controller.nbOut.toString(),
-                label: 'Rupture',
+              child: Obx(() {
+                if (controller.isLoading.value) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final list = controller.filtered;
+                if (list.isEmpty) {
+                  return _Empty(
+                      hasSearch: controller.search.value.isNotEmpty);
+                }
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                  itemCount: list.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) => _ProduitStockTile(
+                    produit: list[i],
+                    canEdit: canEdit,
+                  ),
+                );
+              }),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// Stats : valeur stock + ruptures + stock bas
+// ============================================================================
+
+class _StatsRow extends StatelessWidget {
+  final StockController c;
+  const _StatsRow({required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Obx(
+        () => Column(
+          children: [
+            // Hero : valeur du stock
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardTheme.color,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.borderOf(context)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary(context).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.warehouse_rounded,
+                        color: AppColors.primary(context), size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Valeur du stock (PA)',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.greyText(context, 700),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                Fmt.number(c.valeurStock),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.primary(context),
+                                  letterSpacing: -0.4,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'GNF',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.primary(context)
+                                    .withValues(alpha: 0.7),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Marge potentielle : ${Fmt.number(c.margePotentielle)} GNF',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: c.margePotentielle >= 0
+                                ? AppColors.success
+                                : Colors.red,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _AlertCard(
-                color: Colors.orange,
-                icon: Icons.warning_amber_rounded,
-                value: controller.nbLow.toString(),
-                label: 'Stock faible',
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: GestureDetector(
-                onTap: () => controller.onlyLow.toggle(),
-                child: _AlertCard(
-                  color: controller.onlyLow.value
-                      ? AppColors.primary
-                      : Colors.grey.shade400,
-                  icon: controller.onlyLow.value
-                      ? Icons.filter_alt_rounded
-                      : Icons.filter_alt_outlined,
-                  value: controller.onlyLow.value ? 'ON' : 'OFF',
-                  label: 'Filtre faible',
-                ),
+            const SizedBox(height: 10),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: _MiniStat(
+                      icon: Icons.warning_amber_rounded,
+                      value: '${c.nbRuptures}',
+                      label: 'Ruptures',
+                      color: Colors.red,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _MiniStat(
+                      icon: Icons.trending_down_rounded,
+                      value: '${c.nbStockBas}',
+                      label: 'Stock bas',
+                      color: Colors.orange,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _MiniStat(
+                      icon: Icons.inventory_2_rounded,
+                      value: '${c.nbProduits}',
+                      label: 'Produits',
+                      color: AppColors.primary(context),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -197,31 +223,31 @@ class _AlertsBar extends StatelessWidget {
   }
 }
 
-class _AlertCard extends StatelessWidget {
-  final Color color;
+class _MiniStat extends StatelessWidget {
   final IconData icon;
   final String value;
   final String label;
-
-  const _AlertCard({
-    required this.color,
+  final Color color;
+  const _MiniStat({
     required this.icon,
     required this.value,
     required this.label,
+    required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(10),
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borderOf(context)),
       ),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 22),
-          const SizedBox(width: 6),
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -229,17 +255,23 @@ class _AlertCard extends StatelessWidget {
               children: [
                 Text(
                   value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
                     color: color,
-                    fontSize: 14,
+                    letterSpacing: -0.2,
                   ),
                 ),
                 Text(
                   label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 10,
-                    color: Colors.grey.shade700,
+                    color: AppColors.greyText(context, 700),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -251,237 +283,448 @@ class _AlertCard extends StatelessWidget {
   }
 }
 
-class _StockTile extends StatelessWidget {
-  final StockLine line;
-  const _StockTile({required this.line});
+// ============================================================================
+// Filtres rapides (chips état)
+// ============================================================================
+
+class _FilterChips extends StatelessWidget {
+  final StockController c;
+  const _FilterChips({required this.c});
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<StockController>();
-    final p = line.produit;
-    final color = line.isOut
-        ? Colors.red
-        : line.isLow
-            ? Colors.orange
-            : AppColors.success;
-
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: () => Get.toNamed(
-          AppRoutes.adminMouvementForm,
-          arguments: {
-            'type': MouvementType.entree,
-            'boutiqueId': controller.currentBoutiqueId.value,
-            'produitId': p.id,
-          },
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
+    return SizedBox(
+      height: 36,
+      child: Obx(
+        () => SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+              for (final etat in StockFiltreEtat.values) ...[
+                ChoiceChip(
+                  label: Text(c.etatLabel(etat),
+                      style: const TextStyle(fontSize: 12)),
+                  selected: c.filterEtat.value == etat,
+                  onSelected: (_) => c.filterEtat.value = etat,
                 ),
-                child: Icon(
-                  line.isOut
-                      ? Icons.remove_shopping_cart_rounded
-                      : line.isLow
-                          ? Icons.warning_amber_rounded
-                          : Icons.inventory_2_rounded,
-                  color: color,
+                const SizedBox(width: 8),
+              ],
+              if (c.categories.isNotEmpty) ...[
+                const SizedBox(width: 4),
+                _CategorieDropdown(c: c),
+              ],
+              // Filtre boutique : visible uniquement pour le super-admin.
+              if (c.isSuperAdmin && c.boutiques.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                _BoutiqueDropdown(c: c),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CategorieDropdown extends StatelessWidget {
+  final StockController c;
+  const _CategorieDropdown({required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.borderOf(context)),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Obx(() => DropdownButton<String?>(
+            value: c.filterCategorieId.value,
+            underline: const SizedBox.shrink(),
+            isDense: true,
+            hint: const Text('Catégorie',
+                style: TextStyle(fontSize: 12)),
+            items: [
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text('Toutes catégories',
+                    style: TextStyle(fontSize: 12)),
+              ),
+              ...c.categories.map(
+                (cat) => DropdownMenuItem(
+                  value: cat.id,
+                  child: Text(cat.nom,
+                      style: const TextStyle(fontSize: 12)),
                 ),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            ],
+            onChanged: (v) => c.filterCategorieId.value = v,
+          )),
+    );
+  }
+}
+
+class _BoutiqueDropdown extends StatelessWidget {
+  final StockController c;
+  const _BoutiqueDropdown({required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.borderOf(context)),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Obx(() => DropdownButton<String?>(
+            value: c.filterBoutiqueId.value,
+            underline: const SizedBox.shrink(),
+            isDense: true,
+            hint: const Text('Boutique',
+                style: TextStyle(fontSize: 12)),
+            items: [
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text('Toutes boutiques',
+                    style: TextStyle(fontSize: 12)),
+              ),
+              ...c.boutiques.map(
+                (b) => DropdownMenuItem(
+                  value: b.id,
+                  child: Text(b.nom,
+                      style: const TextStyle(fontSize: 12)),
+                ),
+              ),
+            ],
+            onChanged: (v) => c.filterBoutiqueId.value = v,
+          )),
+    );
+  }
+}
+
+// ============================================================================
+// Tile : un produit dans la liste stock
+// ============================================================================
+
+class _ProduitStockTile extends StatefulWidget {
+  final ProduitModel produit;
+  final bool canEdit;
+  const _ProduitStockTile({
+    required this.produit,
+    required this.canEdit,
+  });
+
+  @override
+  State<_ProduitStockTile> createState() => _ProduitStockTileState();
+}
+
+class _ProduitStockTileState extends State<_ProduitStockTile> {
+  bool _showVariantes = false;
+
+  ProduitModel get produit => widget.produit;
+  bool get canEdit => widget.canEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Get.find<StockController>();
+    final etat = c.etatProduit(produit);
+    final color = c.etatColor(etat);
+    final devise = c.deviseDe(produit.boutiqueId);
+    final cat = c.categorieNom(produit.categorieId);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borderOf(context)),
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onLongPress:
+                canEdit ? () => MouvementSheet.open(context, produit) : null,
+            onTap:
+                canEdit ? () => MouvementSheet.open(context, produit) : null,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+        children: [
+          // Indicateur d'état (barre verticale colorée)
+          Container(
+            width: 4,
+            height: 48,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Text(
-                      p.nom,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Seuil d\'alerte : ${p.seuilAlerte} ${p.unite ?? ''}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade600,
+                    Expanded(
+                      child: Text(
+                        produit.nom,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (line.derniereModif != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Text(
-                          'Modifié ${Fmt.dateTime(line.derniereModif!)}',
+                    if (!produit.active)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'INACTIF',
                           style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey.shade500,
+                            fontSize: 9,
+                            color: Colors.grey,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    line.quantite.toString(),
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: color,
-                    ),
-                  ),
-                  if (p.unite != null)
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    if (cat != null) ...[
+                      Icon(Icons.category_outlined,
+                          size: 11, color: AppColors.greyText(context, 500)),
+                      const SizedBox(width: 3),
+                      Flexible(
+                        child: Text(
+                          cat,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.greyText(context, 600),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                     Text(
-                      p.unite!,
+                      'PA ${Fmt.money(produit.prixAchat, currency: devise)}',
                       style: TextStyle(
                         fontSize: 11,
-                        color: Colors.grey.shade600,
+                        color: AppColors.greyText(context, 600),
                       ),
                     ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class SpeedDial extends StatelessWidget {
-  final StockController controller;
-  const SpeedDial({super.key, required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return FloatingActionButton.extended(
-      onPressed: () => _showOptions(context),
-      icon: const Icon(Icons.swap_vert_rounded),
-      label: const Text('Mouvement'),
-    );
-  }
-
-  void _showOptions(BuildContext context) {
-    Get.bottomSheet(
-      SafeArea(
-        child: Container(
-          color: Theme.of(Get.context!).cardTheme.color,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.south_rounded,
-                    color: AppColors.success),
-                title: const Text('Entrée de stock'),
-                subtitle: const Text('Réapprovisionnement'),
-                onTap: () {
-                  Get.back();
-                  Get.toNamed(
-                    AppRoutes.adminMouvementForm,
-                    arguments: {
-                      'type': MouvementType.entree,
-                      'boutiqueId': controller.currentBoutiqueId.value,
-                    },
-                  );
-                },
-              ),
-              ListTile(
-                leading:
-                    const Icon(Icons.north_rounded, color: Colors.orange),
-                title: const Text('Sortie / Perte / Casse'),
-                subtitle: const Text('Sortie hors vente'),
-                onTap: () {
-                  Get.back();
-                  Get.toNamed(
-                    AppRoutes.adminMouvementForm,
-                    arguments: {
-                      'type': MouvementType.sortie,
-                      'boutiqueId': controller.currentBoutiqueId.value,
-                    },
-                  );
-                },
-              ),
-              if (controller.isSuperAdmin)
-                ListTile(
-                  leading: const Icon(Icons.swap_horiz_rounded,
-                      color: AppColors.primary),
-                  title: const Text('Transfert entre boutiques'),
-                  subtitle: const Text('Atomique'),
-                  onTap: () {
-                    Get.back();
-                    Get.toNamed(
-                      AppRoutes.adminMouvementForm,
-                      arguments: {
-                        'type': MouvementType.transfert,
-                        'boutiqueId': controller.currentBoutiqueId.value,
-                      },
-                    );
-                  },
+                  ],
                 ),
-              ListTile(
-                leading: const Icon(Icons.tune_rounded,
-                    color: AppColors.secondary),
-                title: const Text('Ajustement d\'inventaire'),
-                subtitle: const Text('Forcer une quantité avec motif'),
-                onTap: () {
-                  Get.back();
-                  Get.toNamed(
-                    AppRoutes.adminMouvementForm,
-                    arguments: {
-                      'type': MouvementType.ajustement,
-                      'boutiqueId': controller.currentBoutiqueId.value,
-                    },
-                  );
-                },
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        c.etatLabel(etat),
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          color: color,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Seuil ${produit.seuilAlerte}',
+                      style: TextStyle(
+                          fontSize: 10, color: AppColors.greyText(context, 500)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${produit.quantiteStock}',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                  letterSpacing: -0.4,
+                ),
+              ),
+              Text(
+                'unité(s)',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: AppColors.greyText(context, 600),
+                ),
+              ),
+              SizedBox(height: 2),
+              Text(
+                Fmt.money(produit.valeurStock, currency: devise),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.greyText(context, 700),
+                ),
               ),
             ],
           ),
-        ),
+        ],
+              ),
+            ),
+          ),
+          // Pied cliquable + panneau variantes (uniquement si le produit
+          // a des variantes ; lazy-loadé via stream à l'expansion).
+          if (produit.hasVariantes) ...[
+            const Divider(height: 1),
+            InkWell(
+              onTap: () =>
+                  setState(() => _showVariantes = !_showVariantes),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.style_rounded,
+                      size: 14,
+                      color: AppColors.primary(context).withValues(alpha: 0.8),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Voir variantes',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary(context),
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      _showVariantes
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.keyboard_arrow_down_rounded,
+                      size: 18,
+                      color: AppColors.primary(context),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (_showVariantes) _StockVariantesPanel(produit: produit),
+          ],
+        ],
       ),
     );
   }
 }
 
-class _NoBoutique extends StatelessWidget {
-  const _NoBoutique();
+/// Panneau qui charge en live les variantes d'un produit et les affiche
+/// sous forme de chips compactes (libellé + stock + couleur seuil).
+class _StockVariantesPanel extends StatelessWidget {
+  final ProduitModel produit;
+  const _StockVariantesPanel({required this.produit});
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.store_outlined,
-                size: 80, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text(
-              'Créez d\'abord une boutique\nactive avant de gérer le stock.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade600),
+    final repo = ProduitRepository();
+    return StreamBuilder<List<VarianteModel>>(
+      stream: repo.watchVariantes(produit.id),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.all(12),
+            child: SizedBox(
+              height: 16,
+              width: 16,
+              child:
+                  Center(child: CircularProgressIndicator(strokeWidth: 2)),
             ),
-          ],
-        ),
-      ),
+          );
+        }
+        final variantes = snap.data ?? const <VarianteModel>[];
+        if (variantes.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(
+              'Aucune variante.',
+              style: TextStyle(fontSize: 12, color: AppColors.greyText(context, 600)),
+            ),
+          );
+        }
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: variantes.map((v) {
+              final low = v.stock <= produit.seuilAlerte;
+              final color = v.stock <= 0
+                  ? Colors.red
+                  : (low ? AppColors.warning : AppColors.success);
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: color.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      v.libelleAffichage,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      ': ${v.stock}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: color,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      },
     );
   }
 }
+
+// ============================================================================
+// Empty state
+// ============================================================================
 
 class _Empty extends StatelessWidget {
   final bool hasSearch;
@@ -498,7 +741,7 @@ class _Empty extends StatelessWidget {
             Icon(
               hasSearch
                   ? Icons.search_off_rounded
-                  : Icons.inventory_outlined,
+                  : Icons.warehouse_outlined,
               size: 80,
               color: Colors.grey.shade400,
             ),
@@ -506,9 +749,9 @@ class _Empty extends StatelessWidget {
             Text(
               hasSearch
                   ? 'Aucun produit ne correspond.'
-                  : 'Aucun produit dans cette boutique.',
+                  : 'Aucun produit.',
+              style: TextStyle(color: AppColors.greyText(context, 600)),
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade600),
             ),
           ],
         ),

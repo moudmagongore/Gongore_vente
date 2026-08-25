@@ -90,6 +90,110 @@
         {"fieldPath": "boutiqueId", "order": "ASCENDING"},
         {"fieldPath": "nom", "order": "ASCENDING"}
       ]
+    },
+    {
+      "collectionGroup": "approvisionnements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
+        {"fieldPath": "date", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "approvisionnements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
+        {"fieldPath": "fournisseurId", "order": "ASCENDING"},
+        {"fieldPath": "date", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "approvisionnements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
+        {"fieldPath": "userId", "order": "ASCENDING"},
+        {"fieldPath": "date", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "approvisionnements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
+        {"fieldPath": "fournisseurId", "order": "ASCENDING"},
+        {"fieldPath": "statut", "order": "ASCENDING"},
+        {"fieldPath": "date", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "reglements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
+        {"fieldPath": "date", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "reglements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
+        {"fieldPath": "clientId", "order": "ASCENDING"},
+        {"fieldPath": "date", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "reglementsFournisseurs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
+        {"fieldPath": "date", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "reglementsFournisseurs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
+        {"fieldPath": "fournisseurId", "order": "ASCENDING"},
+        {"fieldPath": "date", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "fournisseurs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
+        {"fieldPath": "nom", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "clients",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
+        {"fieldPath": "nom", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "ventes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
+        {"fieldPath": "clientId", "order": "ASCENDING"},
+        {"fieldPath": "statut", "order": "ASCENDING"},
+        {"fieldPath": "date", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "abonnements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "boutiqueId", "order": "ASCENDING"},
+        {"fieldPath": "dateFin", "order": "DESCENDING"}
+      ]
     }
   ],
   "fieldOverrides": []

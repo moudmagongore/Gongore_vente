@@ -1,7 +1,7 @@
 class AppConstants {
   AppConstants._();
 
-  static const String appName = 'Gongoré Vente';
+  static const String appName = 'Gongore App';
   static const String defaultLocale = 'fr_FR';
   static const String defaultCurrencySymbol = 'GNF';
   static const String defaultCountryCode = 'GN';

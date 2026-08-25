@@ -9,7 +9,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.gongore_vente"
+    namespace = "com.gongore.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -23,7 +23,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.gongore_vente"
+        applicationId = "com.gongore.app"
         // Firebase Auth 5.x requires minSdk >= 23, et c'est aussi
         // recommandé pour cloud_firestore récent.
         minSdk = flutter.minSdkVersion

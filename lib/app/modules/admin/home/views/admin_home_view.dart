@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/services/user_controller.dart';
+import '../../../../core/utils/bottom_sheet_helpers.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../core/widgets/admin_drawer.dart';
+import '../../../../core/widgets/subscription_badge_card.dart';
+import '../../../../core/widgets/subscription_warning_banner.dart';
 import '../../../../data/models/vente_model.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../../theme/app_colors.dart';
@@ -17,11 +20,10 @@ class AdminHomeView extends StatelessWidget {
   Widget build(BuildContext context) {
     // On instancie ici si pas déjà fait (pas via binding pour rester simple)
     final c = Get.put(DashboardController(), permanent: false);
-    final user = UserController.to.user;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tableau de bord'),
+        title: Text('Tableau de bord'),
         actions: [
           IconButton(
             tooltip: 'Rapports',
@@ -31,7 +33,22 @@ class AdminHomeView extends StatelessWidget {
         ],
       ),
       drawer: const AdminDrawer(currentRoute: AppRoutes.adminHome),
-      body: Obx(() {
+      // FAB « Vendre » : visible uniquement quand l'utilisateur cumule le
+      // rôle gestionnaire (admin avec `alsoGestionnaire = true`, ou rôle
+      // vendeur direct). Caché pour le super-admin sur le tableau de bord
+      // (il a accès à la création depuis la liste des ventes).
+      floatingActionButton: Obx(
+        () => UserController.to.isVendeur
+            ? FloatingActionButton.extended(
+                onPressed: () => Get.toNamed(AppRoutes.venteForm),
+                icon: const Icon(Icons.add_shopping_cart_rounded),
+                label: const Text('Vendre'),
+                backgroundColor: AppColors.success,
+              )
+            : const SizedBox.shrink(),
+      ),
+      body: androidOnlySafeArea(
+        Obx(() {
         if (c.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -39,9 +56,17 @@ class AdminHomeView extends StatelessWidget {
           onRefresh: () async => await Future.delayed(
               const Duration(milliseconds: 400)),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
-              _GreetingCard(name: user?.nom ?? ''),
+              // Bandeau d'alerte abonnement : ne s'affiche que si ≤ 7
+              // jours restants ou en période de grâce. Caché sinon.
+              const SubscriptionWarningBanner(),
+              const SizedBox(height: 12),
+              _GreetingCard(name: UserController.to.user?.nom ?? ''),
+              const SizedBox(height: 12),
+              // Badge abonnement de la boutique courante (caché pour
+              // super-admin et users sans boutiqueId).
+              const SubscriptionBadgeCard(),
               const SizedBox(height: 16),
               const _SectionTitle('Aujourd\'hui'),
               const SizedBox(height: 10),
@@ -68,7 +93,7 @@ class AdminHomeView extends StatelessWidget {
               const SizedBox(height: 10),
               _ListBoutiques(c: c),
               const SizedBox(height: 20),
-              const _SectionTitle('Top vendeurs'),
+              const _SectionTitle('Top gestionnaires'),
               const SizedBox(height: 10),
               _ListVendeurs(c: c),
               const SizedBox(height: 16),
@@ -79,6 +104,7 @@ class AdminHomeView extends StatelessWidget {
           ),
         );
       }),
+      ),
     );
   }
 }
@@ -95,11 +121,11 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 13,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.4,
-        color: AppColors.lightTextMuted,
+        color: AppColors.greyText(context, 700),
       ),
     );
   }
@@ -113,7 +139,7 @@ class _ChartCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
+        padding: EdgeInsets.fromLTRB(12, 14, 12, 12),
         child: child,
       ),
     );
@@ -133,8 +159,8 @@ class _GreetingCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primary, AppColors.primaryDark],
+        gradient: LinearGradient(
+          colors: [AppColors.primary(context), AppColors.primaryDark],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -210,7 +236,7 @@ class _KpiCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 1),
+        border: Border.all(color: AppColors.borderOf(context), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -235,7 +261,7 @@ class _KpiCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade700,
+                    color: AppColors.greyText(context, 700),
                   ),
                 ),
               ),
@@ -257,7 +283,7 @@ class _KpiCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               hint!,
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+              style: TextStyle(fontSize: 11, color: AppColors.greyText(context, 500)),
             ),
           ],
         ],
@@ -299,7 +325,7 @@ class _SecondaryStats extends StatelessWidget {
                     it.label,
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.grey.shade600,
+                      color: AppColors.greyText(context, 600),
                     ),
                   ),
                 ],
@@ -326,7 +352,7 @@ class _KpisJour extends StatelessWidget {
               children: [
                 Expanded(
                   child: _KpiCard(
-                    icon: Icons.attach_money_rounded,
+                    icon: Icons.trending_up_rounded,
                     color: AppColors.success,
                     value: Fmt.number(c.caJour),
                     label: 'Chiffre d\'affaires',
@@ -337,7 +363,7 @@ class _KpisJour extends StatelessWidget {
                 Expanded(
                   child: _KpiCard(
                     icon: Icons.receipt_long_rounded,
-                    color: AppColors.primary,
+                    color: AppColors.primary(context),
                     value: c.nbVentesJour.toString(),
                     label: 'Ventes',
                   ),
@@ -395,7 +421,7 @@ class _KpisMois extends StatelessWidget {
                     color: AppColors.secondary,
                     value: Fmt.number(c.beneficeMois),
                     label: 'Bénéfice',
-                    hint: 'estimé',
+                    hint: 'GNF \n estimé',
                   ),
                 ),
               ],
@@ -407,13 +433,7 @@ class _KpisMois extends StatelessWidget {
               icon: Icons.receipt_long_rounded,
               value: c.nbVentesMois.toString(),
               label: 'ventes',
-              color: AppColors.primary,
-            ),
-            (
-              icon: Icons.equalizer_rounded,
-              value: Fmt.number(c.caMoyenneVente),
-              label: 'panier moyen',
-              color: AppColors.accent,
+              color: AppColors.primary(context),
             ),
           ]),
         ],
@@ -470,7 +490,7 @@ class _LineChartCa extends StatelessWidget {
                 getTitlesWidget: (value, _) => Text(
                   Fmt.number(value),
                   style: TextStyle(
-                      fontSize: 9, color: Colors.grey.shade600),
+                      fontSize: 9, color: AppColors.greyText(context, 600)),
                 ),
               ),
             ),
@@ -487,7 +507,7 @@ class _LineChartCa extends StatelessWidget {
                     child: Text(
                       '${d.day}/${d.month}',
                       style: TextStyle(
-                          fontSize: 9, color: Colors.grey.shade600),
+                          fontSize: 9, color: AppColors.greyText(context, 600)),
                     ),
                   );
                 },
@@ -503,20 +523,20 @@ class _LineChartCa extends StatelessWidget {
             LineChartBarData(
               spots: spots,
               isCurved: true,
-              color: AppColors.primary,
+              color: AppColors.primary(context),
               barWidth: 3,
               dotData: FlDotData(
                 show: true,
                 getDotPainter: (spot, _, _, _) => FlDotCirclePainter(
                   radius: 4,
-                  color: AppColors.primary,
+                  color: AppColors.primary(context),
                   strokeColor: Colors.white,
                   strokeWidth: 2,
                 ),
               ),
               belowBarData: BarAreaData(
                 show: true,
-                color: AppColors.primary.withValues(alpha: 0.1),
+                color: AppColors.primary(context).withValues(alpha: 0.1),
               ),
             ),
           ],
@@ -555,7 +575,7 @@ class _BarChartTopProduits extends StatelessWidget {
                     height: 22,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: _rankColor(i).withValues(alpha: 0.15),
+                      color: _rankColor(context, i).withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
                     child: Text(
@@ -563,7 +583,7 @@ class _BarChartTopProduits extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: _rankColor(i),
+                        color: _rankColor(context, i),
                       ),
                     ),
                   ),
@@ -582,7 +602,7 @@ class _BarChartTopProduits extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: _rankColor(i),
+                      color: _rankColor(context, i),
                     ),
                   ),
                 ],
@@ -594,7 +614,7 @@ class _BarChartTopProduits extends StatelessWidget {
                   value: ratio.clamp(0.0, 1.0),
                   minHeight: 6,
                   backgroundColor: Colors.grey.shade200,
-                  valueColor: AlwaysStoppedAnimation(_rankColor(i)),
+                  valueColor: AlwaysStoppedAnimation(_rankColor(context, i)),
                 ),
               ),
             ],
@@ -605,10 +625,10 @@ class _BarChartTopProduits extends StatelessWidget {
     });
   }
 
-  Color _rankColor(int i) {
+  Color _rankColor(BuildContext context, int i) {
     switch (i) {
       case 0:
-        return AppColors.primary;
+        return AppColors.primary(context);
       case 1:
         return AppColors.secondary;
       case 2:
@@ -635,7 +655,7 @@ class _PiePaiements extends StatelessWidget {
       final colors = {
         ModePaiement.especes: AppColors.success,
         ModePaiement.orangeMoney: AppColors.warning,
-        ModePaiement.mobileMoney: AppColors.primary,
+        ModePaiement.mobileMoney: AppColors.primary(context),
         ModePaiement.paycard: AppColors.secondary,
       };
 
@@ -719,7 +739,7 @@ class _NoData extends StatelessWidget {
                 size: 40, color: Colors.grey.shade400),
             const SizedBox(height: 6),
             Text(message,
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                style: TextStyle(color: AppColors.greyText(context, 600), fontSize: 12)),
           ],
         ),
       ),
@@ -746,9 +766,9 @@ class _ListBoutiques extends StatelessWidget {
                       ListTile(
                         leading: CircleAvatar(
                           backgroundColor:
-                              AppColors.primary.withValues(alpha: 0.12),
-                          child: const Icon(Icons.store_rounded,
-                              color: AppColors.primary),
+                              AppColors.primary(context).withValues(alpha: 0.12),
+                          child: Icon(Icons.store_rounded,
+                              color: AppColors.primary(context)),
                         ),
                         title: Text(e.value.boutique.nom),
                         subtitle: Text('${e.value.nb} vente(s)',
@@ -756,9 +776,9 @@ class _ListBoutiques extends StatelessWidget {
                         trailing: Text(
                           Fmt.money(e.value.ca,
                               currency: e.value.boutique.devise),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
+                            color: AppColors.primary(context),
                           ),
                         ),
                       ),
@@ -835,17 +855,19 @@ class _QuickActions extends StatelessWidget {
       mainAxisSpacing: 10,
       crossAxisSpacing: 10,
       childAspectRatio: 0.95,
-      children: const [
+      children: [
+        // admin/super-admin n'ont pas le droit de créer une vente.
+        // Raccourci pointé vers la liste (lecture seule).
         _Quick(
-          icon: Icons.point_of_sale_rounded,
-          label: 'Caisse',
+          icon: Icons.receipt_long_rounded,
+          label: 'Ventes',
           color: AppColors.success,
-          route: AppRoutes.adminPos,
+          route: AppRoutes.adminVentes,
         ),
         _Quick(
           icon: Icons.store_rounded,
           label: 'Boutiques',
-          color: AppColors.primary,
+          color: AppColors.primary(context),
           route: AppRoutes.adminBoutiques,
         ),
         _Quick(
@@ -886,7 +908,7 @@ class _Quick extends StatelessWidget {
         decoration: BoxDecoration(
           color: Theme.of(context).cardTheme.color,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border, width: 1),
+          border: Border.all(color: AppColors.borderOf(context), width: 1),
         ),
         padding: const EdgeInsets.all(8),
         child: Column(

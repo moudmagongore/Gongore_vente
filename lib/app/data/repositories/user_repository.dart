@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/services/firestore_service.dart';
+import '../../core/utils/stream_helpers.dart';
 import '../models/user_model.dart';
 
 class UserRepository {
@@ -9,7 +10,7 @@ class UserRepository {
   CollectionReference<Map<String, dynamic>> get _col => _fs.users;
 
   Stream<List<UserModel>> watchAll() {
-    return _col.orderBy('nom').snapshots().map(
+    return _col.orderBy('nom').snapshots().ignorePermissionDenied().map(
           (snap) => snap.docs.map(UserModel.fromFirestore).toList(),
         );
   }
@@ -21,7 +22,7 @@ class UserRepository {
     return _col
         .where('boutiqueId', isEqualTo: boutiqueId)
         .orderBy('nom')
-        .snapshots()
+        .snapshots().ignorePermissionDenied()
         .map((snap) => snap.docs.map(UserModel.fromFirestore).toList());
   }
 

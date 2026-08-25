@@ -5,22 +5,18 @@ import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/boutique_model.dart';
 import '../../../../data/models/categorie_model.dart';
 import '../../../../data/models/produit_model.dart';
-import '../../../../data/models/stock_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/categorie_repository.dart';
 import '../../../../data/repositories/produit_repository.dart';
-import '../../../../data/repositories/stock_repository.dart';
 
 class ProduitsController extends GetxController {
   final ProduitRepository _repo = ProduitRepository();
   final CategorieRepository _catRepo = CategorieRepository();
   final BoutiqueRepository _boutRepo = BoutiqueRepository();
-  final StockRepository _stockRepo = StockRepository();
 
   final RxList<ProduitModel> _all = <ProduitModel>[].obs;
   final RxList<CategorieModel> categories = <CategorieModel>[].obs;
   final RxList<BoutiqueModel> boutiques = <BoutiqueModel>[].obs;
-  final RxList<StockModel> _stocks = <StockModel>[].obs;
 
   final RxBool isLoading = true.obs;
   final RxString search = ''.obs;
@@ -29,6 +25,7 @@ class ProduitsController extends GetxController {
   final RxBool onlyActive = false.obs;
 
   bool get isSuperAdmin => UserController.to.isSuperAdmin;
+  bool get isAnyAdmin => UserController.to.isAnyAdmin;
 
   @override
   void onInit() {
@@ -39,18 +36,8 @@ class ProduitsController extends GetxController {
     boutiques.bindStream(
       _boutRepo.watchScoped(scope: scope, actives: true),
     );
-    _stocks.bindStream(_stockRepo.watchScoped(scope));
     debounce(_all, (_) => isLoading.value = false,
         time: const Duration(milliseconds: 200));
-  }
-
-  /// Quantité en stock pour un produit donné dans sa boutique.
-  int stockOf(ProduitModel p) {
-    return _stocks
-            .firstWhereOrNull(
-                (s) => s.produitId == p.id && s.boutiqueId == p.boutiqueId)
-            ?.quantite ??
-        0;
   }
 
   List<ProduitModel> get filtered {
@@ -68,9 +55,11 @@ class ProduitsController extends GetxController {
 
       if (q.isEmpty) return true;
       return p.nom.toLowerCase().contains(q) ||
-          (p.codeBarre?.toLowerCase().contains(q) ?? false) ||
           (p.description?.toLowerCase().contains(q) ?? false);
-    }).toList();
+    }).toList()
+      // Plus récent en haut
+      ..sort((a, b) => (b.createdAt ?? DateTime(0))
+          .compareTo(a.createdAt ?? DateTime(0)));
   }
 
   int get totalVisible => filtered.length;
@@ -93,7 +82,7 @@ class ProduitsController extends GetxController {
       Get.snackbar(
         p.active ? 'Produit désactivé' : 'Produit activé',
         p.nom,
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
     } catch (e) {
       _snackError('Erreur : $e');
@@ -101,12 +90,21 @@ class ProduitsController extends GetxController {
   }
 
   Future<void> confirmDelete(ProduitModel p) async {
+    final used = await _repo.hasUsage(p.id, boutiqueId: p.boutiqueId);
+    if (used) {
+      _snackError(
+        'Suppression impossible : ce produit a déjà été vendu. '
+        'Désactivez-le plutôt pour conserver l\'historique.',
+      );
+      return;
+    }
+
     final ok = await Get.dialog<bool>(
       AlertDialog(
         title: const Text('Supprimer le produit ?'),
         content: Text(
           'Le produit « ${p.nom} » sera supprimé définitivement.\n\n'
-          'Astuce : préférez le désactiver pour conserver l\'historique des ventes.',
+          'Aucune vente n\'est liée à ce produit.',
         ),
         actions: [
           TextButton(
@@ -125,7 +123,7 @@ class ProduitsController extends GetxController {
 
     try {
       await _repo.delete(p.id);
-      Get.snackbar('Supprimé', p.nom, snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Supprimé', p.nom, snackPosition: SnackPosition.TOP);
     } catch (e) {
       _snackError('Suppression impossible : $e');
     }
@@ -135,7 +133,7 @@ class ProduitsController extends GetxController {
     Get.snackbar(
       'Erreur',
       msg,
-      snackPosition: SnackPosition.BOTTOM,
+      snackPosition: SnackPosition.TOP,
       backgroundColor: Colors.red.shade50,
       colorText: Colors.red.shade900,
       margin: const EdgeInsets.all(12),

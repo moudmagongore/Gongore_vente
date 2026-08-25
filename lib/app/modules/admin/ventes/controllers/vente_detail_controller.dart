@@ -3,9 +3,11 @@ import 'package:get/get.dart';
 
 import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/boutique_model.dart';
+import '../../../../data/models/client_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/models/vente_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
+import '../../../../data/repositories/client_repository.dart';
 import '../../../../data/repositories/user_repository.dart';
 import '../../../../data/repositories/vente_repository.dart';
 
@@ -13,10 +15,12 @@ class VenteDetailController extends GetxController {
   final VenteRepository _venteRepo = VenteRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
   final UserRepository _userRepo = UserRepository();
+  final ClientRepository _clientRepo = ClientRepository();
 
   final Rxn<VenteModel> vente = Rxn<VenteModel>();
   final Rxn<BoutiqueModel> boutique = Rxn<BoutiqueModel>();
   final Rxn<UserModel> vendeur = Rxn<UserModel>();
+  final Rxn<ClientModel> client = Rxn<ClientModel>();
   final RxBool isLoading = true.obs;
   final RxBool isCanceling = false.obs;
 
@@ -32,7 +36,24 @@ class VenteDetailController extends GetxController {
       isLoading.value = false;
       boutique.value = await _boutiqueRepo.getById(v.boutiqueId);
       vendeur.value = await _userRepo.getById(v.vendeurId);
+      if (v.clientId != null && v.clientId!.isNotEmpty) {
+        client.value = await _clientRepo.getById(v.clientId!);
+      } else {
+        client.value = null;
+      }
     });
+  }
+
+  /// Libellé client à afficher : nom du client lié, ou nom libre,
+  /// ou « Client divers » par défaut.
+  String get clientLabel {
+    final v = vente.value;
+    if (v == null) return '—';
+    if (client.value != null) return client.value!.nom;
+    if (v.clientNomLibre != null && v.clientNomLibre!.isNotEmpty) {
+      return v.clientNomLibre!;
+    }
+    return 'Client divers';
   }
 
   String get devise => boutique.value?.devise ?? 'GNF';
@@ -40,7 +61,9 @@ class VenteDetailController extends GetxController {
   bool get peutAnnuler {
     if (vente.value == null) return false;
     if (vente.value!.statut != VenteStatut.validee) return false;
-    return UserController.to.isAdmin; // seuls les admins annulent
+    // Annulation : opération métier ouverte au super-admin (sans
+    // restriction) ou au gestionnaire. Admin pur en lecture seule.
+    return UserController.to.canPerformSales;
   }
 
   Future<void> confirmCancel() async {
@@ -54,8 +77,8 @@ class VenteDetailController extends GetxController {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'Le stock des articles vendus sera restitué.\n'
-              'Cette action est tracée dans l\'historique.',
+              'La vente sera marquée comme annulée et l\'effet sur le '
+              'solde client sera inversé.\nCette action est tracée.',
             ),
             const SizedBox(height: 16),
             TextField(
@@ -81,7 +104,7 @@ class VenteDetailController extends GetxController {
                 Get.snackbar(
                   'Erreur',
                   'Le motif est obligatoire',
-                  snackPosition: SnackPosition.BOTTOM,
+                  snackPosition: SnackPosition.TOP,
                 );
                 return;
               }
@@ -107,14 +130,14 @@ class VenteDetailController extends GetxController {
       );
       Get.snackbar(
         'Vente annulée',
-        'Le stock a été restitué',
-        snackPosition: SnackPosition.BOTTOM,
+        'L\'effet sur le solde client a été inversé.',
+        snackPosition: SnackPosition.TOP,
       );
     } catch (e) {
       Get.snackbar(
         'Erreur',
         'Annulation impossible : $e',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.red.shade50,
         colorText: Colors.red.shade900,
       );

@@ -41,7 +41,7 @@ class CategorieFormController extends GetxController {
       boutiqueId.value = arg.boutiqueId;
     } else if (!canPickBoutique) {
       // Admin de boutique : pré-remplir sa boutique
-      boutiqueId.value = UserController.to.boutiqueId;
+      boutiqueId.value = UserController.to.scopeBoutiqueId;
     }
   }
 
@@ -87,7 +87,7 @@ class CategorieFormController extends GetxController {
         Get.snackbar(
           'Modifications enregistrées',
           updated.nom,
-          snackPosition: SnackPosition.BOTTOM,
+          snackPosition: SnackPosition.TOP,
         );
       } else {
         final newCat = CategorieModel(
@@ -103,7 +103,7 @@ class CategorieFormController extends GetxController {
         Get.snackbar(
           'Catégorie créée',
           newCat.nom,
-          snackPosition: SnackPosition.BOTTOM,
+          snackPosition: SnackPosition.TOP,
         );
       }
     } catch (e) {
@@ -117,7 +117,7 @@ class CategorieFormController extends GetxController {
     Get.snackbar(
       'Erreur',
       msg,
-      snackPosition: SnackPosition.BOTTOM,
+      snackPosition: SnackPosition.TOP,
       backgroundColor: Colors.red.shade50,
       colorText: Colors.red.shade900,
       margin: const EdgeInsets.all(12),

@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/services/user_controller.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../core/widgets/admin_drawer.dart';
+import '../../../../core/widgets/vendeur_drawer.dart';
 import '../../../../data/models/produit_model.dart';
+import '../../../../data/models/variante_model.dart';
+import '../../../../data/repositories/produit_repository.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../../theme/app_colors.dart';
 import '../controllers/produits_controller.dart';
@@ -13,6 +17,9 @@ class ProduitsListView extends GetView<ProduitsController> {
 
   @override
   Widget build(BuildContext context) {
+    // Gestion catalogue : super-admin (sans restriction) ou admin de
+    // boutique. Vendeur en lecture seule (pas de FAB ni d'actions tile).
+    final canEdit = UserController.to.canManageCatalog;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Produits'),
@@ -22,7 +29,7 @@ class ProduitsListView extends GetView<ProduitsController> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             child: TextField(
               decoration: const InputDecoration(
-                hintText: 'Rechercher (nom, code-barre, description)...',
+                hintText: 'Rechercher (nom, description)...',
                 prefixIcon: Icon(Icons.search_rounded),
                 isDense: true,
               ),
@@ -31,8 +38,13 @@ class ProduitsListView extends GetView<ProduitsController> {
           ),
         ),
       ),
-      drawer: const AdminDrawer(currentRoute: AppRoutes.adminProduits),
-      body: Column(
+      drawer: canEdit
+          ? const AdminDrawer(currentRoute: AppRoutes.adminProduits)
+          : const VendeurDrawer(currentRoute: AppRoutes.adminProduits),
+      body: SafeArea(
+        top: false,
+        bottom: false,
+        child: Column(
         children: [
           const SizedBox(height: 12),
           _Filters(controller: controller),
@@ -50,17 +62,21 @@ class ProduitsListView extends GetView<ProduitsController> {
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
                 itemCount: list.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 10),
-                itemBuilder: (_, i) => _ProduitTile(produit: list[i]),
+                itemBuilder: (_, i) =>
+                    _ProduitTile(produit: list[i], canEdit: canEdit),
               );
             }),
           ),
         ],
+        ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Get.toNamed(AppRoutes.adminProduitForm),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Nouveau produit'),
-      ),
+      floatingActionButton: canEdit
+          ? FloatingActionButton.extended(
+              onPressed: () => Get.toNamed(AppRoutes.adminProduitForm),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Nouveau produit'),
+            )
+          : null,
     );
   }
 }
@@ -107,6 +123,8 @@ class _Filters extends StatelessWidget {
                     style: TextStyle(fontSize: 12)),
                 selected: controller.onlyActive.value,
                 onSelected: (v) => controller.onlyActive.value = v,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 6),
               ),
             ],
           ),
@@ -138,9 +156,9 @@ class _DropdownChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderOf(context)),
         borderRadius: BorderRadius.circular(20),
       ),
       child: DropdownButton<String?>(
@@ -162,9 +180,20 @@ class _DropdownChip extends StatelessWidget {
   }
 }
 
-class _ProduitTile extends StatelessWidget {
+class _ProduitTile extends StatefulWidget {
   final ProduitModel produit;
-  const _ProduitTile({required this.produit});
+  final bool canEdit;
+  const _ProduitTile({required this.produit, required this.canEdit});
+
+  @override
+  State<_ProduitTile> createState() => _ProduitTileState();
+}
+
+class _ProduitTileState extends State<_ProduitTile> {
+  bool _showVariantes = false;
+
+  ProduitModel get produit => widget.produit;
+  bool get canEdit => widget.canEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -173,15 +202,19 @@ class _ProduitTile extends StatelessWidget {
     final devise = controller.deviseDe(produit.boutiqueId);
 
     return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: () => Get.toNamed(
-          AppRoutes.adminProduitForm,
-          arguments: produit,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
+      child: Column(
+        children: [
+          InkWell(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+            onTap: canEdit
+                ? () => Get.toNamed(
+                      AppRoutes.adminProduitForm,
+                      arguments: produit,
+                    )
+                : null,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
             children: [
               _ProductIcon(),
               const SizedBox(width: 12),
@@ -230,23 +263,23 @@ class _ProduitTile extends StatelessWidget {
                                 horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
                               color:
-                                  AppColors.primary.withValues(alpha: 0.10),
+                                  AppColors.primary(context).withValues(alpha: 0.10),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.store_rounded,
-                                    size: 12, color: AppColors.primary),
+                                Icon(Icons.store_rounded,
+                                    size: 12, color: AppColors.primary(context)),
                                 const SizedBox(width: 4),
                                 Flexible(
                                   child: Text(
                                     controller
                                         .boutiqueNom(produit.boutiqueId),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
-                                      color: AppColors.primary,
+                                      color: AppColors.primary(context),
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -256,23 +289,28 @@ class _ProduitTile extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (cat != null) ...[
-                          const SizedBox(width: 6),
+                      ],
+                    ),
+                    // Catégorie : ligne dédiée juste au-dessus du prix.
+                    if (cat != null) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
                           Icon(Icons.category_outlined,
-                              size: 12, color: Colors.grey.shade500),
-                          const SizedBox(width: 3),
+                              size: 12, color: AppColors.greyText(context, 500)),
+                          const SizedBox(width: 4),
                           Flexible(
                             child: Text(
                               cat,
                               style: TextStyle(
-                                  fontSize: 11, color: Colors.grey.shade600),
+                                  fontSize: 11, color: AppColors.greyText(context, 600)),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
-                      ],
-                    ),
+                      ),
+                    ],
                     const SizedBox(height: 6),
                     Row(
                       children: [
@@ -283,9 +321,9 @@ class _ProduitTile extends StatelessWidget {
                                 child: Text(
                                   Fmt.money(produit.prixVente,
                                       currency: devise),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
+                                    color: AppColors.primary(context),
                                     fontSize: 14,
                                   ),
                                   maxLines: 1,
@@ -317,70 +355,195 @@ class _ProduitTile extends StatelessWidget {
                             ],
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Obx(() => _StockBadge(
-                              quantite: controller.stockOf(produit),
-                              seuil: produit.seuilAlerte,
-                            )),
                       ],
                     ),
                   ],
                 ),
               ),
-              PopupMenuButton<String>(
-                onSelected: (v) {
-                  switch (v) {
-                    case 'edit':
-                      Get.toNamed(AppRoutes.adminProduitForm,
-                          arguments: produit);
-                      break;
-                    case 'toggle':
-                      controller.toggleActive(produit);
-                      break;
-                    case 'delete':
-                      controller.confirmDelete(produit);
-                      break;
-                  }
-                },
-                itemBuilder: (_) => [
-                  const PopupMenuItem(
-                    value: 'edit',
-                    child: ListTile(
-                      leading: Icon(Icons.edit_outlined),
-                      title: Text('Modifier'),
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
+              if (canEdit)
+                PopupMenuButton<String>(
+                  onSelected: (v) {
+                    switch (v) {
+                      case 'edit':
+                        Get.toNamed(AppRoutes.adminProduitForm,
+                            arguments: produit);
+                        break;
+                      case 'toggle':
+                        controller.toggleActive(produit);
+                        break;
+                      case 'delete':
+                        controller.confirmDelete(produit);
+                        break;
+                    }
+                  },
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: ListTile(
+                        leading: Icon(Icons.edit_outlined),
+                        title: Text('Modifier'),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
                     ),
-                  ),
-                  PopupMenuItem(
-                    value: 'toggle',
-                    child: ListTile(
-                      leading: Icon(produit.active
-                          ? Icons.toggle_off_outlined
-                          : Icons.toggle_on_outlined),
-                      title: Text(produit.active ? 'Désactiver' : 'Activer'),
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
+                    PopupMenuItem(
+                      value: 'toggle',
+                      child: ListTile(
+                        leading: Icon(produit.active
+                            ? Icons.toggle_off_outlined
+                            : Icons.toggle_on_outlined),
+                        title:
+                            Text(produit.active ? 'Désactiver' : 'Activer'),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
                     ),
-                  ),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: ListTile(
-                      leading:
-                          Icon(Icons.delete_outline, color: Colors.red),
-                      title: Text('Supprimer',
-                          style: TextStyle(color: Colors.red)),
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
+                    const PopupMenuDivider(),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: ListTile(
+                        leading:
+                            Icon(Icons.delete_outline, color: Colors.red),
+                        title: Text('Supprimer',
+                            style: TextStyle(color: Colors.red)),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
             ],
           ),
         ),
       ),
+          // Footer cliquable + panneau variantes (uniquement si le produit
+          // a des variantes ; lazy-loadé via stream à l'expansion).
+          if (produit.hasVariantes) ...[
+            const Divider(height: 1),
+            InkWell(
+              onTap: () =>
+                  setState(() => _showVariantes = !_showVariantes),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(14),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.style_rounded,
+                      size: 14,
+                      color: AppColors.primary(context).withValues(alpha: 0.8),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Variantes (stock total : ${produit.quantiteStock})',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary(context),
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      _showVariantes
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.keyboard_arrow_down_rounded,
+                      size: 18,
+                      color: AppColors.primary(context),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (_showVariantes)
+              _VariantesPanel(produit: produit),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Panneau qui charge en live les variantes d'un produit et les affiche
+/// sous forme de chips compactes (libellé + stock + état seuil).
+class _VariantesPanel extends StatelessWidget {
+  final ProduitModel produit;
+  const _VariantesPanel({required this.produit});
+
+  @override
+  Widget build(BuildContext context) {
+    final repo = ProduitRepository();
+    return StreamBuilder<List<VarianteModel>>(
+      stream: repo.watchVariantes(produit.id),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.all(12),
+            child: SizedBox(
+              height: 16,
+              width: 16,
+              child:
+                  Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
+          );
+        }
+        final variantes = snap.data ?? const <VarianteModel>[];
+        if (variantes.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(
+              'Aucune variante.',
+              style: TextStyle(fontSize: 12, color: AppColors.greyText(context, 600)),
+            ),
+          );
+        }
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: variantes.map((v) {
+              final low = v.stock <= produit.seuilAlerte;
+              final color = v.stock <= 0
+                  ? Colors.red
+                  : (low ? AppColors.warning : AppColors.success);
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: color.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      v.libelleAffichage,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      ': ${v.stock}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: color,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      },
     );
   }
 }
@@ -392,57 +555,12 @@ class _ProductIcon extends StatelessWidget {
       width: 50,
       height: 50,
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.1),
+        color: AppColors.primary(context).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const Icon(
+      child: Icon(
         Icons.inventory_2_rounded,
-        color: AppColors.primary,
-      ),
-    );
-  }
-}
-
-class _StockBadge extends StatelessWidget {
-  final int quantite;
-  final int seuil;
-  const _StockBadge({required this.quantite, required this.seuil});
-
-  @override
-  Widget build(BuildContext context) {
-    final isOut = quantite <= 0;
-    final isLow = !isOut && quantite <= seuil;
-    final color = isOut || isLow ? Colors.red : AppColors.success;
-    final bg = (isOut || isLow ? Colors.red : AppColors.success)
-        .withValues(alpha: 0.12);
-    final label = isOut ? 'Rupture' : 'Stock $quantite';
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            isOut || isLow
-                ? Icons.warning_amber_rounded
-                : Icons.inventory_2_outlined,
-            size: 12,
-            color: color,
-          ),
-          const SizedBox(width: 3),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
+        color: AppColors.primary(context),
       ),
     );
   }
@@ -472,7 +590,7 @@ class _Empty extends StatelessWidget {
               hasSearch
                   ? 'Aucun produit ne correspond.'
                   : 'Aucun produit pour l\'instant.',
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(color: AppColors.greyText(context, 600)),
               textAlign: TextAlign.center,
             ),
           ],

@@ -46,7 +46,10 @@ class BoutiquesController extends GetxController {
       return b.nom.toLowerCase().contains(q) ||
           (b.adresse?.toLowerCase().contains(q) ?? false) ||
           (b.telephone?.toLowerCase().contains(q) ?? false);
-    }).toList();
+    }).toList()
+      // Plus récent en haut
+      ..sort((a, b) => (b.createdAt ?? DateTime(0))
+          .compareTo(a.createdAt ?? DateTime(0)));
   }
 
   int get totalCount {
@@ -75,7 +78,7 @@ class BoutiquesController extends GetxController {
       Get.snackbar(
         b.active ? 'Boutique désactivée' : 'Boutique activée',
         b.nom,
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         duration: const Duration(seconds: 2),
       );
     } catch (e) {
@@ -94,9 +97,8 @@ class BoutiquesController extends GetxController {
         content: Text(
           '⚠️ La boutique « ${b.nom} » sera supprimée DÉFINITIVEMENT '
           'avec TOUTES ses données :\n\n'
-          '• Tous les utilisateurs (admins + vendeurs)\n'
+          '• Tous les utilisateurs (admins + gestionnaires)\n'
           '• Tous les produits et catégories\n'
-          '• Tout le stock et l\'historique des mouvements\n'
           '• Toutes les ventes et tous les clients\n\n'
           'Cette action est IRRÉVERSIBLE.\n\n'
           '💡 Astuce : préférez la désactiver pour conserver les données.',
@@ -128,8 +130,8 @@ class BoutiquesController extends GetxController {
       Get.snackbar(
         'Boutique supprimée',
         '${res.users} users, ${res.produits} produits, '
-        '${res.ventes} ventes, ${res.mouvements} mouvements...',
-        snackPosition: SnackPosition.BOTTOM,
+        '${res.ventes} ventes, ${res.clients} clients.',
+        snackPosition: SnackPosition.TOP,
         duration: const Duration(seconds: 4),
       );
     } catch (e) {
@@ -142,7 +144,7 @@ class BoutiquesController extends GetxController {
     Get.snackbar(
       'Erreur',
       msg,
-      snackPosition: SnackPosition.BOTTOM,
+      snackPosition: SnackPosition.TOP,
       backgroundColor: Colors.red.shade50,
       colorText: Colors.red.shade900,
       margin: const EdgeInsets.all(12),

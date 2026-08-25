@@ -39,26 +39,47 @@ service cloud.firestore {
       return isActive() && userDoc().role == 'admin';
     }
 
+    // Gestionnaire = anciennement « vendeur ». Inclut aussi un admin qui
+    // a coché « Aussi gestionnaire » (champ `alsoGestionnaire: true`),
+    // ce qui lui donne tous les droits gestionnaire EN PLUS de ses droits
+    // admin (cumul utile pour qu'un admin puisse aussi tenir la caisse).
     function isVendeur() {
-      return isActive() && userDoc().role == 'vendeur';
+      return isActive()
+        && (userDoc().role == 'vendeur'
+            || (userDoc().role == 'admin'
+                && userDoc().get('alsoGestionnaire', false) == true));
     }
 
     function userBoutiqueId() {
       return userDoc().boutiqueId;
     }
 
+    // Liste des boutiques additionnelles auxquelles l'admin a accès, en
+    // plus de sa boutique principale. Vide pour les vendeurs (toujours
+    // une seule boutique).
+    function userAdditionalBoutiqueIds() {
+      return userDoc().get('additionalBoutiqueIds', []);
+    }
+
+    // Vrai si l'utilisateur a accès à la boutique passée (boutique principale
+    // OU l'une des boutiques additionnelles).
+    function userHasBoutique(bid) {
+      return userBoutiqueId() == bid
+        || userAdditionalBoutiqueIds().hasAny([bid]);
+    }
+
     function ownsBoutique(bid) {
-      return (isAdmin() || isVendeur()) && userBoutiqueId() == bid;
+      return (isAdmin() || isVendeur()) && userHasBoutique(bid);
     }
 
-    // Le doc créé porte le bon boutiqueId
+    // Le doc créé porte un boutiqueId auquel l'utilisateur a accès
     function createBoutiqueIdMatches() {
-      return request.resource.data.boutiqueId == userBoutiqueId();
+      return userHasBoutique(request.resource.data.boutiqueId);
     }
 
-    // Le doc lu/modifié porte le bon boutiqueId
+    // Le doc lu/modifié porte un boutiqueId auquel l'utilisateur a accès
     function resourceBoutiqueIdMatches() {
-      return resource.data.boutiqueId == userBoutiqueId();
+      return userHasBoutique(resource.data.boutiqueId);
     }
 
     // Empêche de modifier le boutiqueId à l'update
@@ -66,15 +87,24 @@ service cloud.firestore {
       return request.resource.data.boutiqueId == resource.data.boutiqueId;
     }
 
+    // Empêche de modifier la liste des boutiques additionnelles à l'update
+    // (réservé au super-admin, qui n'est pas concerné par cette contrainte).
+    function additionalBoutiquesNotChanged() {
+      return request.resource.data.get('additionalBoutiqueIds', [])
+          == resource.data.get('additionalBoutiqueIds', []);
+    }
+
     // ================== Users ==================
     match /users/{userId} {
       // Lecture :
       //   • superAdmin : tous
       //   • soi-même : son propre doc
-      //   • admin de boutique : les users de sa boutique
+      //   • tout user actif de la boutique : les users de sa boutique
+      //     (nécessaire pour afficher noms vendeurs/admins dans listes
+      //     ventes, règlements, etc.)
       allow read: if isSuperAdmin()
                   || (isAuthed() && request.auth.uid == userId)
-                  || (isAdmin() && resource.data.boutiqueId == userBoutiqueId());
+                  || (isActive() && userHasBoutique(resource.data.boutiqueId));
 
       // Création :
       //   • superAdmin : tous (admins ou vendeurs)
@@ -87,16 +117,43 @@ service cloud.firestore {
                         && createBoutiqueIdMatches());
 
       // Update :
-      //   • superAdmin : tout sauf promouvoir vers superAdmin
-      //   • admin : uniquement vendeurs de sa boutique, sans changer rôle/boutique
-      //   • soi-même : limité (nom, téléphone) — non couvert ici, simple deny
+      //   • superAdmin :
+      //       - peut modifier n'importe quel user (y compris se modifier
+      //         lui-même)
+      //       - on bloque uniquement la PROMOTION/DÉPROMOTION vers/depuis
+      //         le rôle superAdmin (impossibilité de devenir superAdmin via
+      //         l'API ou de rétrograder un superAdmin existant)
+      //   • admin : vendeurs de sa boutique (sans changer rôle/boutique)
+      //   • admin : SOI-MÊME, uniquement pour basculer `alsoGestionnaire`
+      //     (et `updatedAt`) — permet de s'auto-promouvoir gestionnaire
+      //     sans pouvoir modifier role/boutiqueId/active
+      //   • vendeur : SOI-MÊME (nom / téléphone), pas de changement
+      //     role / boutiqueId / active
       allow update: if (isSuperAdmin()
+                        && request.resource.data.role
+                            == resource.data.role)
+                    || (isSuperAdmin()
+                        && resource.data.role != 'superAdmin'
                         && request.resource.data.role != 'superAdmin')
                     || (isAdmin()
                         && resource.data.role == 'vendeur'
-                        && resource.data.boutiqueId == userBoutiqueId()
+                        && userHasBoutique(resource.data.boutiqueId)
                         && request.resource.data.role == 'vendeur'
-                        && boutiqueIdNotChanged());
+                        && boutiqueIdNotChanged()
+                        && additionalBoutiquesNotChanged())
+                    || (isAdmin()
+                        && request.auth.uid == userId
+                        && resource.data.role == 'admin'
+                        && request.resource.data.role == 'admin'
+                        && boutiqueIdNotChanged()
+                        && additionalBoutiquesNotChanged()
+                        && request.resource.data.active == resource.data.active)
+                    || (isVendeur()
+                        && request.auth.uid == userId
+                        && request.resource.data.role == resource.data.role
+                        && boutiqueIdNotChanged()
+                        && additionalBoutiquesNotChanged()
+                        && request.resource.data.active == resource.data.active);
 
       // Delete :
       //   • superAdmin : tous
@@ -104,7 +161,7 @@ service cloud.firestore {
       allow delete: if isSuperAdmin()
                     || (isAdmin()
                         && resource.data.role == 'vendeur'
-                        && resource.data.boutiqueId == userBoutiqueId());
+                        && userHasBoutique(resource.data.boutiqueId));
     }
 
     // ================== Boutiques ==================
@@ -121,9 +178,12 @@ service cloud.firestore {
     }
 
     // ================== Catégories (par boutique) ==================
+    // Politique : gestion du catalogue par l'ADMIN de la boutique.
+    // super-admin a accès complet (cible n'importe quelle boutique).
+    // vendeur en lecture seule.
     match /categories/{cid} {
       allow read: if isSuperAdmin()
-                  || (isAuthed() && resource.data.boutiqueId == userBoutiqueId());
+                  || (isAuthed() && userHasBoutique(resource.data.boutiqueId));
 
       allow create: if isSuperAdmin()
                     || (isAdmin() && createBoutiqueIdMatches());
@@ -138,88 +198,311 @@ service cloud.firestore {
     }
 
     // ================== Produits (par boutique) ==================
+    // Politique : gestion du catalogue par l'ADMIN de la boutique. super-admin
+    // a accès complet (sans aucun verrou — peut bypasser le verrou CMUP).
+    // vendeur peut écrire uniquement les champs techniques maj par les
+    // transactions vente / appro.
     match /produits/{pid} {
       allow read: if isSuperAdmin()
-                  || (isAuthed() && resource.data.boutiqueId == userBoutiqueId());
+                  || (isAuthed() && userHasBoutique(resource.data.boutiqueId));
 
       allow create: if isSuperAdmin()
                     || (isAdmin() && createBoutiqueIdMatches());
 
+      // Update :
+      //   • super-admin : tout, sans aucune contrainte (peut même rééditer
+      //     `prixAchat` malgré le verrou CMUP)
+      //   • admin : tout (édition de la fiche produit) SAUF :
+      //       - `prixAchat` immuable dès qu'un appro existe
+      //         (`hasAppros == true`) — le CMUP est calculé automatiquement.
+      //       - `hasAppros` ne peut jamais être remis à false (one-way flag).
+      //   • vendeur : uniquement les champs gérés par les transactions
+      //       - quantiteStock (décrément vente, incrément appro)
+      //       - prixAchat (recalcul CMUP à chaque appro)
+      //       - hasAppros (posé à true par la transaction appro)
+      //       - updatedAt (timestamp serveur)
       allow update: if isSuperAdmin()
                     || (isAdmin()
                         && resourceBoutiqueIdMatches()
-                        && boutiqueIdNotChanged());
+                        && boutiqueIdNotChanged()
+                        && (resource.data.get('hasAppros', false) != true
+                            || (request.resource.data.prixAchat
+                                    == resource.data.prixAchat
+                                && request.resource.data.get('hasAppros', false)
+                                    == true)))
+                    || (isVendeur()
+                        && resourceBoutiqueIdMatches()
+                        && request.resource.data.diff(resource.data)
+                            .affectedKeys()
+                            .hasOnly(['quantiteStock', 'prixAchat', 'hasAppros', 'updatedAt']));
 
       allow delete: if isSuperAdmin()
                     || (isAdmin() && resourceBoutiqueIdMatches());
     }
 
-    // ================== Stocks (par boutique) ==================
-    // Document ID = "{boutiqueId}_{produitId}"
-    match /stocks/{sid} {
-      allow read: if isSuperAdmin()
-                  || (isAuthed() && resource.data.boutiqueId == userBoutiqueId());
+    // ================== Variantes (sous-collection produits) ==================
+    // Politique : alignée sur celle de la fiche produit, mais on doit lire
+    // le `boutiqueId` du produit parent (la variante elle-même ne le stocke
+    // pas — c'est volontaire pour éviter la dénormalisation).
+    //
+    // - read : superAdmin OU user de la même boutique que le produit
+    // - create/delete : admin de la boutique
+    // - update : admin (tout) ou vendeur (uniquement stock + updatedAt,
+    //   pour les transactions vente / appro / mouvement)
+    match /produits/{pid}/variantes/{vid} {
+      function parentBoutiqueId() {
+        return get(/databases/$(database)/documents/produits/$(pid)).data.boutiqueId;
+      }
 
-      // Création/update du stock : tous les rôles authentifiés liés à la boutique
-      // (admin gère, vendeur valide une vente qui décrémente).
+      allow read: if isSuperAdmin()
+                  || (isAuthed() && userHasBoutique(parentBoutiqueId()));
+
       allow create: if isSuperAdmin()
-                    || (isAuthed() && createBoutiqueIdMatches());
+                    || (isAdmin() && userHasBoutique(parentBoutiqueId()));
 
       allow update: if isSuperAdmin()
-                    || (isAuthed()
-                        && resourceBoutiqueIdMatches()
-                        && boutiqueIdNotChanged());
+                    || (isAdmin()
+                        && userHasBoutique(parentBoutiqueId()))
+                    || (isVendeur()
+                        && userHasBoutique(parentBoutiqueId())
+                        && request.resource.data.diff(resource.data)
+                            .affectedKeys()
+                            .hasOnly(['stock', 'updatedAt']));
 
-      allow delete: if isSuperAdmin();
-    }
-
-    // ================== Mouvements de stock ==================
-    match /mouvementsStock/{mid} {
-      allow read: if isSuperAdmin()
-                  || (isAuthed() && resource.data.boutiqueId == userBoutiqueId());
-
-      // Création par tout user de la boutique (vente, entrée, sortie, transfert).
-      allow create: if isSuperAdmin()
-                    || (isAuthed() && createBoutiqueIdMatches());
-
-      // Pas d'update / delete sur les mouvements (audit trail) sauf super-admin.
-      allow update, delete: if isSuperAdmin();
+      allow delete: if isSuperAdmin()
+                    || (isAdmin() && userHasBoutique(parentBoutiqueId()));
     }
 
     // ================== Ventes ==================
+    // Politique : opérations métier au VENDEUR. super-admin a accès complet
+    // (peut créer / modifier / supprimer — bypasse l'audit trail).
+    // admin en lecture seule.
     match /ventes/{vid} {
       allow read: if isSuperAdmin()
-                  || (isAuthed() && resource.data.boutiqueId == userBoutiqueId());
+                  || (isAuthed() && userHasBoutique(resource.data.boutiqueId));
 
-      // Création par tout user de la boutique (admin OU vendeur).
+      // Création : super-admin (sans contrainte de boutique) ou vendeur de
+      // sa boutique. admin bloqué.
       allow create: if isSuperAdmin()
-                    || (isAuthed() && createBoutiqueIdMatches());
+                    || (isVendeur() && createBoutiqueIdMatches());
 
-      // Update (annulation) : seul super-admin OU admin de la boutique.
+      // Update :
+      //   • super-admin : tout, sans contrainte (peut éditer n'importe quel
+      //     champ même si la vente est validée)
+      //   • vendeur de la boutique : 2 cas
+      //       - imputation FIFO d'un règlement client (champ `montantPaye`)
+      //       - annulation : passer `statut` à 'annulee' + `motifAnnulation`
+      //   admin ne modifie pas de vente.
       allow update: if isSuperAdmin()
-                    || (isAdmin()
+                    || (isVendeur()
                         && resourceBoutiqueIdMatches()
-                        && boutiqueIdNotChanged());
+                        && request.resource.data.diff(resource.data)
+                            .affectedKeys().hasOnly(['montantPaye']))
+                    || (isVendeur()
+                        && resourceBoutiqueIdMatches()
+                        && resource.data.statut == 'validee'
+                        && request.resource.data.statut == 'annulee'
+                        && request.resource.data.diff(resource.data)
+                            .affectedKeys()
+                            .hasOnly(['statut', 'motifAnnulation']));
 
-      // Delete réservé super-admin.
+      // Delete : super-admin uniquement (bypass de l'audit trail).
+      // Les autres rôles passent par l'annulation (statut).
       allow delete: if isSuperAdmin();
     }
 
     // ================== Clients ==================
+    // Politique : opérations au VENDEUR. super-admin a accès complet (peut
+    // bypasser le verrou hasOperations à la suppression). admin lecture seule.
     match /clients/{cid} {
       allow read: if isSuperAdmin()
-                  || (isAuthed() && resource.data.boutiqueId == userBoutiqueId());
+                  || (isAuthed() && userHasBoutique(resource.data.boutiqueId));
 
       allow create: if isSuperAdmin()
-                    || (isAuthed() && createBoutiqueIdMatches());
+                    || (isVendeur() && createBoutiqueIdMatches());
 
       allow update: if isSuperAdmin()
-                    || (isAuthed()
+                    || (isVendeur()
                         && resourceBoutiqueIdMatches()
                         && boutiqueIdNotChanged());
 
+      // Suppression :
+      //   • super-admin : sans contrainte (peut supprimer même si
+      //     `hasOperations == true`)
+      //   • vendeur : uniquement si le client n'a JAMAIS eu d'opération
       allow delete: if isSuperAdmin()
-                    || (isAdmin() && resourceBoutiqueIdMatches());
+                    || (isVendeur()
+                        && resourceBoutiqueIdMatches()
+                        && resource.data.get('hasOperations', false) != true);
+    }
+
+    // ================== Règlements (encaissements) ==================
+    // Politique : opérations au VENDEUR. super-admin accès complet (incl.
+    // l'update normalement immuable, en bypass de l'audit). admin lecture.
+    match /reglements/{rid} {
+      allow read: if isSuperAdmin()
+                  || (isAuthed() && userHasBoutique(resource.data.boutiqueId));
+
+      allow create: if isSuperAdmin()
+                    || (isVendeur() && createBoutiqueIdMatches());
+
+      // Update : super-admin uniquement (bypass de l'immuabilité).
+      allow update: if isSuperAdmin();
+
+      allow delete: if isSuperAdmin()
+                    || (isVendeur() && resourceBoutiqueIdMatches());
+    }
+
+    // ================== Fournisseurs (par boutique) ==================
+    // Politique : opérations au VENDEUR. super-admin accès complet (peut
+    // bypasser le verrou hasOperations à la suppression). admin lecture.
+    match /fournisseurs/{fid} {
+      allow read: if isSuperAdmin()
+                  || (isAuthed() && userHasBoutique(resource.data.boutiqueId));
+
+      allow create: if isSuperAdmin()
+                    || (isVendeur() && createBoutiqueIdMatches());
+
+      allow update: if isSuperAdmin()
+                    || (isVendeur()
+                        && resourceBoutiqueIdMatches()
+                        && boutiqueIdNotChanged());
+
+      // Suppression :
+      //   • super-admin : sans contrainte
+      //   • vendeur : uniquement si fournisseur sans opération
+      allow delete: if isSuperAdmin()
+                    || (isVendeur()
+                        && resourceBoutiqueIdMatches()
+                        && resource.data.get('hasOperations', false) != true);
+    }
+
+    // ================== Approvisionnements ==================
+    // Politique : opérations au VENDEUR. super-admin accès complet (incl.
+    // suppression en bypass de l'audit). admin lecture seule.
+    match /approvisionnements/{aid} {
+      allow read: if isSuperAdmin()
+                  || (isAuthed() && userHasBoutique(resource.data.boutiqueId));
+
+      allow create: if isSuperAdmin()
+                    || (isVendeur() && createBoutiqueIdMatches());
+
+      // Update :
+      //   • super-admin : tout, sans contrainte
+      //   • vendeur : 2 cas (imputation FIFO d'un règlement, annulation)
+      allow update: if isSuperAdmin()
+                    || (isVendeur()
+                        && resourceBoutiqueIdMatches()
+                        && request.resource.data.diff(resource.data)
+                            .affectedKeys().hasOnly(['montantPaye']))
+                    || (isVendeur()
+                        && resourceBoutiqueIdMatches()
+                        && resource.data.statut == 'validee'
+                        && request.resource.data.statut == 'annulee'
+                        && request.resource.data.diff(resource.data)
+                            .affectedKeys()
+                            .hasOnly(['statut', 'motifAnnulation']));
+
+      // Delete : super-admin uniquement (bypass audit).
+      allow delete: if isSuperAdmin();
+    }
+
+    // ================== Règlements fournisseurs ==================
+    // Symétrique aux règlements clients : opérations au VENDEUR. super-admin
+    // accès complet (incl. update normalement immuable). admin lecture seule.
+    match /reglementsFournisseurs/{rid} {
+      allow read: if isSuperAdmin()
+                  || (isAuthed() && userHasBoutique(resource.data.boutiqueId));
+
+      allow create: if isSuperAdmin()
+                    || (isVendeur() && createBoutiqueIdMatches());
+
+      // Update : super-admin uniquement (bypass de l'immuabilité).
+      allow update: if isSuperAdmin();
+
+      allow delete: if isSuperAdmin()
+                    || (isVendeur() && resourceBoutiqueIdMatches());
+    }
+
+    // ================== Mouvements de stock (audit) ==================
+    // Trace des mouvements MANUELS (sortie / entrée / ajustement / perte
+    // / casse). Les mouvements automatiques (vente, appro) ne passent
+    // PAS par cette collection — ils sont reconstituables depuis ventes
+    // et approvisionnements.
+    match /mouvementsStock/{mid} {
+      allow read: if isSuperAdmin()
+                  || (isAuthed() && userHasBoutique(resource.data.boutiqueId));
+
+      // Création : super-admin (sans contrainte) ou admin de la boutique.
+      // Le gestionnaire est en lecture seule.
+      allow create: if isSuperAdmin()
+                    || (isAdmin() && createBoutiqueIdMatches());
+
+      // Update / delete : super-admin uniquement (bypass audit trail).
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // ================== Compteurs (numéros séquentiels) ==================
+    // Document ID = boutiqueId. Champs `ventes{ANNEE}`, `appros{ANNEE}`
+    // incrémentés atomiquement dans les transactions correspondantes.
+    match /counters/{cid} {
+      // Lecture/écriture par tout user lié à cette boutique.
+      // L'ID du document EST le boutiqueId, donc on compare aux boutiques
+      // accessibles de l'utilisateur (principale + additionnelles).
+      allow read, create, update: if isSuperAdmin()
+                                  || (isAuthed() && userHasBoutique(cid));
+
+      // Pas de delete possible (audit trail).
+      allow delete: if isSuperAdmin();
+    }
+
+    // ================== Abonnements (paiements) ==================
+    // Un doc par paiement enregistré pour une boutique. Création réservée
+    // au super-admin. admin/gestionnaire peuvent lire l'historique de leur
+    // propre boutique (transparence sur les paiements). Update/delete
+    // bloqués en dehors du super-admin (audit immuable).
+    match /abonnements/{aid} {
+      allow read: if isSuperAdmin()
+                  || (isAuthed() && userHasBoutique(resource.data.boutiqueId));
+
+      allow create: if isSuperAdmin();
+
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // ================== Paramètres globaux ==================
+    // Singleton `parametres/abonnement` : tarifs par période + jours de
+    // grâce. Lecture pour tout utilisateur authentifié (l'admin de boutique
+    // a besoin de connaître la période de grâce pour afficher le bandeau).
+    // Écriture super-admin uniquement.
+    match /parametres/{paramId} {
+      allow read: if isAuthed();
+      allow write: if isSuperAdmin();
+    }
+
+    // Cas particulier : `parametres/app_update` doit être lisible par
+    // tous (même non-authentifiés) car le check de mise à jour forcée
+    // tourne au splash AVANT le login.
+    match /parametres/app_update {
+      allow read: if true;
+    }
+
+    // ================== Phone Index (login hybride) ==================
+    // Mapping `téléphone normalisé → email/uid` pour permettre la
+    // connexion avec un numéro de téléphone (résolu vers l'email avant
+    // l'appel à Firebase Auth signInWithEmailAndPassword).
+    //
+    // Lecture publique : indispensable car au moment du login l'utilisateur
+    // n'est pas encore authentifié. Le contenu exposé est minimal (email
+    // + uid) ; ce n'est pas plus sensible qu'une recherche email→user
+    // déjà possible via les flux de reset password Firebase.
+    //
+    // Écriture : super-admin ou admin de boutique uniquement (ils créent
+    // / modifient les utilisateurs). Le gestionnaire ne touche pas à
+    // l'index.
+    match /phone_index/{phoneId} {
+      allow read: if true;
+      allow create, update, delete: if isSuperAdmin() || isAdmin();
     }
 
     // ================== Tout le reste : refusé ==================

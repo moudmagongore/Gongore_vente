@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/services/receipt_service.dart';
+import '../../../../core/services/user_controller.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../data/models/vente_model.dart';
+import '../../../../routes/app_routes.dart';
 import '../../../../theme/app_colors.dart';
 import '../controllers/vente_detail_controller.dart';
 
@@ -30,12 +32,13 @@ class VenteDetailView extends GetView<VenteDetailController> {
                     vente: v,
                     boutique: boutique,
                     vendeur: controller.vendeur.value,
+                    clientLabel: controller.clientLabel,
                   );
                 } catch (e) {
                   Get.snackbar(
                     'Erreur',
                     'Impression impossible : $e',
-                    snackPosition: SnackPosition.BOTTOM,
+                    snackPosition: SnackPosition.TOP,
                   );
                 }
               },
@@ -43,37 +46,63 @@ class VenteDetailView extends GetView<VenteDetailController> {
           }),
         ],
       ),
-      body: Obx(() {
+      body: SafeArea(
+        top: false,
+        child: Obx(() {
         final v = controller.vente.value;
         if (controller.isLoading.value || v == null) {
           return const Center(child: CircularProgressIndicator());
         }
         return _DetailBody(vente: v, controller: controller);
       }),
+      ),
       bottomNavigationBar: Obx(() {
-        if (!controller.peutAnnuler) return const SizedBox.shrink();
+        final v = controller.vente.value;
+        if (v == null) return const SizedBox.shrink();
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                minimumSize: const Size.fromHeight(50),
-              ),
-              onPressed: controller.isCanceling.value
-                  ? null
-                  : controller.confirmCancel,
-              icon: controller.isCanceling.value
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.4,
-                        valueColor: AlwaysStoppedAnimation(Colors.white),
-                      ),
-                    )
-                  : const Icon(Icons.cancel_outlined),
-              label: const Text('Annuler la vente'),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50),
+                  ),
+                  onPressed: () => Get.offAllNamed(
+                    UserController.to.isAnyAdmin
+                        ? AppRoutes.adminHome
+                        : AppRoutes.vendeurHome,
+                  ),
+                  icon: const Icon(Icons.home_rounded),
+                  label: const Text('Retour à l\'accueil'),
+                ),
+                if (controller.peutAnnuler) ...[
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red, width: 1.4),
+                      minimumSize: const Size.fromHeight(50),
+                    ),
+                    onPressed: controller.isCanceling.value
+                        ? null
+                        : controller.confirmCancel,
+                    icon: controller.isCanceling.value
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.4,
+                              valueColor:
+                                  AlwaysStoppedAnimation(Colors.red),
+                            ),
+                          )
+                        : const Icon(Icons.cancel_outlined),
+                    label: const Text('Annuler la vente'),
+                  ),
+                ],
+              ],
             ),
           ),
         );
@@ -127,7 +156,7 @@ class _DetailBody extends StatelessWidget {
                       Fmt.dateTime(vente.date),
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade700,
+                        color: AppColors.greyText(context, 700),
                       ),
                     ),
                     if (vente.motifAnnulation?.isNotEmpty ?? false) ...[
@@ -161,8 +190,15 @@ class _DetailBody extends StatelessWidget {
                       value: controller.boutique.value?.nom ?? '…',
                     )),
                 Obx(() => _InfoLine(
-                      icon: Icons.person_outline,
-                      label: 'Vendeur',
+                      icon: controller.client.value != null
+                          ? Icons.person_pin_rounded
+                          : Icons.person_outline_rounded,
+                      label: 'Client',
+                      value: controller.clientLabel,
+                    )),
+                Obx(() => _InfoLine(
+                      icon: Icons.badge_outlined,
+                      label: 'Gestionnaire',
                       value: controller.vendeur.value?.nom ?? '…',
                     )),
                 _InfoLine(
@@ -174,8 +210,15 @@ class _DetailBody extends StatelessWidget {
                   icon: Icons.shopping_basket_outlined,
                   label: 'Articles',
                   value: '${vente.nbArticles} unité(s)',
-                  isLast: true,
+                  isLast: !(vente.note?.isNotEmpty ?? false),
                 ),
+                if (vente.note?.isNotEmpty ?? false)
+                  _InfoLine(
+                    icon: Icons.notes_rounded,
+                    label: 'Note',
+                    value: vente.note!,
+                    isLast: true,
+                  ),
               ],
             ),
           ),
@@ -183,14 +226,14 @@ class _DetailBody extends StatelessWidget {
         const SizedBox(height: 16),
 
         // ====== Articles ======
-        const Padding(
+        Padding(
           padding: EdgeInsets.fromLTRB(4, 0, 4, 8),
           child: Text(
             'Articles',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: AppColors.lightTextMuted,
+              color: AppColors.greyText(context, 700),
             ),
           ),
         ),
@@ -230,7 +273,37 @@ class _DetailBody extends StatelessWidget {
                   label: 'TOTAL',
                   value: Fmt.money(vente.total, currency: controller.devise),
                   big: true,
+                  strikethrough: annulee,
                 ),
+                const SizedBox(height: 8),
+                Divider(height: 1, color: Colors.grey.shade200),
+                const SizedBox(height: 8),
+                _TotalLine(
+                  label: 'Montant payé (cash)',
+                  value: Fmt.money(vente.montantPaye,
+                      currency: controller.devise),
+                ),
+                if (vente.avanceUtilisee > 0)
+                  _TotalLine(
+                    label: 'Avance utilisée',
+                    value: Fmt.money(vente.avanceUtilisee,
+                        currency: controller.devise),
+                    color: AppColors.secondary,
+                  ),
+                if (vente.resteAPayer > 0)
+                  _TotalLine(
+                    label: 'Reste à payer',
+                    value:
+                        '${Fmt.money(vente.resteAPayer, currency: controller.devise)} (crédit)',
+                    color: AppColors.warning,
+                  )
+                else if (vente.resteAPayer < 0)
+                  _TotalLine(
+                    label: 'Trop-perçu',
+                    value: Fmt.money(vente.resteAPayer.abs(),
+                        currency: controller.devise),
+                    color: AppColors.success,
+                  ),
               ],
             ),
           ),
@@ -261,13 +334,13 @@ class _InfoLine extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: Colors.grey.shade600),
+              Icon(icon, size: 20, color: AppColors.greyText(context, 600)),
               const SizedBox(width: 12),
               Text(
                 label,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey.shade700,
+                  color: AppColors.greyText(context, 700),
                 ),
               ),
               const Spacer(),
@@ -311,14 +384,14 @@ class _ArticleLine extends StatelessWidget {
                 height: 30,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
+                  color: AppColors.primary(context).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   '${article.quantite}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
+                    color: AppColors.primary(context),
                   ),
                 ),
               ),
@@ -333,15 +406,37 @@ class _ArticleLine extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
                       ),
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (article.varianteLibelle != null &&
+                        article.varianteLibelle!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary(context).withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          article.varianteLibelle!,
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary(context),
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 2),
                     Text(
                       '${Fmt.money(article.prixUnitaire, currency: devise)} x ${article.quantite}'
                       '${article.remise > 0 ? '  • remise ${Fmt.money(article.remise, currency: devise)}' : ''}',
                       style: TextStyle(
                         fontSize: 11,
-                        color: Colors.grey.shade600,
+                        color: AppColors.greyText(context, 600),
                       ),
                     ),
                   ],
@@ -349,9 +444,9 @@ class _ArticleLine extends StatelessWidget {
               ),
               Text(
                 Fmt.money(article.sousTotal, currency: devise),
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
+                  color: AppColors.primary(context),
                 ),
               ),
             ],
@@ -368,12 +463,14 @@ class _TotalLine extends StatelessWidget {
   final String value;
   final bool big;
   final Color? color;
+  final bool strikethrough;
 
   const _TotalLine({
     required this.label,
     required this.value,
     this.big = false,
     this.color,
+    this.strikethrough = false,
   });
 
   @override
@@ -396,7 +493,12 @@ class _TotalLine extends StatelessWidget {
             style: TextStyle(
               fontSize: big ? 22 : 14,
               fontWeight: big ? FontWeight.w800 : FontWeight.w600,
-              color: color ?? (big ? AppColors.primary : null),
+              color: strikethrough
+                  ? Colors.grey
+                  : (color ?? (big ? AppColors.primary(context) : null)),
+              decoration: strikethrough
+                  ? TextDecoration.lineThrough
+                  : TextDecoration.none,
             ),
           ),
         ],

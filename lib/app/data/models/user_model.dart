@@ -9,11 +9,15 @@ enum UserRole {
   /// Lié à une boutique précise via `boutiqueId`.
   admin,
 
-  /// Vendeur d'une boutique : utilise la caisse, voit ses propres ventes.
-  /// Lié à une boutique précise via `boutiqueId`.
+  /// Gestionnaire (anciennement « vendeur ») : utilise la caisse, voit ses
+  /// propres ventes/règlements. Lié à une boutique via `boutiqueId`.
+  /// Note : la valeur enum/DB reste `vendeur` pour compatibilité avec les
+  /// comptes existants — on accepte aussi `'gestionnaire'` à la lecture.
   vendeur;
 
   static UserRole fromString(String? value) {
+    // Compat : nouveau libellé `'gestionnaire'` mappé sur l'enum vendeur.
+    if (value == 'gestionnaire') return UserRole.vendeur;
     return UserRole.values.firstWhere(
       (r) => r.name == value,
       orElse: () => UserRole.vendeur,
@@ -27,7 +31,7 @@ enum UserRole {
       case UserRole.admin:
         return 'Administrateur';
       case UserRole.vendeur:
-        return 'Vendeur';
+        return 'Gestionnaire';
     }
   }
 }
@@ -40,6 +44,19 @@ class UserModel {
   final UserRole role;
   final String? boutiqueId;
   final bool active;
+
+  /// Drapeau cumulatif : `true` ⇒ cet admin a AUSSI les droits gestionnaire
+  /// de sa boutique (encaisser, verser règlement, créer vente, etc.) en
+  /// plus de ses droits admin habituels. Ignoré pour role != admin.
+  /// Permet à un admin de gérer en plus la caisse au quotidien.
+  final bool alsoGestionnaire;
+
+  /// Boutiques supplémentaires auxquelles l'admin a accès (en plus de
+  /// `boutiqueId` qui reste sa boutique principale). Permet à un admin
+  /// d'être affecté à plusieurs boutiques. Toujours vide pour un vendeur
+  /// (un gestionnaire n'a qu'une seule boutique).
+  final List<String> additionalBoutiqueIds;
+
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -51,6 +68,8 @@ class UserModel {
     this.telephone,
     this.boutiqueId,
     this.active = true,
+    this.alsoGestionnaire = false,
+    this.additionalBoutiqueIds = const [],
     this.createdAt,
     this.updatedAt,
   });
@@ -64,6 +83,11 @@ class UserModel {
       role: UserRole.fromString(map['role'] as String?),
       boutiqueId: map['boutiqueId'] as String?,
       active: (map['active'] ?? true) as bool,
+      alsoGestionnaire: (map['alsoGestionnaire'] ?? false) as bool,
+      additionalBoutiqueIds: (map['additionalBoutiqueIds'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
       createdAt: (map['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
     );
@@ -80,13 +104,36 @@ class UserModel {
         'role': role.name,
         'boutiqueId': boutiqueId,
         'active': active,
+        'alsoGestionnaire': alsoGestionnaire,
+        'additionalBoutiqueIds': additionalBoutiqueIds,
         if (createdAt != null) 'createdAt': Timestamp.fromDate(createdAt!),
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
+  /// Liste de toutes les boutiques accessibles par cet utilisateur.
+  /// Pour super-admin : vide (il accède à tout, mais via un autre chemin).
+  /// Pour admin : `boutiqueId` + `additionalBoutiqueIds` (dédupliqué, sans null).
+  /// Pour vendeur : `[boutiqueId]` uniquement.
+  List<String> get accessibleBoutiqueIds {
+    if (isSuperAdmin) return const [];
+    final main = boutiqueId;
+    if (main == null || main.isEmpty) return const [];
+    if (role != UserRole.admin) return [main];
+    final all = <String>{main, ...additionalBoutiqueIds.where((b) => b.isNotEmpty)};
+    return all.toList();
+  }
+
+  /// Vrai si cet utilisateur (admin) a accès à plusieurs boutiques.
+  bool get hasMultipleBoutiques => accessibleBoutiqueIds.length > 1;
+
   bool get isSuperAdmin => role == UserRole.superAdmin;
   bool get isAdmin => role == UserRole.admin;
-  bool get isVendeur => role == UserRole.vendeur;
+
+  /// Vrai si l'utilisateur peut faire les opérations gestionnaire :
+  ///   • role == vendeur (gestionnaire de base)
+  ///   • OU role == admin AVEC `alsoGestionnaire: true` (cumul admin+caisse)
+  bool get isVendeur =>
+      role == UserRole.vendeur || (role == UserRole.admin && alsoGestionnaire);
 
   /// Renvoie true si l'utilisateur a un accès admin (super-admin OU admin
   /// de boutique). Utile pour cacher les écrans réservés aux vendeurs.
@@ -99,6 +146,8 @@ class UserModel {
     UserRole? role,
     String? boutiqueId,
     bool? active,
+    bool? alsoGestionnaire,
+    List<String>? additionalBoutiqueIds,
   }) {
     return UserModel(
       id: id,
@@ -108,6 +157,9 @@ class UserModel {
       role: role ?? this.role,
       boutiqueId: boutiqueId ?? this.boutiqueId,
       active: active ?? this.active,
+      alsoGestionnaire: alsoGestionnaire ?? this.alsoGestionnaire,
+      additionalBoutiqueIds:
+          additionalBoutiqueIds ?? this.additionalBoutiqueIds,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
     );

@@ -5,27 +5,58 @@ import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/boutique_model.dart';
 import '../../../../data/models/categorie_model.dart';
 import '../../../../data/models/produit_model.dart';
+import '../../../../data/models/variante_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/categorie_repository.dart';
 import '../../../../data/repositories/produit_repository.dart';
-import '../../../../data/repositories/stock_repository.dart';
+
+/// Ligne de variante côté UI (binding avec contrôleurs de texte).
+/// Conserve l'`id` Firestore quand la variante existe déjà, ou vide pour
+/// les nouvelles lignes (créées via `+ Ligne`).
+class VarianteEditable {
+  String id;
+  final TextEditingController libelleCtrl;
+  final TextEditingController couleurCtrl;
+  final TextEditingController stockCtrl;
+
+  VarianteEditable({
+    String? id,
+    String libelle = '',
+    String couleur = '',
+    int stock = 0,
+  })  : id = id ?? '',
+        libelleCtrl = TextEditingController(text: libelle),
+        couleurCtrl = TextEditingController(text: couleur),
+        stockCtrl = TextEditingController(text: stock == 0 ? '' : '$stock');
+
+  int get stock => int.tryParse(stockCtrl.text.trim()) ?? 0;
+  String get libelle => libelleCtrl.text.trim();
+  String get couleur => couleurCtrl.text.trim();
+
+  void dispose() {
+    libelleCtrl.dispose();
+    couleurCtrl.dispose();
+    stockCtrl.dispose();
+  }
+}
 
 class ProduitFormController extends GetxController {
   final ProduitRepository _repo = ProduitRepository();
   final CategorieRepository _catRepo = CategorieRepository();
   final BoutiqueRepository _boutRepo = BoutiqueRepository();
-  final StockRepository _stockRepo = StockRepository();
 
   final formKey = GlobalKey<FormState>();
 
   final nomCtrl = TextEditingController();
   final descCtrl = TextEditingController();
-  final codeBarreCtrl = TextEditingController();
   final prixAchatCtrl = TextEditingController();
   final prixVenteCtrl = TextEditingController();
-  final uniteCtrl = TextEditingController();
-  final seuilCtrl = TextEditingController(text: '5');
-  final stockInitialCtrl = TextEditingController();
+  final seuilCtrl = TextEditingController(text: '0');
+
+  /// Quantité initiale en stock — visible uniquement à la **création**
+  /// d'un produit **sans** variantes. À l'édition, le stock est géré
+  /// uniquement via les appros / mouvements / ventes.
+  final stockInitialCtrl = TextEditingController(text: '0');
 
   final RxnString categorieId = RxnString();
   final RxnString boutiqueId = RxnString();
@@ -37,6 +68,20 @@ class ProduitFormController extends GetxController {
   final RxBool isSaving = false.obs;
 
   final Rxn<ProduitModel> editing = Rxn<ProduitModel>();
+
+  // ============== Variantes ==============
+  /// Toggle "Avec variantes" — bascule entre stock simple et liste de
+  /// variantes (pointures, tailles, ...).
+  final RxBool hasVariantes = false.obs;
+
+  /// Lignes de variantes éditables. Quand vide et `hasVariantes=true`,
+  /// l'enregistrement échoue (au moins 1 ligne requise).
+  final RxList<VarianteEditable> variantes = <VarianteEditable>[].obs;
+
+  /// Somme live des stocks saisis dans les lignes de variantes.
+  /// Réactif via [variantes] mais on expose aussi un compteur recalculé
+  /// par les onChanged sur les TextField.
+  final RxInt variantesTotalStock = 0.obs;
 
   bool get isEdit => editing.value != null;
   String get title => isEdit ? 'Modifier le produit' : 'Nouveau produit';
@@ -58,38 +103,83 @@ class ProduitFormController extends GetxController {
       editing.value = arg;
       nomCtrl.text = arg.nom;
       descCtrl.text = arg.description ?? '';
-      codeBarreCtrl.text = arg.codeBarre ?? '';
       prixAchatCtrl.text = arg.prixAchat == 0 ? '' : arg.prixAchat.toString();
       prixVenteCtrl.text = arg.prixVente.toString();
-      uniteCtrl.text = arg.unite ?? '';
       seuilCtrl.text = arg.seuilAlerte.toString();
       categorieId.value = arg.categorieId;
       boutiqueId.value = arg.boutiqueId;
       active.value = arg.active;
-      _loadCurrentStock(arg.boutiqueId, arg.id);
+      hasVariantes.value = arg.hasVariantes;
+      if (arg.hasVariantes) {
+        _loadExistingVariantes(arg.id);
+      }
     } else if (!canPickBoutique) {
       // Admin de boutique : pré-remplir sa boutique
-      boutiqueId.value = UserController.to.boutiqueId;
+      boutiqueId.value = UserController.to.scopeBoutiqueId;
     }
   }
 
-  Future<void> _loadCurrentStock(String bId, String pId) async {
-    final stock = await _stockRepo.getOne(bId, pId);
-    stockInitialCtrl.text = (stock?.quantite ?? 0).toString();
+  Future<void> _loadExistingVariantes(String produitId) async {
+    final list = await _repo.listVariantes(produitId);
+    variantes.assignAll(list.map(
+      (v) => VarianteEditable(
+        id: v.id,
+        libelle: v.libelle,
+        couleur: v.couleur ?? '',
+        stock: v.stock,
+      ),
+    ));
+    _recomputeTotalStock();
   }
 
   @override
   void onClose() {
     nomCtrl.dispose();
     descCtrl.dispose();
-    codeBarreCtrl.dispose();
     prixAchatCtrl.dispose();
     prixVenteCtrl.dispose();
-    uniteCtrl.dispose();
     seuilCtrl.dispose();
     stockInitialCtrl.dispose();
+    for (final v in variantes) {
+      v.dispose();
+    }
     super.onClose();
   }
+
+  // ============== Actions variantes ==============
+  /// Bascule "Avec variantes". Si on active et qu'il n'y a aucune ligne,
+  /// on en crée une vide pour amorcer la saisie.
+  void toggleHasVariantes(bool v) {
+    hasVariantes.value = v;
+    if (v && variantes.isEmpty) {
+      addVarianteLigne();
+    }
+  }
+
+  void addVarianteLigne() {
+    variantes.add(VarianteEditable());
+    _recomputeTotalStock();
+  }
+
+  void removeVarianteLigne(int index) {
+    if (index < 0 || index >= variantes.length) return;
+    final removed = variantes.removeAt(index);
+    removed.dispose();
+    _recomputeTotalStock();
+  }
+
+  /// À appeler depuis les `onChanged` des TextField stock pour rafraîchir
+  /// le total affiché.
+  void _recomputeTotalStock() {
+    var total = 0;
+    for (final v in variantes) {
+      total += v.stock;
+    }
+    variantesTotalStock.value = total;
+  }
+
+  /// Hook public utilisé par la vue dans onChanged du champ stock.
+  void onVarianteStockChanged() => _recomputeTotalStock();
 
   // ============== Validators ==============
   String? validateNom(String? v) {
@@ -109,9 +199,19 @@ class ProduitFormController extends GetxController {
 
   String? validatePrixAchat(String? v) {
     final value = v?.trim().replaceAll(',', '.') ?? '';
-    if (value.isEmpty) return null;
+    // À la création, le PA est requis : il sert de base au CMUP avant
+    // qu'aucun appro n'ait pu le calculer. À l'édition, on tolère vide
+    // (les anciens produits saisis sans PA restent valides).
+    if (value.isEmpty) {
+      return isEdit ? null : 'Prix d\'achat requis';
+    }
     final n = double.tryParse(value);
-    if (n == null || n < 0) return 'Prix invalide';
+    if (n == null || n <= 0) return 'Prix invalide';
+    return null;
+  }
+
+  String? validateBoutique(String? v) {
+    if (v == null || v.isEmpty) return 'Boutique requise';
     return null;
   }
 
@@ -123,25 +223,58 @@ class ProduitFormController extends GetxController {
     return null;
   }
 
-  String? validateStockInitial(String? v) {
-    final value = v?.trim() ?? '';
-    if (value.isEmpty) return 'Quantité requise';
-    final n = int.tryParse(value);
-    if (n == null || n < 0) return 'Nombre entier ≥ 0';
-    return null;
-  }
-
-  String? validateBoutique(String? v) {
-    if (v == null || v.isEmpty) return 'Boutique requise';
-    return null;
-  }
-
   // ============== Save ==============
   Future<void> save() async {
     if (!(formKey.currentState?.validate() ?? false)) return;
     if (validateBoutique(boutiqueId.value) != null) {
       _snackError('Sélectionnez une boutique');
       return;
+    }
+
+    // Validation variantes : si activé, au moins 1 ligne, libellés non vides
+    // et libellés uniques.
+    if (hasVariantes.value) {
+      if (variantes.isEmpty) {
+        _snackError('Ajoutez au moins une variante.');
+        return;
+      }
+      // Dédoublonnage par (libellé + couleur) : un même libellé peut
+      // exister plusieurs fois s'il a une couleur différente (ex. T40
+      // Rouge et T40 Bleu sont deux variantes valides).
+      final keys = <String>{};
+      for (final v in variantes) {
+        if (v.libelle.isEmpty) {
+          _snackError('Chaque variante doit avoir un libellé.');
+          return;
+        }
+        final key = '${v.libelle.toLowerCase()}|${v.couleur.toLowerCase()}';
+        if (!keys.add(key)) {
+          final lib = v.couleur.isEmpty
+              ? v.libelle
+              : '${v.libelle} (${v.couleur})';
+          _snackError('Variante en double : $lib');
+          return;
+        }
+      }
+      // Vérouille la conversion en mode "simple → variantes" si le produit
+      // a déjà du stock (interdit pour éviter la migration des mouvements).
+      if (isEdit && !editing.value!.hasVariantes &&
+          editing.value!.quantiteStock > 0) {
+        _snackError(
+            'Impossible d\'activer les variantes : ce produit a déjà du stock. '
+            'Ramenez le stock à 0 d\'abord.');
+        return;
+      }
+    } else {
+      // Inverse : interdit aussi de désactiver les variantes si le produit
+      // en a déjà avec du stock (perdrait l'historique implicite).
+      if (isEdit && editing.value!.hasVariantes &&
+          editing.value!.quantiteStock > 0) {
+        _snackError(
+            'Impossible de désactiver les variantes : ce produit a du stock '
+            'rattaché aux variantes. Videz les stocks d\'abord.');
+        return;
+      }
     }
 
     isSaving.value = true;
@@ -153,100 +286,89 @@ class ProduitFormController extends GetxController {
       final prixVente = double.parse(
         prixVenteCtrl.text.trim().replaceAll(',', '.'),
       );
-      final seuil = int.tryParse(seuilCtrl.text.trim()) ?? 5;
+      final seuil = int.tryParse(seuilCtrl.text.trim()) ?? 0;
+
+      // Construit la liste des variantes (modèle Firestore) à partir des
+      // lignes éditées. Conserve l'id existant si présent.
+      final varianteModels = hasVariantes.value
+          ? variantes
+              .map(
+                (v) => VarianteModel(
+                  id: v.id,
+                  libelle: v.libelle,
+                  couleur: v.couleur.isEmpty ? null : v.couleur,
+                  stock: v.stock,
+                ),
+              )
+              .toList()
+          : <VarianteModel>[];
 
       if (isEdit) {
         final updated = editing.value!.copyWith(
           nom: nomCtrl.text.trim(),
           description:
               descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-          codeBarre: codeBarreCtrl.text.trim().isEmpty
-              ? null
-              : codeBarreCtrl.text.trim(),
           prixAchat: prixAchat,
           prixVente: prixVente,
           categorieId: categorieId.value,
-          unite: uniteCtrl.text.trim().isEmpty ? null : uniteCtrl.text.trim(),
           boutiqueId: boutiqueId.value!,
           seuilAlerte: seuil,
+          hasVariantes: hasVariantes.value,
+          // quantiteStock sera réécrit par syncVariantes si avec variantes ;
+          // pour le mode simple, conserve la valeur actuelle.
           active: active.value,
         );
         await _repo.update(updated);
 
-        // Si la quantité a changé, on enregistre un ajustement (traçable)
-        final newQte =
-            int.tryParse(stockInitialCtrl.text.trim()) ?? 0;
-        final currentStock = await _stockRepo.getOne(
-          updated.boutiqueId,
-          updated.id,
-        );
-        final currentQte = currentStock?.quantite ?? 0;
-        if (newQte != currentQte) {
-          final userId = UserController.to.user?.id;
-          if (userId != null) {
-            try {
-              await _stockRepo.ajustement(
-                boutiqueId: updated.boutiqueId,
-                produitId: updated.id,
-                nouvelleQuantite: newQte,
-                userId: userId,
-                motif: 'Ajustement via fiche produit',
-              );
-            } catch (_) {
-              // Non bloquant
-            }
-          }
+        if (hasVariantes.value) {
+          await _repo.syncVariantes(
+            produitId: updated.id,
+            variantes: varianteModels,
+          );
+        } else if (editing.value!.hasVariantes) {
+          // Bascule variantes → simple : purge la sous-collection.
+          await _repo.syncVariantes(
+            produitId: updated.id,
+            variantes: const <VarianteModel>[],
+          );
         }
 
         Get.back();
         Get.snackbar('Modifications enregistrées', updated.nom,
-            snackPosition: SnackPosition.BOTTOM);
+            snackPosition: SnackPosition.TOP);
       } else {
+        // Stock initial : variantes → somme des stocks ; sinon → champ saisi.
+        final stockInitial = hasVariantes.value
+            ? variantesTotalStock.value
+            : (int.tryParse(stockInitialCtrl.text.trim()) ?? 0);
         final newProd = ProduitModel(
           id: '',
           nom: nomCtrl.text.trim(),
           description:
               descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-          codeBarre: codeBarreCtrl.text.trim().isEmpty
-              ? null
-              : codeBarreCtrl.text.trim(),
           prixAchat: prixAchat,
           prixVente: prixVente,
           categorieId: categorieId.value,
-          unite: uniteCtrl.text.trim().isEmpty ? null : uniteCtrl.text.trim(),
           boutiqueId: boutiqueId.value!,
+          quantiteStock: stockInitial,
           seuilAlerte: seuil,
+          hasVariantes: hasVariantes.value,
           active: active.value,
         );
         final newId = await _repo.create(newProd);
 
-        // Création du stock initial si renseigné (avec traçabilité)
-        final stockInitial =
-            int.tryParse(stockInitialCtrl.text.trim()) ?? 0;
-        if (stockInitial > 0) {
-          final userId = UserController.to.user?.id;
-          if (userId != null) {
-            try {
-              await _stockRepo.entree(
-                boutiqueId: boutiqueId.value!,
-                produitId: newId,
-                quantite: stockInitial,
-                userId: userId,
-                motif: 'Stock initial à la création',
-              );
-            } catch (_) {
-              // Non bloquant : le produit est créé même si le stock initial échoue
-            }
-          }
+        if (hasVariantes.value) {
+          await _repo.syncVariantes(
+            produitId: newId,
+            variantes: varianteModels,
+          );
         }
 
         Get.back();
         Get.snackbar(
           'Produit créé',
-          stockInitial > 0
-              ? '${newProd.nom} (stock initial : $stockInitial)'
-              : newProd.nom,
-          snackPosition: SnackPosition.BOTTOM,
+          newProd.nom,
+          snackPosition: SnackPosition.TOP,
         );
       }
     } catch (e) {
@@ -260,7 +382,7 @@ class ProduitFormController extends GetxController {
     Get.snackbar(
       'Erreur',
       msg,
-      snackPosition: SnackPosition.BOTTOM,
+      snackPosition: SnackPosition.TOP,
       backgroundColor: Colors.red.shade50,
       colorText: Colors.red.shade900,
       margin: const EdgeInsets.all(12),

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,8 +9,10 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'app/core/constants/app_constants.dart';
 import 'app/core/services/auth_service.dart';
+import 'app/core/services/biometric_service.dart';
 import 'app/core/services/firestore_service.dart';
 import 'app/core/services/user_controller.dart';
+import 'app/routes/app_routes.dart';
 import 'app/routes/app_pages.dart';
 import 'app/theme/app_theme.dart';
 import 'app/theme/theme_controller.dart';
@@ -30,6 +34,7 @@ Future<void> main() async {
 
   Get.put(ThemeController(), permanent: true);
   Get.put(AuthService(), permanent: true);
+  Get.put(BiometricService(), permanent: true);
   Get.put(FirestoreService(), permanent: true);
   Get.put(UserController(), permanent: true);
 
@@ -43,15 +48,60 @@ class GongoreApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeController = Get.find<ThemeController>();
 
-    return GetMaterialApp(
-      title: AppConstants.appName,
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: themeController.currentMode,
-      initialRoute: AppPages.initial,
-      getPages: AppPages.routes,
-      defaultTransition: Transition.cupertino,
+    // Obx() observe themeController.mode : à chaque toggle, GetMaterialApp
+    // est reconstruit avec la nouvelle valeur de themeMode, ce qui force
+    // tout l'arbre de widgets à se rebuilder et donc à re-évaluer les
+    // couleurs adaptatives (AppColors.primary(context), AppColors.greyText…).
+    return Obx(
+      () => GetMaterialApp(
+        title: AppConstants.appName,
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
+        themeMode: themeController.mode.value,
+        initialRoute: AppPages.initial,
+        getPages: AppPages.routes,
+        defaultTransition: Transition.cupertino,
+        routingCallback: (routing) {
+          if (routing != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              themeController.currentRoute.value = routing.current;
+            });
+          }
+        },
+        // Force NunitoSans à hériter sur tous les `Text` avec un TextStyle
+        // custom qui ne précise pas la fontFamily (boutons, sous-titres,
+        // headers de drawer custom, etc.). Sans ce wrap, les TextStyle
+        // construits inline cassent l'héritage du theme.
+        builder: (context, child) {
+          final appChild = child ?? const SizedBox.shrink();
+
+          return Obx(() {
+            final currentRoute = themeController.currentRoute.value;
+            final isExcluded = currentRoute == AppRoutes.splash || currentRoute == '/pdf-preview';
+            
+            Widget currentChild = appChild;
+
+            if (Platform.isAndroid && !isExcluded) {
+              currentChild = Container(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                child: SafeArea(
+                  top: false,
+                  bottom: true,
+                  left: false,
+                  right: false,
+                  child: appChild,
+                ),
+              );
+            }
+
+            return DefaultTextStyle.merge(
+              style: const TextStyle(fontFamily: AppTheme.fontFamily),
+              child: currentChild,
+            );
+          });
+        },
+      ),
     );
   }
 }

@@ -1,11 +1,15 @@
 import 'package:get/get.dart';
 
 import '../../../../core/services/user_controller.dart';
+import '../../../../data/models/approvisionnement_model.dart';
 import '../../../../data/models/boutique_model.dart';
+import '../../../../data/models/fournisseur_model.dart';
 import '../../../../data/models/produit_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/models/vente_model.dart';
+import '../../../../data/repositories/approvisionnement_repository.dart';
 import '../../../../data/repositories/boutique_repository.dart';
+import '../../../../data/repositories/fournisseur_repository.dart';
 import '../../../../data/repositories/produit_repository.dart';
 import '../../../../data/repositories/user_repository.dart';
 import '../../../../data/repositories/vente_repository.dart';
@@ -17,6 +21,9 @@ class RapportsController extends GetxController {
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
   final UserRepository _userRepo = UserRepository();
   final ProduitRepository _produitRepo = ProduitRepository();
+  final ApprovisionnementRepository _approRepo =
+      ApprovisionnementRepository();
+  final FournisseurRepository _fournRepo = FournisseurRepository();
 
   // ====== Filtres ======
   final Rx<PeriodePreset> preset = PeriodePreset.mois.obs;
@@ -27,13 +34,18 @@ class RapportsController extends GetxController {
 
   // ====== Données ======
   final RxList<VenteModel> ventes = <VenteModel>[].obs;
+  final RxList<ApprovisionnementModel> appros =
+      <ApprovisionnementModel>[].obs;
   final RxList<BoutiqueModel> boutiques = <BoutiqueModel>[].obs;
   final RxList<UserModel> users = <UserModel>[].obs;
   final RxList<ProduitModel> produits = <ProduitModel>[].obs;
+  final RxList<FournisseurModel> fournisseurs = <FournisseurModel>[].obs;
 
   final RxBool isLoading = true.obs;
 
   bool get isSuperAdmin => UserController.to.isSuperAdmin;
+  bool get isAnyAdmin => UserController.to.isAnyAdmin;
+  bool get isVendeur => UserController.to.isVendeur;
 
   @override
   void onInit() {
@@ -43,10 +55,16 @@ class RapportsController extends GetxController {
     boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
     users.bindStream(_userRepo.watchScoped(scope: scope));
     produits.bindStream(_produitRepo.watchAll(boutiqueId: scope));
+    fournisseurs.bindStream(_fournRepo.watchScoped(scope));
 
     // Pour admin de boutique : verrouiller le filtre sur sa boutique
     if (scope != null) {
       boutiqueId.value = scope;
+    }
+    // Pour le vendeur : verrouiller AUSSI le filtre sur son propre user id,
+    // afin qu'il ne voit que SES ventes dans le rapport.
+    if (isVendeur) {
+      vendeurId.value = UserController.to.user?.id;
     }
 
     _applyPreset(PeriodePreset.mois);
@@ -107,6 +125,15 @@ class RapportsController extends GetxController {
       before: dateFin.value.add(const Duration(seconds: 1)),
       limit: 1000,
     ));
+    appros.bindStream(_approRepo.watchAll(
+      boutiqueId: boutiqueId.value,
+      // Pas de filtre par utilisateur sur les appros : la gestion d'achat
+      // n'est pas individuelle au vendeur (un appro réceptionné par X
+      // bénéficie à toute la boutique).
+      after: dateDebut.value,
+      before: dateFin.value.add(const Duration(seconds: 1)),
+      limit: 1000,
+    ));
     debounce(ventes, (_) => isLoading.value = false,
         time: const Duration(milliseconds: 250));
   }
@@ -129,9 +156,65 @@ class RapportsController extends GetxController {
   int get nbAnnulees => _annulees.length;
   double get caTotal => _validees.fold(0.0, (acc, v) => acc + v.total);
   double get caAnnule => _annulees.fold(0.0, (acc, v) => acc + v.total);
-  double get caMoyenne => nbVentes == 0 ? 0 : caTotal / nbVentes;
   int get nbArticlesVendus =>
       _validees.fold(0, (acc, v) => acc + v.nbArticles);
+
+  // ====== Stats achats (appros) ======
+  List<ApprovisionnementModel> get _approsValidees =>
+      appros.where((a) => a.statut == ApproStatut.validee).toList();
+
+  int get nbAppros => _approsValidees.length;
+
+  double get totalAchats =>
+      _approsValidees.fold(0.0, (acc, a) => acc + a.total);
+
+  /// Reste à payer (dette en cours) sur les appros de la période filtrée.
+  double get detteFournisseurPeriode =>
+      _approsValidees.fold(0.0, (acc, a) => acc + a.resteAPayer);
+
+  /// Dette fournisseur TOTALE — somme des soldes positifs (toutes
+  /// périodes, scopée à la boutique du filtre si défini).
+  double get detteFournisseurGlobale {
+    return fournisseurs
+        .where((f) =>
+            boutiqueId.value == null || f.boutiqueId == boutiqueId.value)
+        .fold(0.0, (acc, f) => acc + (f.solde > 0 ? f.solde : 0));
+  }
+
+  /// Marge brute = CA ventes - coût d'achat des produits achetés sur la
+  /// période. Indicateur grossier (les unités vendues peuvent provenir
+  /// d'achats antérieurs à la période). Pour un calcul exact il faudrait
+  /// snapshooter le PA dans VenteArticle au moment de la vente.
+  double get margePeriode => caTotal - totalAchats;
+
+  String fournisseurNom(String id) =>
+      fournisseurs.firstWhereOrNull((f) => f.id == id)?.nom ?? '—';
+
+  // ====== Top fournisseurs (par CA acheté sur la période) ======
+  List<({String fournisseurId, String nom, int nbAppros, double total})>
+      get topFournisseurs {
+    final byF = <String, ({String nom, int nbAppros, double total})>{};
+    for (final a in _approsValidees) {
+      final nom = fournisseurNom(a.fournisseurId);
+      final cur = byF[a.fournisseurId] ??
+          (nom: nom, nbAppros: 0, total: 0.0);
+      byF[a.fournisseurId] = (
+        nom: nom,
+        nbAppros: cur.nbAppros + 1,
+        total: cur.total + a.total,
+      );
+    }
+    final list = byF.entries
+        .map((e) => (
+              fournisseurId: e.key,
+              nom: e.value.nom,
+              nbAppros: e.value.nbAppros,
+              total: e.value.total,
+            ))
+        .toList()
+      ..sort((a, b) => b.total.compareTo(a.total));
+    return list;
+  }
 
   // ====== Bénéfice ======
   double get beneficeTotal {
@@ -183,15 +266,4 @@ class RapportsController extends GetxController {
     return out;
   }
 
-  // ====== Stock ======
-  /// Produits sous le seuil d'alerte (toutes boutiques sauf si filtre).
-  List<ProduitModel> get produitsEnAlerte {
-    return produits.where((p) {
-      if (boutiqueId.value != null && p.boutiqueId != boutiqueId.value) {
-        return false;
-      }
-      // On n'a pas le stock ici dans ce controller. On retourne juste les produits actifs.
-      return p.active;
-    }).toList();
-  }
 }

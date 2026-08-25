@@ -4,15 +4,19 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/services/biometric_service.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../core/services/user_creation_service.dart';
+import '../../../../core/utils/phone_normalizer.dart';
 import '../../../../data/models/boutique_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
+import '../../../../data/repositories/phone_index_repository.dart';
 import '../../../../data/repositories/user_repository.dart';
 
 class UserFormController extends GetxController {
   final UserRepository _userRepo = UserRepository();
+  final PhoneIndexRepository _phoneIndexRepo = PhoneIndexRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
   final UserCreationService _creation = UserCreationService();
 
@@ -25,9 +29,20 @@ class UserFormController extends GetxController {
 
   final Rx<UserRole> role = UserRole.vendeur.obs;
   final RxnString boutiqueId = RxnString();
+
+  /// Boutiques additionnelles accessibles par l'admin (en plus de la
+  /// boutique principale `boutiqueId`). Réservé au rôle admin et géré
+  /// par le super-admin via le picker multi-sélection.
+  final RxList<String> additionalBoutiqueIds = <String>[].obs;
+
   final RxBool active = true.obs;
   final RxBool obscurePassword = true.obs;
   final RxBool sendResetEmail = true.obs;
+
+  /// Cumul admin + gestionnaire : un admin avec ce flag a en plus tous
+  /// les droits gestionnaire (caisse, encaissements, règlements).
+  /// Ignoré lorsque `role != admin`.
+  final RxBool alsoGestionnaire = false.obs;
 
   final RxList<BoutiqueModel> boutiques = <BoutiqueModel>[].obs;
   final RxBool isSaving = false.obs;
@@ -36,7 +51,39 @@ class UserFormController extends GetxController {
   final Rxn<UserModel> editing = Rxn<UserModel>();
 
   bool get isEdit => editing.value != null;
-  String get title => isEdit ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur';
+
+  /// Édition de son propre profil. Utilisé pour limiter ce qui est éditable
+  /// (pas de rôle / statut actif modifiables — voir aussi les rules
+  /// Firestore).
+  bool get isSelfEdit =>
+      isEdit && editing.value!.id == UserController.to.user?.id;
+
+  /// Self-edit avec restrictions (admin / gestionnaire). Dans ce cas,
+  /// TOUS les champs identité (nom, email, téléphone, rôle) sont en lecture
+  /// seule. Seul le mot de passe peut être modifié.
+  /// Le super-admin self-edit n'a PAS ces restrictions (il peut tout
+  /// modifier sauf son rôle).
+  bool get isSelfEditRestricted =>
+      isSelfEdit && !UserController.to.isSuperAdmin;
+
+  /// En self-edit, le super-admin n'est pas lié à une boutique : on cache
+  /// complètement la section affectation boutique pour lui.
+  bool get hideBoutiqueField =>
+      isSelfEdit && UserController.to.isSuperAdmin;
+
+  // ============== Changement de mot de passe (self-edit) ==============
+
+  /// Mot de passe actuel + nouveau, utilisés uniquement en self-edit pour
+  /// que l'utilisateur change son propre mot de passe via Firebase Auth.
+  final currentPwdCtrl = TextEditingController();
+  final newPwdCtrl = TextEditingController();
+  final RxBool obscureCurrent = true.obs;
+  final RxBool obscureNew = true.obs;
+  final RxBool isChangingPassword = false.obs;
+
+  String get title => isSelfEdit
+      ? 'Mon compte'
+      : (isEdit ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur');
 
   /// Super-admin peut créer des admins. Admin de boutique : vendeurs uniquement.
   bool get canCreateAdmin => UserController.to.isSuperAdmin;
@@ -60,12 +107,28 @@ class UserFormController extends GetxController {
       telephoneCtrl.text = arg.telephone ?? '+224 ';
       role.value = arg.role;
       boutiqueId.value = arg.boutiqueId;
+      additionalBoutiqueIds.assignAll(arg.additionalBoutiqueIds);
       active.value = arg.active;
+      alsoGestionnaire.value = arg.alsoGestionnaire;
     } else if (!canCreateAdmin) {
-      // Création par un admin de boutique : forcer rôle vendeur
-      // et pré-remplir sa boutique.
+      // Création par un admin de boutique : forcer rôle vendeur et
+      // pré-remplir avec la boutique active (un admin multi-boutique
+      // crée le vendeur dans la boutique actuellement sélectionnée).
       role.value = UserRole.vendeur;
-      boutiqueId.value = UserController.to.boutiqueId;
+      boutiqueId.value = UserController.to.scopeBoutiqueId;
+    }
+  }
+
+  /// Bascule l'inclusion d'une boutique dans la liste additionnelle (pour
+  /// un admin multi-boutique). La boutique principale ne peut pas être
+  /// désélectionnée ici — il faut changer `boutiqueId.value` si on veut
+  /// la déplacer.
+  void toggleAdditionalBoutique(String bid) {
+    if (bid == boutiqueId.value) return; // ne pas dupliquer la principale
+    if (additionalBoutiqueIds.contains(bid)) {
+      additionalBoutiqueIds.remove(bid);
+    } else {
+      additionalBoutiqueIds.add(bid);
     }
   }
 
@@ -75,7 +138,68 @@ class UserFormController extends GetxController {
     emailCtrl.dispose();
     telephoneCtrl.dispose();
     passwordCtrl.dispose();
+    currentPwdCtrl.dispose();
+    newPwdCtrl.dispose();
     super.onClose();
+  }
+
+  /// Change le mot de passe de l'utilisateur connecté via Firebase Auth.
+  /// Re-authentifie d'abord avec le mot de passe actuel (Firebase exige
+  /// une session récente pour cette opération).
+  Future<void> changeMyPassword() async {
+    final current = currentPwdCtrl.text;
+    final newPwd = newPwdCtrl.text;
+
+    if (current.isEmpty) {
+      _snackError('Mot de passe actuel requis.');
+      return;
+    }
+    if (newPwd.length < 6) {
+      _snackError('Nouveau mot de passe : au moins 6 caractères.');
+      return;
+    }
+    if (newPwd == current) {
+      _snackError(
+          'Le nouveau mot de passe doit être différent de l\'actuel.');
+      return;
+    }
+
+    isChangingPassword.value = true;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null || user.email == null) {
+        throw FirebaseAuthException(code: 'user-not-found');
+      }
+      final cred = EmailAuthProvider.credential(
+        email: user.email!,
+        password: current,
+      );
+      await user.reauthenticateWithCredential(cred);
+      await user.updatePassword(newPwd);
+
+      // Si la biométrie est activée, on rafraîchit les identifiants
+      // chiffrés stockés (sinon le prochain Face ID / empreinte échouerait
+      // avec l'ancien mot de passe et désactiverait la biométrie).
+      final bio = BiometricService.to;
+      if (await bio.isEnabled()) {
+        await bio.enable(email: user.email!, password: newPwd);
+      }
+
+      currentPwdCtrl.clear();
+      newPwdCtrl.clear();
+
+      Get.snackbar(
+        'Mot de passe modifié',
+        'Votre nouveau mot de passe est actif.',
+        snackPosition: SnackPosition.TOP,
+      );
+    } on FirebaseAuthException catch (e) {
+      _snackError(_mapAuthError(e));
+    } catch (e) {
+      _snackError('Erreur : $e');
+    } finally {
+      isChangingPassword.value = false;
+    }
   }
 
   String? validateNom(String? v) {
@@ -145,57 +269,108 @@ class UserFormController extends GetxController {
   Future<void> _saveCreate() async {
     final boutiqueIdToSave =
         role.value == UserRole.superAdmin ? null : boutiqueId.value;
-    // ignore: avoid_print
-    print('[USER CREATE] role=${role.value.name} '
-        'boutiqueId.value=${boutiqueId.value} '
-        'boutiqueIdToSave=$boutiqueIdToSave');
-    await _creation.createUser(
+    // Boutiques additionnelles : uniquement pour role admin, et on retire
+    // la principale si elle s'y trouve par accident (évite la duplication).
+    final additionalToSave = role.value == UserRole.admin
+        ? additionalBoutiqueIds
+            .where((b) => b.isNotEmpty && b != boutiqueIdToSave)
+            .toList()
+        : const <String>[];
+    final result = await _creation.createUser(
       email: emailCtrl.text,
       password: passwordCtrl.text,
       nom: nomCtrl.text,
       telephone: telephoneCtrl.text,
       role: role.value,
       boutiqueId: boutiqueIdToSave,
+      additionalBoutiqueIds: additionalToSave,
       active: active.value,
+      alsoGestionnaire:
+          role.value == UserRole.admin ? alsoGestionnaire.value : false,
+      sendPasswordResetEmail: sendResetEmail.value,
     );
-
-    if (sendResetEmail.value) {
-      try {
-        await _creation.sendPasswordResetEmail(emailCtrl.text);
-      } catch (_) {
-        // non bloquant
-      }
-    }
 
     Get.back();
-    Get.snackbar(
-      'Utilisateur créé',
-      sendResetEmail.value
-          ? 'Un email de définition de mot de passe a été envoyé.'
-          : nomCtrl.text.trim(),
-      snackPosition: SnackPosition.BOTTOM,
-      duration: const Duration(seconds: 3),
-    );
+
+    // Cas 1 : email demandé ET envoyé → succès complet
+    // Cas 2 : email demandé mais échoué → snackbar warning avec le détail
+    //         (le compte existe quand même, l'admin peut renvoyer plus tard)
+    // Cas 3 : email non demandé → snackbar simple "créé"
+    if (sendResetEmail.value && !result.emailSent) {
+      Get.snackbar(
+        'Utilisateur créé (email non envoyé)',
+        'Le compte ${nomCtrl.text.trim()} est créé, mais l\'email de '
+            'définition de mot de passe n\'a pas pu partir : '
+            '${result.emailError ?? "erreur inconnue"}. '
+            'Vous pouvez le renvoyer depuis la liste des utilisateurs.',
+        snackPosition: SnackPosition.TOP,
+        duration: const Duration(seconds: 6),
+        backgroundColor: Colors.orange.shade50,
+        colorText: Colors.orange.shade900,
+      );
+    } else {
+      Get.snackbar(
+        'Utilisateur créé',
+        sendResetEmail.value
+            ? 'Un email de définition de mot de passe a été envoyé à ${emailCtrl.text.trim()}.'
+            : nomCtrl.text.trim(),
+        snackPosition: SnackPosition.TOP,
+        duration: const Duration(seconds: 4),
+      );
+    }
   }
 
   Future<void> _saveEdit() async {
-    final updated = editing.value!.copyWith(
+    final previous = editing.value!;
+    final newBoutiqueId =
+        role.value == UserRole.superAdmin ? null : boutiqueId.value;
+    final newAdditional = role.value == UserRole.admin
+        ? additionalBoutiqueIds
+            .where((b) => b.isNotEmpty && b != newBoutiqueId)
+            .toList()
+        : const <String>[];
+    final updated = previous.copyWith(
       nom: nomCtrl.text.trim(),
       telephone: telephoneCtrl.text.trim().isEmpty
           ? null
           : telephoneCtrl.text.trim(),
       role: role.value,
-      boutiqueId:
-          role.value == UserRole.superAdmin ? null : boutiqueId.value,
+      boutiqueId: newBoutiqueId,
       active: active.value,
+      // Le flag n'a de sens que pour un admin ; remis à false pour les
+      // autres rôles (cohérence si on rétrograde un user admin → vendeur).
+      alsoGestionnaire:
+          role.value == UserRole.admin ? alsoGestionnaire.value : false,
+      additionalBoutiqueIds: newAdditional,
     );
     await _userRepo.update(updated);
+
+    // Synchronise l'index téléphone → email si le numéro a changé. On
+    // l'exécute en best-effort : si ça échoue (rules / réseau), l'édition
+    // du user est déjà persistée et le super-admin pourra relancer une
+    // migration depuis la vue paramètres si besoin.
+    final oldNormalized =
+        PhoneNormalizer.normalize(previous.telephone);
+    final newNormalized =
+        PhoneNormalizer.normalize(updated.telephone);
+    if (oldNormalized != newNormalized) {
+      try {
+        await _phoneIndexRepo.migratePhone(
+          oldNormalized: oldNormalized,
+          newNormalized: newNormalized,
+          email: updated.email,
+          uid: updated.id,
+        );
+      } catch (_) {
+        // Silencieux — voir commentaire ci-dessus.
+      }
+    }
 
     Get.back();
     Get.snackbar(
       'Modifications enregistrées',
       updated.nom,
-      snackPosition: SnackPosition.BOTTOM,
+      snackPosition: SnackPosition.TOP,
     );
   }
 
@@ -203,7 +378,7 @@ class UserFormController extends GetxController {
     Get.snackbar(
       'Erreur',
       msg,
-      snackPosition: SnackPosition.BOTTOM,
+      snackPosition: SnackPosition.TOP,
       backgroundColor: Colors.red.shade50,
       colorText: Colors.red.shade900,
       margin: const EdgeInsets.all(12),
@@ -218,6 +393,11 @@ class UserFormController extends GetxController {
         return 'Email invalide';
       case 'weak-password':
         return 'Mot de passe trop faible (min. 6 caractères)';
+      case 'wrong-password':
+      case 'invalid-credential':
+        return 'Mot de passe actuel incorrect';
+      case 'requires-recent-login':
+        return 'Reconnectez-vous pour changer votre mot de passe.';
       case 'network-request-failed':
         return 'Pas de connexion internet';
       default:

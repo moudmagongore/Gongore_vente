@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/services/firestore_service.dart';
+import '../../core/utils/stream_helpers.dart';
 import '../models/boutique_model.dart';
 
 /// Couche d'accès aux boutiques.
@@ -15,7 +16,7 @@ class BoutiqueRepository {
     if (actives != null) {
       query = query.where('active', isEqualTo: actives);
     }
-    return query.snapshots().map(
+    return query.snapshots().ignorePermissionDenied().map(
           (snap) => snap.docs.map(BoutiqueModel.fromFirestore).toList(),
         );
   }
@@ -34,7 +35,7 @@ class BoutiqueRepository {
     if (scope.isEmpty) {
       return Stream.value(<BoutiqueModel>[]);
     }
-    return _col.doc(scope).snapshots().map((snap) {
+    return _col.doc(scope).snapshots().ignorePermissionDenied().map((snap) {
       if (!snap.exists) return <BoutiqueModel>[];
       final b = BoutiqueModel.fromFirestore(snap);
       if (actives == true && !b.active) return <BoutiqueModel>[];
@@ -83,17 +84,17 @@ class BoutiqueRepository {
   }
 
   /// Suppression EN CASCADE de la boutique :
-  /// supprime tous les users, produits, catégories, stocks, mouvements,
-  /// ventes et clients liés à la boutique, puis la boutique elle-même.
+  /// supprime tous les users, produits, catégories, ventes et clients liés
+  /// à la boutique, puis la boutique elle-même.
   ///
   /// ⚠️ DANGEREUX, irréversible. Ne supprime PAS les comptes Firebase Auth
   /// des utilisateurs (limitation sans Cloud Functions).
   ///
   /// Réservé au super-admin (vérification dans le controller).
-  Future<({int users, int produits, int categories, int stocks, int mouvements, int ventes, int clients})> deleteCascade(
-      String boutiqueId) async {
+  Future<({int users, int produits, int categories, int ventes, int clients})>
+      deleteCascade(String boutiqueId) async {
     int users = 0, produits = 0, categories = 0;
-    int stocks = 0, mouvements = 0, ventes = 0, clients = 0;
+    int ventes = 0, clients = 0;
 
     Future<int> deleteWhere(
       CollectionReference<Map<String, dynamic>> col,
@@ -121,8 +122,6 @@ class BoutiqueRepository {
     users = await deleteWhere(_fs.users, 'boutiqueId');
     produits = await deleteWhere(_fs.produits, 'boutiqueId');
     categories = await deleteWhere(_fs.categories, 'boutiqueId');
-    stocks = await deleteWhere(_fs.stocks, 'boutiqueId');
-    mouvements = await deleteWhere(_fs.mouvementsStock, 'boutiqueId');
     ventes = await deleteWhere(_fs.ventes, 'boutiqueId');
     clients = await deleteWhere(_fs.clients, 'boutiqueId');
 
@@ -132,8 +131,6 @@ class BoutiqueRepository {
       users: users,
       produits: produits,
       categories: categories,
-      stocks: stocks,
-      mouvements: mouvements,
       ventes: ventes,
       clients: clients,
     );
