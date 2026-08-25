@@ -215,7 +215,7 @@ class AdminDrawer extends StatelessWidget {
                             ),
                           ),
                           onTap: () {
-                            HapticFeedback.vibrate();
+                            HapticFeedback.selectionClick();
                             Navigator.of(ctx).pop();
                             Get.toNamed(AppRoutes.monAbonnement);
                           },
@@ -239,7 +239,7 @@ class AdminDrawer extends StatelessWidget {
                           ),
                         ),
                         onTap: () {
-                          HapticFeedback.vibrate();
+                          HapticFeedback.selectionClick();
                           Navigator.of(ctx).pop();
                           final me = UserController.to.user;
                           if (me != null) {
@@ -266,7 +266,7 @@ class AdminDrawer extends StatelessWidget {
                           ),
                         ),
                         onTap: () {
-                          HapticFeedback.vibrate();
+                          HapticFeedback.selectionClick();
                           Navigator.of(ctx).pop();
                           Get.toNamed(AppRoutes.parametres);
                         },
@@ -286,7 +286,7 @@ class AdminDrawer extends StatelessWidget {
                           ),
                         ),
                         onTap: () {
-                          HapticFeedback.vibrate();
+                          HapticFeedback.selectionClick();
                           Navigator.of(ctx).pop();
                           UserManualPdfService.openAndPreview();
                         },
@@ -306,7 +306,7 @@ class AdminDrawer extends StatelessWidget {
                           ),
                         ),
                         onTap: () {
-                          HapticFeedback.vibrate();
+                          HapticFeedback.selectionClick();
                           Navigator.of(ctx).pop();
                           Get.toNamed(AppRoutes.apropos);
                         },
@@ -324,7 +324,7 @@ class AdminDrawer extends StatelessWidget {
                   style: TextStyle(color: Colors.red),
                 ),
                 onTap: () {
-                  HapticFeedback.vibrate();
+                  HapticFeedback.selectionClick();
                   confirmSignOut(ctx);
                 },
               ),
@@ -484,7 +484,7 @@ class _BoutiqueSwitcher extends StatelessWidget {
       final activeId = UserController.to.currentBoutiqueId.value;
       return InkWell(
         onTap: () {
-          HapticFeedback.vibrate();
+          HapticFeedback.selectionClick();
           _openSwitchSheet(context);
         },
         borderRadius: BorderRadius.circular(10),
@@ -606,7 +606,7 @@ class _BoutiqueSwitcher extends StatelessWidget {
                                 )
                               : null,
                           onTap: () async {
-                            HapticFeedback.vibrate();
+                            HapticFeedback.selectionClick();
                             if (isActive) {
                               Navigator.of(ctx).pop();
                               return;
@@ -719,7 +719,7 @@ class _Item extends StatelessWidget {
       selected: selected,
       selectedTileColor: AppColors.primary(context).withValues(alpha: 0.08),
       onTap: () {
-        HapticFeedback.vibrate();
+        HapticFeedback.selectionClick();
         Navigator.of(context).pop();
         if (selected) return;
         Get.offNamed(route);
@@ -772,7 +772,7 @@ class _ExpansionGroup extends StatelessWidget {
         ),
         initiallyExpanded: containsCurrent,
         // Le déplié/replié d'une section est un clic comme un autre.
-        onExpansionChanged: (_) => HapticFeedback.vibrate(),
+        onExpansionChanged: (_) => HapticFeedback.selectionClick(),
         childrenPadding: const EdgeInsets.only(left: 12),
         children: children,
       ),

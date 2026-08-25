@@ -159,7 +159,7 @@ class VendeurDrawer extends StatelessWidget {
                           ),
                         ),
                         onTap: () {
-                          HapticFeedback.vibrate();
+                          HapticFeedback.selectionClick();
                           Navigator.of(ctx).pop();
                           final me = UserController.to.user;
                           if (me != null) {
@@ -186,7 +186,7 @@ class VendeurDrawer extends StatelessWidget {
                           ),
                         ),
                         onTap: () {
-                          HapticFeedback.vibrate();
+                          HapticFeedback.selectionClick();
                           Navigator.of(ctx).pop();
                           Get.toNamed(AppRoutes.parametres);
                         },
@@ -206,7 +206,7 @@ class VendeurDrawer extends StatelessWidget {
                           ),
                         ),
                         onTap: () {
-                          HapticFeedback.vibrate();
+                          HapticFeedback.selectionClick();
                           Navigator.of(ctx).pop();
                           UserManualPdfService.openAndPreview();
                         },
@@ -226,7 +226,7 @@ class VendeurDrawer extends StatelessWidget {
                           ),
                         ),
                         onTap: () {
-                          HapticFeedback.vibrate();
+                          HapticFeedback.selectionClick();
                           Navigator.of(ctx).pop();
                           Get.toNamed(AppRoutes.apropos);
                         },
@@ -244,7 +244,7 @@ class VendeurDrawer extends StatelessWidget {
                   style: TextStyle(color: Colors.red),
                 ),
                 onTap: () {
-                  HapticFeedback.vibrate();
+                  HapticFeedback.selectionClick();
                   confirmSignOut(ctx);
                 },
               ),
@@ -374,7 +374,7 @@ class _Item extends StatelessWidget {
       selected: selected,
       selectedTileColor: AppColors.primary(context).withValues(alpha: 0.08),
       onTap: () {
-        HapticFeedback.vibrate();
+        HapticFeedback.selectionClick();
         Navigator.of(context).pop();
         if (selected) return;
         Get.offNamed(route);
@@ -422,7 +422,7 @@ class _ExpansionGroup extends StatelessWidget {
         ),
         initiallyExpanded: containsCurrent,
         // Le déplié/replié d'une section est un clic comme un autre.
-        onExpansionChanged: (_) => HapticFeedback.vibrate(),
+        onExpansionChanged: (_) => HapticFeedback.selectionClick(),
         childrenPadding: const EdgeInsets.only(left: 12),
         children: children,
       ),
