@@ -75,20 +75,24 @@ class _DepenseSheetState extends State<DepenseSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return wrapBottomSheet(
-      context,
-      Container(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 8,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-        ),
+    final mq = MediaQuery.of(context);
+    final viewInsets = mq.viewInsets.bottom;
+    final viewPadding = mq.viewPadding.bottom;
+    // Plafond calculé sur la hauteur VISIBLE (écran - clavier), sinon le
+    // sheet dépasse en haut une fois le clavier ouvert.
+    final maxH = (mq.size.height - viewInsets) * kBottomSheetMaxHeightRatio;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxH),
+      child: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).cardTheme.color,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: SingleChildScrollView(
+          // Pas de `viewInsets` ici : Get.bottomSheet décale déjà le sheet
+          // au-dessus du clavier, l'ajouter le remonterait deux fois. On
+          // ne compense que le home indicator iOS / la barre Android.
+          padding: EdgeInsets.fromLTRB(20, 8, 20, viewPadding + 20),
           child: Form(
             key: _formKey,
             child: Column(
