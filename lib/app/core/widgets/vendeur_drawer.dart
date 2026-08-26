@@ -19,10 +19,23 @@ class VendeurDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      // DrawerOpenGuard : ignore les taps tant que le drawer n'a pas fini de
-      // s'ouvrir. Sans ça, un tap qui arrive pendant le slide-in atterrit sur
-      // le contenu du drawer et déclenche un item au hasard (voir le widget).
-      child: DrawerOpenGuard(
+      // Surbrillance de tap à plat et pleine largeur pour TOUT le drawer.
+      // Le `listTileTheme` global arrondit les tuiles (_radiusSmall), ce qui
+      // décolle la couleur des bords. Posé à la racine plutôt que tuile par
+      // tuile : sinon le moindre ListTile ajouté sans `shape` explicite
+      // réintroduit l'arrondi (c'était le cas de « Déconnexion »).
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          listTileTheme: Theme.of(context).listTileTheme.copyWith(
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.zero,
+                ),
+              ),
+        ),
+        // DrawerOpenGuard : ignore les taps tant que le drawer n'a pas fini de
+        // s'ouvrir. Sans ça, un tap qui arrive pendant le slide-in atterrit sur
+        // le contenu du drawer et déclenche un item au hasard (voir le widget).
+        child: DrawerOpenGuard(
         child: Obx(() {
         final user = UserController.to.user;
         return Column(
@@ -258,6 +271,7 @@ class VendeurDrawer extends StatelessWidget {
           ],
         );
         }),
+        ),
       ),
     );
   }
@@ -401,9 +415,32 @@ class _ExpansionGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final containsCurrent = childrenRoutes.contains(currentRoute);
+    // ExpansionTile impose ses propres couleurs : `colorScheme.primary` une
+    // fois déplié, `textTheme.titleMedium` replié — ce qui ne colle pas aux
+    // `_Item` voisins, qui suivent `listTileTheme`. En dark, le parent d'une
+    // section ouverte virait donc au teal au lieu du blanc. On réaligne sur
+    // la règle d'un item simple : accent si la route active est dans le
+    // groupe, couleur de liste sinon.
+    final listTile = Theme.of(context).listTileTheme;
+    final active = AppColors.primary(context);
+    final labelColor =
+        containsCurrent ? active : listTile.titleTextStyle?.color;
+    final groupIconColor = containsCurrent ? active : listTile.iconColor;
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-      child: ExpansionTile(
+      // ListTileTheme (le widget) et non ThemeData.listTileTheme : le
+      // ListTile interne d'ExpansionTile résout sa forme via
+      // `ListTileTheme.of(context)`, qui donne la priorité au widget le plus
+      // proche. Or ExpansionTile en insère un lui-même (ListTileTheme.merge)
+      // pour ses couleurs — régler la forme via le thème global se faisait
+      // donc écraser, et l'arrondi revenait sur le tap du parent.
+      child: ListTileTheme(
+        data: Theme.of(context).listTileTheme.copyWith(
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.zero,
+              ),
+            ),
+        child: ExpansionTile(
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
         collapsedShape:
             const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
@@ -420,11 +457,21 @@ class _ExpansionGroup extends StatelessWidget {
                 containsCurrent ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
+        // Les 4 états (déplié / replié × texte / icône) sont fixés
+        // explicitement, sinon ExpansionTile reprend la main.
+        textColor: labelColor,
+        collapsedTextColor: labelColor,
+        iconColor: groupIconColor,
+        collapsedIconColor: groupIconColor,
         initiallyExpanded: containsCurrent,
         // Le déplié/replié d'une section est un clic comme un autre.
         onExpansionChanged: (_) => HapticFeedback.selectionClick(),
-        childrenPadding: const EdgeInsets.only(left: 12),
-        children: children,
+        // Aucun retrait à gauche : il décalerait aussi la surbrillance des
+        // sous-items, qui doit filer d'un bord à l'autre comme celle des
+        // items de premier niveau.
+        childrenPadding: EdgeInsets.zero,
+          children: children,
+        ),
       ),
     );
   }

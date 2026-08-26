@@ -66,14 +66,22 @@ class VentesController extends GetxController {
     produits.bindStream(_produitRepo.watchAll(boutiqueId: scope));
 
     if (isVendeur) {
-      // Vendeur (ou admin+alsoGestionnaire) : ne voit que ses propres
-      // ventes, filtrées par la boutique ACTIVE (et non la principale).
-      // Important pour un admin multi-boutique qui switche : les ventes
-      // affichées correspondent à la boutique sélectionnée dans le drawer,
-      // pas à sa boutique principale.
-      final user = UserController.to.user;
-      filterVendeurId.value = user?.id;
+      // Boutique ACTIVE (et non la principale) : important pour un admin
+      // multi-boutique qui switche — les ventes affichées correspondent à
+      // la boutique sélectionnée dans le drawer.
       filterBoutiqueId.value = UserController.to.scopeBoutiqueId;
+
+      // Pré-filtrage sur soi-même réservé au gestionnaire « pur ». Le
+      // sélecteur « Gestionnaire » lui est caché (réservé à isAnyAdmin) :
+      // sans ce filtre il verrait les ventes de ses collègues sans pouvoir
+      // revenir en arrière.
+      //
+      // Un admin qui cumule le rôle gestionnaire, lui, VOIT ce sélecteur :
+      // le pré-remplir lui affichait un filtre qu'il n'avait pas posé. Il
+      // arrive donc sur « Tous », et filtre à la demande.
+      if (!isAnyAdmin) {
+        filterVendeurId.value = UserController.to.user?.id;
+      }
     } else if (isAdmin) {
       // Admin de boutique : ne voit que les ventes de sa boutique active
       filterBoutiqueId.value = UserController.to.scopeBoutiqueId;
