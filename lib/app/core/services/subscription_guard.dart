@@ -1,6 +1,11 @@
+import 'dart:async';
+
+import '../../data/models/abonnement_params_model.dart';
+import '../../data/models/boutique_model.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/abonnement_params_repository.dart';
 import '../../data/repositories/boutique_repository.dart';
+import '../utils/network_timeouts.dart';
 
 /// Vérifie qu'un utilisateur (admin ou gestionnaire) peut se connecter
 /// par rapport à l'abonnement de sa boutique.
@@ -63,7 +68,19 @@ class SubscriptionGuard {
   ///   • Abonnement expiré au-delà de la grâce
   /// Sinon renvoie `null` (accessible).
   static Future<String?> checkBoutiqueAccess(String boutiqueId) async {
-    final boutique = await BoutiqueRepository().getById(boutiqueId);
+    // Réseau trop lent : on NE BLOQUE PAS. On ne peut pas prouver que
+    // l'abonnement est expiré, et figer/déconnecter sur un doute serait
+    // pire que laisser entrer. Le stream du doc boutique (UserController)
+    // refera le contrôle dès que le serveur répond, et déconnectera si
+    // besoin.
+    final BoutiqueModel? boutique;
+    try {
+      boutique = await BoutiqueRepository()
+          .getById(boutiqueId)
+          .timeout(kStartupReadTimeout);
+    } on TimeoutException {
+      return null;
+    }
     if (boutique == null) {
       return 'Cette boutique a été supprimée.';
     }
@@ -75,7 +92,9 @@ class SubscriptionGuard {
           'Contactez le support pour l\'activer.';
     }
 
-    final params = await AbonnementParamsRepository().get();
+    final params = await AbonnementParamsRepository()
+        .get()
+        .timeout(kStartupReadTimeout, onTimeout: () => const AbonnementParamsModel());
     final graceDays = params.graceDays;
     final deadline =
         boutique.subscriptionEndsAt!.add(Duration(days: graceDays));
@@ -104,14 +123,20 @@ class SubscriptionGuard {
     final bid = user.boutiqueId;
     if (bid == null || bid.isEmpty) return null;
 
-    final boutique = await BoutiqueRepository().getById(bid);
+    // Avertissement purement informatif : borné court, et abandonné
+    // silencieusement si le réseau ne suit pas.
+    final boutique = await BoutiqueRepository()
+        .getById(bid)
+        .orAfter(kOptionalReadTimeout, null);
     if (boutique == null) return null;
     final endsAt = boutique.subscriptionEndsAt;
     if (endsAt == null) return null; // déjà bloqué côté checkAccess
 
     // On lit toujours les params (utile dans les 2 branches : seuil
     // d'alerte et durée de grâce).
-    final params = await AbonnementParamsRepository().get();
+    final params = await AbonnementParamsRepository()
+        .get()
+        .timeout(kOptionalReadTimeout, onTimeout: () => const AbonnementParamsModel());
     final now = DateTime.now();
     if (endsAt.isAfter(now)) {
       // Encore en période d'abonnement actif : on alerte selon le seuil

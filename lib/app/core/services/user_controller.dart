@@ -9,6 +9,7 @@ import '../../data/models/boutique_model.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/abonnement_params_repository.dart';
 import '../../routes/app_routes.dart';
+import '../utils/network_timeouts.dart';
 import 'auth_service.dart';
 import 'firestore_service.dart';
 import 'subscription_guard.dart';
@@ -355,17 +356,29 @@ class UserController extends GetxController {
   /// Charge le document Firestore correspondant à l'UID Firebase.
   /// Renvoie true si l'utilisateur est valide et actif.
   ///
-  /// Force un read serveur (`Source.server`) pour éviter de lire un cache
+  /// Tente un read serveur (`Source.server`) pour éviter de lire un cache
   /// périmé après une réactivation côté super-admin (sinon l'utilisateur
   /// reste bloqué « désactivé » alors que le serveur dit le contraire).
   /// Vérifie aussi que la boutique est active (sauf super-admin).
+  ///
+  /// `Source.server` interdit tout repli sur le cache : sans borne, sur un
+  /// réseau lent le Future ne se résout jamais et le splash reste figé.
+  /// On borne donc l'attente, puis on retombe sur le cache local — la
+  /// fraîcheur est rattrapée par [_bindUserDocStream], qui force un
+  /// signOut dès que le serveur signale un compte désactivé.
   Future<bool> _loadUserDoc(String uid) async {
     isLoading.value = true;
     errorMessage.value = null;
     try {
-      final snap = await FirestoreService.to.users
-          .doc(uid)
-          .get(const GetOptions(source: Source.server));
+      final docRef = FirestoreService.to.users.doc(uid);
+      DocumentSnapshot<Map<String, dynamic>> snap;
+      try {
+        snap = await docRef
+            .get(const GetOptions(source: Source.server))
+            .timeout(kStartupReadTimeout);
+      } on TimeoutException {
+        snap = await docRef.get(const GetOptions(source: Source.cache));
+      }
       if (!snap.exists) {
         // Auth OK mais pas de document Firestore → cas anormal,
         // on déconnecte pour forcer un état propre.
@@ -416,13 +429,25 @@ class UserController extends GetxController {
       if (loaded.role == UserRole.vendeur &&
           loadedBoutiqueId != null &&
           loadedBoutiqueId.isNotEmpty) {
-        final adminsSnap = await FirestoreService.to.users
-            .where('boutiqueId', isEqualTo: loadedBoutiqueId)
-            .where('role', isEqualTo: UserRole.admin.name)
-            .get(const GetOptions(source: Source.server));
-        final hasActiveAdmin = adminsSnap.docs.any((d) {
-          return (d.data()['active'] as bool? ?? true) == true;
-        });
+        // Même borne que ci-dessus. En cas de timeout on considère le
+        // contrôle comme non concluant et on laisse passer : refuser la
+        // connexion sur une simple lenteur réseau serait pire. La
+        // vérification est refaite en continu par
+        // [_bindBoutiqueAdminsStream].
+        QuerySnapshot<Map<String, dynamic>>? adminsSnap;
+        try {
+          adminsSnap = await FirestoreService.to.users
+              .where('boutiqueId', isEqualTo: loadedBoutiqueId)
+              .where('role', isEqualTo: UserRole.admin.name)
+              .get(const GetOptions(source: Source.server))
+              .timeout(kStartupReadTimeout);
+        } catch (_) {
+          adminsSnap = null; // contrôle non concluant
+        }
+        final hasActiveAdmin = adminsSnap == null ||
+            adminsSnap.docs.any((d) {
+              return (d.data()['active'] as bool? ?? true) == true;
+            });
         if (!hasActiveAdmin) {
           errorMessage.value =
               'L\'administrateur de votre boutique a été désactivé. '

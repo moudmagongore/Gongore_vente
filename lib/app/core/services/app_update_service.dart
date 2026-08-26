@@ -4,6 +4,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../data/models/app_update_config_model.dart';
 import '../../data/repositories/app_update_repository.dart';
+import '../utils/network_timeouts.dart';
 
 /// Détermine si l'app installée est trop ancienne par rapport à la version
 /// minimale exigée et, si oui, prépare les infos pour le dialog forcé.
@@ -17,7 +18,11 @@ class AppUpdateService {
   /// `null` sinon (à jour, ou config absente, ou échec réseau).
   static Future<AppUpdateRequired?> check() async {
     try {
-      final config = await AppUpdateRepository().get();
+      // Borné : ce check est facultatif, il ne doit jamais retenir le
+      // splash si le réseau traîne (voir [kOptionalReadTimeout]).
+      final config = await AppUpdateRepository()
+          .get()
+          .timeout(kOptionalReadTimeout);
       if (config.minVersion.trim().isEmpty) return null;
 
       final pkg = await PackageInfo.fromPlatform();

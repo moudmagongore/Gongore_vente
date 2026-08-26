@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.5.8+8
+version: 1.6.1+11
 
 environment:
   sdk: ^3.10.7
@@ -95,6 +95,17 @@ flutter_native_splash:
 # following page: https://dart.dev/tools/pub/pubspec
 
 # The following section is specific to Flutter packages.
+# `flutter pub add audioplayers` a upgradé path_provider_foundation vers
+# 2.6.0, qui tire `objective_c` — une dylib distribuée en « native assets ».
+# Ce mécanisme n'est pas embarqué de façon fiable dans Runner.app par les
+# builds Xcode/IDE, d'où un crash au lancement :
+#   Couldn't resolve native function 'DOBJC_initializeApi'
+#   Failed to load dynamic library 'objective_c.framework/objective_c'
+# On reste sur la dernière version qui n'en dépend pas. `path_provider`
+# n'a besoin d'aucune des nouveautés de la 2.6.
+dependency_overrides:
+  path_provider_foundation: 2.4.1
+
 flutter:
 
   # The following line ensures that the Material Icons font is
