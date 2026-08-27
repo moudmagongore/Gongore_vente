@@ -17,6 +17,9 @@ class ReceiptService {
     required BoutiqueModel boutique,
     UserModel? vendeur,
     String? clientLabel,
+    /// Téléphone du client fiché. Laissé nul pour un client de passage :
+    /// on retombe alors sur le numéro libre saisi à la vente.
+    String? clientTelephone,
   }) async {
     final pdf = pw.Document(theme: await PdfThemeService.theme);
     final devise = boutique.devise;
@@ -63,6 +66,8 @@ class ReceiptService {
             // ====== Méta ======
             _kvRow('Date', Fmt.dateTime(vente.date)),
             _kvRow('Client', clientLabel ?? vente.clientLabelOuLibre),
+            if ((clientTelephone ?? vente.clientTelLibre)?.isNotEmpty ?? false)
+              _kvRow('Tél. client', clientTelephone ?? vente.clientTelLibre!),
             _kvRow('Gestionnaire', vendeur?.nom ?? '—'),
             _kvRow('N° vente', vente.numeroAffichage),
             _kvRow('Paiement', vente.modePaiement.label),
@@ -258,12 +263,14 @@ class ReceiptService {
     required BoutiqueModel boutique,
     UserModel? vendeur,
     String? clientLabel,
+    String? clientTelephone,
   }) async {
     final bytes = await build(
       vente: vente,
       boutique: boutique,
       vendeur: vendeur,
       clientLabel: clientLabel,
+      clientTelephone: clientTelephone,
     );
     await sharePdfBytes(
       bytes: bytes,

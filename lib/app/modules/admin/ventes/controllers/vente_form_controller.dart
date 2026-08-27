@@ -86,6 +86,10 @@ class VenteFormController extends GetxController {
   final RxnString clientId = RxnString();
   final RxString clientNomLibre = ''.obs;
 
+  /// Téléphone du client de passage. Toujours facultatif : la vente reste
+  /// valide sans, seul le reçu s'en trouve moins précis.
+  final RxString clientTelLibre = ''.obs;
+
   // ===== Lignes de la vente =====
   final RxList<LigneVente> lignes = <LigneVente>[].obs;
 
@@ -197,6 +201,7 @@ class VenteFormController extends GetxController {
     lignes.clear();
     clientId.value = null;
     clientNomLibre.value = '';
+    clientTelLibre.value = '';
     remiseGlobale.value = 0;
     modePaiement.value = ModePaiement.especes;
     note.value = '';
@@ -283,14 +288,20 @@ class VenteFormController extends GetxController {
   // ===== Client =====
   void selectClient(String? id) {
     clientId.value = id;
-    if (id != null) clientNomLibre.value = '';
+    if (id != null) {
+      clientNomLibre.value = '';
+      clientTelLibre.value = '';
+    }
     // Reset avance : nouvel utilisateur potentiellement avec un solde différent.
     avanceUtilisee.value = 0;
     _autoSyncMontantPaye();
   }
 
-  void setClientNomLibre(String nom) {
+  /// Renseigne le client de passage. [tel] est facultatif : le laisser vide
+  /// efface simplement le numéro précédent.
+  void setClientLibre(String nom, {String tel = ''}) {
     clientNomLibre.value = nom.trim();
+    clientTelLibre.value = tel.trim();
     clientId.value = null;
     avanceUtilisee.value = 0;
     _autoSyncMontantPaye();
@@ -299,6 +310,7 @@ class VenteFormController extends GetxController {
   void resetClient() {
     clientId.value = null;
     clientNomLibre.value = '';
+    clientTelLibre.value = '';
     avanceUtilisee.value = 0;
     _autoSyncMontantPaye();
   }
@@ -475,6 +487,9 @@ class VenteFormController extends GetxController {
         clientId: clientId.value,
         clientNomLibre: clientId.value == null && clientNomLibre.value.isNotEmpty
             ? clientNomLibre.value
+            : null,
+        clientTelLibre: clientId.value == null && clientTelLibre.value.isNotEmpty
+            ? clientTelLibre.value
             : null,
         articles: lignes.map((l) => l.toVenteArticle()).toList(),
         sousTotal: sousTotal,

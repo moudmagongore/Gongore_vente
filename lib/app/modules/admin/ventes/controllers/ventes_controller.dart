@@ -255,6 +255,9 @@ class VentesController extends GetxController {
         boutique: boutique,
         vendeur: vendeur,
         clientLabel: clientLabel,
+        // Client fiché : son numéro vient de sa fiche. Pour un client de
+        // passage on laisse nul, le reçu reprend le numéro libre saisi.
+        clientTelephone: clientDeVente(vente)?.telephone,
       );
     } catch (e) {
       _snackError('Impression impossible : $e');

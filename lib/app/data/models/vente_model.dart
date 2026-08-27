@@ -134,6 +134,11 @@ class VenteModel {
   /// Ignoré si [clientId] est renseigné.
   final String? clientNomLibre;
 
+  /// Téléphone libre du client de passage. Facultatif, et ignoré si
+  /// [clientId] est renseigné (le numéro vient alors de la fiche client).
+  /// Sert uniquement à identifier l'acheteur sur le reçu.
+  final String? clientTelLibre;
+
   final List<VenteArticle> articles;
   final double sousTotal;
   final double remise;
@@ -168,6 +173,7 @@ class VenteModel {
     this.numero,
     this.clientId,
     this.clientNomLibre,
+    this.clientTelLibre,
     this.remise = 0,
     this.avanceUtilisee = 0,
     this.statut = VenteStatut.validee,
@@ -185,6 +191,7 @@ class VenteModel {
       vendeurId: (map['vendeurId'] ?? '') as String,
       clientId: map['clientId'] as String?,
       clientNomLibre: map['clientNomLibre'] as String?,
+      clientTelLibre: map['clientTelLibre'] as String?,
       articles: raw
           .map((e) => VenteArticle.fromMap(Map<String, dynamic>.from(e as Map)))
           .toList(),
@@ -214,6 +221,7 @@ class VenteModel {
         'vendeurId': vendeurId,
         'clientId': clientId,
         'clientNomLibre': clientNomLibre,
+        'clientTelLibre': clientTelLibre,
         'articles': articles.map((a) => a.toMap()).toList(),
         // Tableau dénormalisé des produitId présents dans `articles`,
         // pour permettre une query Firestore efficace

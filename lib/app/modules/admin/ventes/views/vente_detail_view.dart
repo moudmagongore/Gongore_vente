@@ -33,6 +33,7 @@ class VenteDetailView extends GetView<VenteDetailController> {
                     boutique: boutique,
                     vendeur: controller.vendeur.value,
                     clientLabel: controller.clientLabel,
+                    clientTelephone: controller.client.value?.telephone,
                   );
                 } catch (e) {
                   Get.snackbar(
