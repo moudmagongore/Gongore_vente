@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/services/user_controller.dart';
+import '../../../../core/widgets/motif_annulation_dialog.dart';
 import '../../../../data/models/approvisionnement_model.dart';
 import '../../../../data/models/boutique_model.dart';
 import '../../../../data/models/fournisseur_model.dart';
@@ -83,59 +84,21 @@ class ApproDetailController extends GetxController {
   Future<void> confirmCancel() async {
     if (!peutAnnuler) return;
 
-    final motifCtrl = TextEditingController();
-    final ok = await Get.dialog<bool>(
-      AlertDialog(
-        title: const Text('Annuler l\'approvisionnement ?'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Le stock sera réduit des quantités reçues, et l\'effet sur '
-              'le solde fournisseur sera inversé.\n\n'
-              'L\'annulation est refusée si une partie a déjà été vendue '
-              '(stock résiduel insuffisant pour rendre les unités).',
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: motifCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Motif de l\'annulation *',
-              ),
-              autofocus: true,
-              maxLines: 2,
-              minLines: 1,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: const Text('Garder'),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            onPressed: () {
-              if (motifCtrl.text.trim().isEmpty) {
-                Get.snackbar(
-                  'Erreur',
-                  'Le motif est obligatoire',
-                  snackPosition: SnackPosition.TOP,
-                );
-                return;
-              }
-              Get.back(result: true);
-            },
-            child: const Text('Annuler l\'appro'),
-          ),
-        ],
-      ),
+    // Le champ du motif vit dans le dialogue, pas ici : un
+    // TextEditingController créé dans un controller n'a pas de propriétaire
+    // pour le disposer au bon moment.
+    final motif = await MotifAnnulationDialog.demander(
+      titre: 'Annuler l\'approvisionnement ?',
+      message: 'Le stock sera réduit des quantités reçues, et l\'effet sur '
+          'le solde fournisseur sera inversé.\n\n'
+          'L\'annulation est refusée si une partie a déjà été vendue '
+          '(stock résiduel insuffisant pour rendre les unités).',
+      libelleConfirmer: 'Annuler l\'appro',
     );
-    if (ok != true) return;
+    if (motif == null) return;
 
-    final motif = motifCtrl.text.trim();
     final userId = UserController.to.user?.id;
-    if (userId == null || motif.isEmpty) return;
+    if (userId == null) return;
 
     isCanceling.value = true;
     try {

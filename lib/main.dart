@@ -21,16 +21,12 @@ import 'firebase_options.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   await GetStorage.init();
   await initializeDateFormatting('fr_FR');
 
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-  ]);
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
   Get.put(ThemeController(), permanent: true);
   Get.put(AuthService(), permanent: true);
@@ -82,10 +78,11 @@ class GongoreApp extends StatelessWidget {
             // couvrir l'écran jusqu'au bord bas. Le wrapper ci-dessous
             // peindrait sinon une bande opaque à la hauteur de la barre de
             // navigation Android. L'écran gère lui-même son inset bas.
-            final isExcluded = currentRoute == AppRoutes.splash ||
+            final isExcluded =
+                currentRoute == AppRoutes.splash ||
                 currentRoute == AppRoutes.onboarding ||
                 currentRoute == '/pdf-preview';
-            
+
             Widget currentChild = appChild;
 
             if (Platform.isAndroid && !isExcluded) {

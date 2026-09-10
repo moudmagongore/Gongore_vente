@@ -189,11 +189,50 @@ class VentesListView extends GetView<VentesController> {
                 ),
                 const SizedBox(height: 12),
               ],
+              const Text('Catégorie', style: TextStyle(fontSize: 12)),
+              const SizedBox(height: 6),
+              Obx(() {
+                // Une catégorie supprimée depuis peut rester sélectionnée :
+                // sans ce garde-fou, DropdownButtonFormField lève sur une
+                // valeur absente de ses items.
+                final safe = controller.categories
+                        .any((c) => c.id == controller.filterCategorieId.value)
+                    ? controller.filterCategorieId.value
+                    : null;
+                return DropdownButtonFormField<String?>(
+                  initialValue: safe,
+                  decoration: const InputDecoration(isDense: true),
+                  isExpanded: true,
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('Toutes les catégories'),
+                    ),
+                    ...controller.categories.map(
+                      (c) => DropdownMenuItem(
+                        value: c.id,
+                        child: Text(c.nom,
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ),
+                    ),
+                  ],
+                  onChanged: (v) => controller.filterCategorieId.value = v,
+                );
+              }),
+              const SizedBox(height: 12),
               const Text('Produit', style: TextStyle(fontSize: 12)),
               const SizedBox(height: 6),
-              Obx(
-                () => DropdownButtonFormField<String?>(
-                  initialValue: controller.filterProduitId.value,
+              Obx(() {
+                // Liste restreinte à la catégorie choisie (voir
+                // `produitsFiltrables`) : les deux sélecteurs restent
+                // cohérents, on ne peut pas viser un produit hors catégorie.
+                final dispo = controller.produitsFiltrables;
+                final safe = dispo
+                        .any((p) => p.id == controller.filterProduitId.value)
+                    ? controller.filterProduitId.value
+                    : null;
+                return DropdownButtonFormField<String?>(
+                  initialValue: safe,
                   decoration: const InputDecoration(isDense: true),
                   isExpanded: true,
                   items: [
@@ -201,7 +240,7 @@ class VentesListView extends GetView<VentesController> {
                       value: null,
                       child: Text('Tous les produits'),
                     ),
-                    ...controller.produits.map(
+                    ...dispo.map(
                       (p) => DropdownMenuItem(
                         value: p.id,
                         child: Text(p.nom,
@@ -210,8 +249,8 @@ class VentesListView extends GetView<VentesController> {
                     ),
                   ],
                   onChanged: (v) => controller.filterProduitId.value = v,
-                ),
-              ),
+                );
+              }),
               const SizedBox(height: 12),
               const Text('Client', style: TextStyle(fontSize: 12)),
               const SizedBox(height: 6),

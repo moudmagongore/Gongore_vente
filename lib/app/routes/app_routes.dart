@@ -48,6 +48,9 @@ abstract class AppRoutes {
   static const adminNaturesDepense = '/admin/depenses/natures';
   static const adminNatureDepenseForm = '/admin/depenses/natures/form';
 
+  /// Purge ciblée des données d'une boutique. Super-admin uniquement.
+  static const adminMaintenance = '/admin/maintenance';
+
   // Abonnements (super-admin)
   static const adminAbonnements = '/admin/abonnements';
   static const adminAbonnementForm = '/admin/abonnements/form';

@@ -5,11 +5,13 @@ import 'package:flutter/material.dart';
 import '../../../../core/services/receipt_service.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/boutique_model.dart';
+import '../../../../data/models/categorie_model.dart';
 import '../../../../data/models/client_model.dart';
 import '../../../../data/models/produit_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/models/vente_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
+import '../../../../data/repositories/categorie_repository.dart';
 import '../../../../data/repositories/client_repository.dart';
 import '../../../../data/repositories/produit_repository.dart';
 import '../../../../data/repositories/user_repository.dart';
@@ -23,18 +25,23 @@ class VentesController extends GetxController {
   final UserRepository _userRepo = UserRepository();
   final ClientRepository _clientRepo = ClientRepository();
   final ProduitRepository _produitRepo = ProduitRepository();
+  final CategorieRepository _catRepo = CategorieRepository();
 
   final RxList<VenteModel> _all = <VenteModel>[].obs;
   final RxList<BoutiqueModel> boutiques = <BoutiqueModel>[].obs;
   final RxList<UserModel> vendeurs = <UserModel>[].obs;
   final RxList<ClientModel> clients = <ClientModel>[].obs;
   final RxList<ProduitModel> produits = <ProduitModel>[].obs;
+  final RxList<CategorieModel> categories = <CategorieModel>[].obs;
 
   final RxBool isLoading = true.obs;
   final RxnString filterBoutiqueId = RxnString();
   final RxnString filterVendeurId = RxnString();
   final RxnString filterClientId = RxnString();
   final RxnString filterProduitId = RxnString();
+
+  /// Retient les ventes comportant au moins un article de cette catégorie.
+  final RxnString filterCategorieId = RxnString();
   final Rxn<ModePaiement> filterModePaiement = Rxn<ModePaiement>();
   // Par défaut, on affiche les ventes annulées dans la liste (avec badge
   // "ANNULÉE" et prix barré). Un filtre permet de les masquer si besoin.
@@ -64,6 +71,19 @@ class VentesController extends GetxController {
     vendeurs.bindStream(_userRepo.watchScoped(scope: scope));
     clients.bindStream(_clientRepo.watchScoped(scope));
     produits.bindStream(_produitRepo.watchAll(boutiqueId: scope));
+    categories.bindStream(_catRepo.watchAll(boutiqueId: scope));
+
+    // Un produit hors de la catégorie choisie ne renverrait aucune vente,
+    // sans que l'utilisateur comprenne pourquoi : on relâche le filtre
+    // produit dès qu'il devient incompatible.
+    ever(filterCategorieId, (_) {
+      final pid = filterProduitId.value;
+      if (pid == null) return;
+      final cat = filterCategorieId.value;
+      if (cat == null) return;
+      final p = produits.firstWhereOrNull((x) => x.id == pid);
+      if (p == null || p.categorieId != cat) filterProduitId.value = null;
+    });
 
     if (isVendeur) {
       // Boutique ACTIVE (et non la principale) : important pour un admin
@@ -140,6 +160,13 @@ class VentesController extends GetxController {
       final f = customFin.value!;
       avant = DateTime(f.year, f.month, f.day, 23, 59, 59, 999);
     }
+    // Index produit → catégorie, construit une fois par passe de filtrage
+    // (et seulement si le filtre est actif) plutôt qu'à chaque article.
+    final Map<String, String?>? categorieParProduit =
+        filterCategorieId.value == null
+            ? null
+            : {for (final p in produits) p.id: p.categorieId};
+
     return _all.where((v) {
       if (avant != null && v.date.isAfter(avant)) return false;
       if (!inclureAnnulees.value && v.statut == VenteStatut.annulee) {
@@ -161,6 +188,16 @@ class VentesController extends GetxController {
         // Vente concernée si au moins une ligne pointe sur ce produit.
         final pid = filterProduitId.value!;
         if (!v.articles.any((a) => a.produitId == pid)) return false;
+      }
+      if (categorieParProduit != null) {
+        // La catégorie n'est pas portée par la ligne de vente : on remonte
+        // au produit. Un article dont le produit a été supprimé depuis
+        // n'appartient plus à aucune catégorie, il ne peut donc pas matcher.
+        final cid = filterCategorieId.value;
+        if (!v.articles
+            .any((a) => categorieParProduit[a.produitId] == cid)) {
+          return false;
+        }
       }
       if (onlyAvecCredit.value) {
         if (v.statut != VenteStatut.validee) return false;
@@ -187,6 +224,20 @@ class VentesController extends GetxController {
   String produitNom(String? id) {
     if (id == null || id.isEmpty) return '';
     return produits.firstWhereOrNull((p) => p.id == id)?.nom ?? '';
+  }
+
+  /// Helper view : nom de la catégorie pour les libellés de filtre.
+  String categorieNom(String? id) {
+    if (id == null || id.isEmpty) return '';
+    return categories.firstWhereOrNull((c) => c.id == id)?.nom ?? '';
+  }
+
+  /// Produits proposables au filtre : restreints à la catégorie choisie,
+  /// pour que les deux sélecteurs restent cohérents entre eux.
+  List<ProduitModel> get produitsFiltrables {
+    final cat = filterCategorieId.value;
+    if (cat == null) return produits;
+    return produits.where((p) => p.categorieId == cat).toList();
   }
 
   /// Sentinel utilisé en valeur de [filterClientId] pour cibler les ventes

@@ -45,6 +45,8 @@ import '../modules/admin/stock/bindings/stock_binding.dart';
 import '../modules/admin/stock/views/historique_mouvements_view.dart';
 import '../modules/admin/stock/views/stock_list_view.dart';
 import '../modules/admin/home/views/admin_home_view.dart';
+import '../modules/admin/maintenance/bindings/maintenance_binding.dart';
+import '../modules/admin/maintenance/views/maintenance_view.dart';
 import '../modules/admin/produits/bindings/produit_form_binding.dart';
 import '../modules/admin/reglements/bindings/reglements_binding.dart';
 import '../modules/admin/reglements/views/reglements_list_view.dart';
@@ -294,6 +296,16 @@ class AppPages {
       // Vendeur peut accéder : il voit le rapport scopé à ses propres ventes
       // (le controller verrouille `vendeurId` sur lui-même).
       middlewares: [AuthGuard()],
+    ),
+
+    // Purge des données d'une boutique : destructif et irréversible,
+    // donc verrouillé au super-admin par le guard de route EN PLUS des
+    // rules Firestore (`allow delete: if isSuperAdmin()`).
+    GetPage(
+      name: AppRoutes.adminMaintenance,
+      page: () => const MaintenanceView(),
+      binding: MaintenanceBinding(),
+      middlewares: [SuperAdminGuard()],
     ),
 
     // ========== Abonnements (super-admin uniquement) ==========

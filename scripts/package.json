@@ -1,0 +1,8 @@
+{
+  "name": "gongore-scripts",
+  "private": true,
+  "description": "Scripts d'administration Firestore (hors application Flutter).",
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}

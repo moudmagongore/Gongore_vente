@@ -199,6 +199,16 @@ class AdminDrawer extends StatelessWidget {
                       route: AppRoutes.adminRapports,
                       currentRoute: currentRoute,
                     ),
+                    // Purge des données : super-admin uniquement, et placé
+                    // en bas de la navigation métier — ce n'est pas un
+                    // écran de travail quotidien.
+                    if (isSuper)
+                      _Item(
+                        icon: Icons.cleaning_services_rounded,
+                        label: 'Purge des données',
+                        route: AppRoutes.adminMaintenance,
+                        currentRoute: currentRoute,
+                      ),
                     // Abonnements :
                     //   • super-admin → vue globale gestion paiements + tarifs
                     //     (route principale, on remplace la stack)
