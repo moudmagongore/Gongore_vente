@@ -11,6 +11,7 @@ import '../../../../routes/app_routes.dart';
 import '../../../../theme/app_colors.dart';
 import '../../reglements/widgets/reglement_sheet.dart';
 import '../controllers/ventes_controller.dart';
+import '../widgets/filtre_picker_sheet.dart';
 
 class VentesListView extends GetView<VentesController> {
   const VentesListView({super.key});
@@ -192,92 +193,107 @@ class VentesListView extends GetView<VentesController> {
               const Text('Catégorie', style: TextStyle(fontSize: 12)),
               const SizedBox(height: 6),
               Obx(() {
-                // Une catégorie supprimée depuis peut rester sélectionnée :
-                // sans ce garde-fou, DropdownButtonFormField lève sur une
-                // valeur absente de ses items.
-                final safe = controller.categories
-                        .any((c) => c.id == controller.filterCategorieId.value)
-                    ? controller.filterCategorieId.value
-                    : null;
-                return DropdownButtonFormField<String?>(
-                  initialValue: safe,
-                  decoration: const InputDecoration(isDense: true),
-                  isExpanded: true,
-                  items: [
-                    const DropdownMenuItem<String?>(
-                      value: null,
-                      child: Text('Toutes les catégories'),
-                    ),
-                    ...controller.categories.map(
-                      (c) => DropdownMenuItem(
-                        value: c.id,
-                        child: Text(c.nom,
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
-                      ),
-                    ),
-                  ],
-                  onChanged: (v) => controller.filterCategorieId.value = v,
+                final id = controller.filterCategorieId.value;
+                final nom = controller.categorieNom(id);
+                return _FiltrePickerField(
+                  icon: Icons.category_outlined,
+                  valeur: nom.isEmpty ? 'Toutes les catégories' : nom,
+                  actif: id != null && nom.isNotEmpty,
+                  onClear: () => controller.filterCategorieId.value = null,
+                  onTap: () async {
+                    final choix = await FiltrePickerSheet.open(
+                      titre: 'Filtrer par catégorie',
+                      hintRecherche: 'Rechercher une catégorie...',
+                      labelTout: 'Toutes les catégories',
+                      selection: id,
+                      options: controller.categories
+                          .map((c) => FiltreOption(id: c.id, nom: c.nom))
+                          .toList(),
+                    );
+                    if (choix != null) {
+                      controller.filterCategorieId.value = choix.id;
+                    }
+                  },
                 );
               }),
               const SizedBox(height: 12),
               const Text('Produit', style: TextStyle(fontSize: 12)),
               const SizedBox(height: 6),
               Obx(() {
-                // Liste restreinte à la catégorie choisie (voir
-                // `produitsFiltrables`) : les deux sélecteurs restent
-                // cohérents, on ne peut pas viser un produit hors catégorie.
+                // Liste restreinte à la catégorie choisie : les deux filtres
+                // restent cohérents entre eux.
                 final dispo = controller.produitsFiltrables;
-                final safe = dispo
-                        .any((p) => p.id == controller.filterProduitId.value)
+                final id = dispo.any((p) => p.id == controller.filterProduitId.value)
                     ? controller.filterProduitId.value
                     : null;
-                return DropdownButtonFormField<String?>(
-                  initialValue: safe,
-                  decoration: const InputDecoration(isDense: true),
-                  isExpanded: true,
-                  items: [
-                    const DropdownMenuItem<String?>(
-                      value: null,
-                      child: Text('Tous les produits'),
-                    ),
-                    ...dispo.map(
-                      (p) => DropdownMenuItem(
-                        value: p.id,
-                        child: Text(p.nom,
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
-                      ),
-                    ),
-                  ],
-                  onChanged: (v) => controller.filterProduitId.value = v,
+                final nom = controller.produitNom(id);
+                return _FiltrePickerField(
+                  icon: Icons.inventory_2_outlined,
+                  valeur: nom.isEmpty ? 'Tous les produits' : nom,
+                  actif: id != null && nom.isNotEmpty,
+                  onClear: () => controller.filterProduitId.value = null,
+                  onTap: () async {
+                    final choix = await FiltrePickerSheet.open(
+                      titre: 'Filtrer par produit',
+                      hintRecherche: 'Rechercher un produit...',
+                      labelTout: 'Tous les produits',
+                      selection: id,
+                      options: dispo
+                          .map((p) => FiltreOption(
+                                id: p.id,
+                                nom: p.nom,
+                                sousTitre:
+                                    controller.categorieNom(p.categorieId),
+                              ))
+                          .toList(),
+                    );
+                    if (choix != null) {
+                      controller.filterProduitId.value = choix.id;
+                    }
+                  },
                 );
               }),
               const SizedBox(height: 12),
               const Text('Client', style: TextStyle(fontSize: 12)),
               const SizedBox(height: 6),
-              Obx(
-                () => DropdownButtonFormField<String?>(
-                  initialValue: controller.filterClientId.value,
-                  decoration: const InputDecoration(isDense: true),
-                  items: [
-                    const DropdownMenuItem<String?>(
-                      value: null,
-                      child: Text('Tous les clients'),
-                    ),
-                    DropdownMenuItem<String?>(
-                      value: controller.diversSentinel,
-                      child: const Text('Client divers'),
-                    ),
-                    ...controller.clients.map(
-                      (c) => DropdownMenuItem(
-                        value: c.id,
-                        child: Text(c.nom,
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
-                      ),
-                    ),
-                  ],
-                  onChanged: (v) => controller.filterClientId.value = v,
-                ),
-              ),
+              Obx(() {
+                final id = controller.filterClientId.value;
+                final divers = id == controller.diversSentinel;
+                final nom = divers ? 'Client divers' : controller.clientNom(id);
+                return _FiltrePickerField(
+                  icon: Icons.person_outline_rounded,
+                  valeur: nom.isEmpty ? 'Tous les clients' : nom,
+                  actif: id != null && nom.isNotEmpty,
+                  onClear: () => controller.filterClientId.value = null,
+                  onTap: () async {
+                    final choix = await FiltrePickerSheet.open(
+                      titre: 'Filtrer par client',
+                      hintRecherche: 'Rechercher un client...',
+                      labelTout: 'Tous les clients',
+                      selection: id,
+                      options: [
+                        // Pseudo-entrée en tête : cible les ventes sans
+                        // fiche client (voir `diversSentinel`).
+                        FiltreOption(
+                          id: controller.diversSentinel,
+                          nom: 'Client divers',
+                          sousTitre: 'Ventes sans fiche client',
+                        ),
+                        ...controller.clients.map(
+                          (c) => FiltreOption(
+                            id: c.id,
+                            nom: c.nom,
+                            sousTitre: c.telephone,
+                          ),
+                        ),
+                      ],
+                    );
+                    if (choix != null) {
+                      controller.filterClientId.value = choix.id;
+                    }
+                  },
+                );
+              }),
               const SizedBox(height: 12),
               const Text('Mode de paiement', style: TextStyle(fontSize: 12)),
               const SizedBox(height: 6),
@@ -328,6 +344,58 @@ class VentesListView extends GetView<VentesController> {
               ),
             ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Champ de filtre en lecture seule : affiche la valeur choisie et ouvre
+/// un [FiltrePickerSheet] au tap. Remplace un DropdownButtonFormField dès
+/// que la liste est trop longue pour être parcourue au doigt.
+class _FiltrePickerField extends StatelessWidget {
+  final IconData icon;
+  final String valeur;
+  final bool actif;
+  final VoidCallback onTap;
+  final VoidCallback onClear;
+
+  const _FiltrePickerField({
+    required this.icon,
+    required this.valeur,
+    required this.actif,
+    required this.onTap,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          isDense: true,
+          prefixIcon: Icon(icon, size: 20),
+          // La croix n'apparaît que sur un filtre actif : sur « Tous »,
+          // elle n'aurait rien à effacer.
+          suffixIcon: actif
+              ? IconButton(
+                  tooltip: 'Effacer',
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  onPressed: onClear,
+                )
+              : const Icon(Icons.keyboard_arrow_down_rounded),
+        ),
+        child: Text(
+          valeur,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: actif ? FontWeight.w600 : FontWeight.w400,
+            color: actif ? null : AppColors.greyText(context, 600),
           ),
         ),
       ),
@@ -470,30 +538,62 @@ class _StatsBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
+      // Le chiffre d'affaires occupe toute la largeur : à trois cartes sur
+      // une rangée il ne resterait qu'une quarantaine de pixels pour un
+      // montant comme « 1 250 000 GNF ». Ventes et articles, eux, tiennent
+      // à l'aise sur une demi-largeur.
       child: Obx(
-        () => IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: _StatCard(
-                  color: AppColors.success,
-                  icon: Icons.trending_up_rounded,
-                  value: '${Fmt.number(controller.caTotal)} GNF ',
-                  label: 'Chiffre d\'affaires',
-                ),
+        () => Column(
+          children: [
+            _StatCard(
+              color: AppColors.success,
+              icon: Icons.trending_up_rounded,
+              value: '${Fmt.number(controller.caTotal)} GNF ',
+              // Comme pour les articles : un CA restreint à une catégorie
+              // doit se lire comme tel, pas comme le total de la période.
+              label: controller.filterCategorieId.value != null
+                  ? 'Chiffre d\'affaires · '
+                      '${controller.categorieNom(controller.filterCategorieId.value)}'
+                  : controller.filterProduitId.value != null
+                      ? 'Chiffre d\'affaires · '
+                          '${controller.produitNom(controller.filterProduitId.value)}'
+                      : 'Chiffre d\'affaires',
+            ),
+            const SizedBox(height: 10),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: _StatCard(
+                      color: AppColors.primary(context),
+                      icon: Icons.receipt_long_rounded,
+                      value: controller.nbVentesValidees.toString(),
+                      label: 'Ventes',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _StatCard(
+                      color: AppColors.accent,
+                      icon: Icons.shopping_basket_rounded,
+                      value: Fmt.number(controller.nbArticlesVendus),
+                      // Le libellé rappelle le filtre actif, sinon un
+                      // chiffre restreint à une catégorie se lirait comme
+                      // le total de la période.
+                      label: controller.filterCategorieId.value != null
+                          ? 'Articles · '
+                              '${controller.categorieNom(controller.filterCategorieId.value)}'
+                          : controller.filterProduitId.value != null
+                              ? 'Articles · '
+                                  '${controller.produitNom(controller.filterProduitId.value)}'
+                              : 'Articles vendus',
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _StatCard(
-                  color: AppColors.primary(context),
-                  icon: Icons.receipt_long_rounded,
-                  value: controller.nbVentesValidees.toString(),
-                  label: 'Ventes',
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

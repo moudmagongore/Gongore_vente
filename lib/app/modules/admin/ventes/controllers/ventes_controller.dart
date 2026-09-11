@@ -275,9 +275,62 @@ class VentesController extends GetxController {
       boutiques.firstWhereOrNull((b) => b.id == boutiqueId)?.devise ?? 'GNF';
 
   // ======== Stats ========
-  double get caTotal => filtered
-      .where((v) => v.statut == VenteStatut.validee)
-      .fold(0.0, (acc, v) => acc + v.total);
+
+  /// Chiffre d'affaires et quantités des ventes **validées** affichées,
+  /// ramenés au périmètre des filtres catégorie / produit.
+  ///
+  /// Sans filtre, on additionne simplement le total de chaque vente. Avec
+  /// un filtre, additionner `v.total` compterait la vente entière alors
+  /// que seule une partie est concernée : on ne somme donc que les lignes
+  /// retenues.
+  ///
+  /// La remise globale n'est rattachée à aucune ligne ; elle est imputée
+  /// au prorata du poids des articles retenus, de sorte que la somme de
+  /// toutes les catégories redonne exactement le CA réel de la vente
+  /// (`total = sousTotal - remise`).
+  ({double ca, int articles}) get _totauxFiltres {
+    final cat = filterCategorieId.value;
+    final pid = filterProduitId.value;
+    final cible = cat != null || pid != null;
+    final Map<String, String?>? categorieParProduit = cat == null
+        ? null
+        : {for (final p in produits) p.id: p.categorieId};
+
+    var ca = 0.0;
+    var articles = 0;
+
+    for (final v in filtered) {
+      if (v.statut != VenteStatut.validee) continue;
+
+      if (!cible) {
+        ca += v.total;
+        articles += v.articles.fold(0, (acc, a) => acc + a.quantite);
+        continue;
+      }
+
+      var part = 0.0;
+      for (final a in v.articles) {
+        if (pid != null && a.produitId != pid) continue;
+        if (categorieParProduit != null &&
+            categorieParProduit[a.produitId] != cat) {
+          continue;
+        }
+        part += a.sousTotal;
+        articles += a.quantite;
+      }
+      if (part == 0) continue;
+
+      final base = v.sousTotal;
+      final ratio = base > 0 ? part / base : 0.0;
+      ca += part - (v.remise * ratio);
+    }
+    return (ca: ca, articles: articles);
+  }
+
+  double get caTotal => _totauxFiltres.ca;
+
+  /// Quantité d'articles vendus, sur le même périmètre que [caTotal].
+  int get nbArticlesVendus => _totauxFiltres.articles;
 
   int get nbVentesValidees =>
       filtered.where((v) => v.statut == VenteStatut.validee).length;
