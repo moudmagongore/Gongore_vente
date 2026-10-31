@@ -323,11 +323,38 @@ ni GetX, testé par `test/caisse_calculator_test.dart`) : regroupement des
 lignes par caisse, contrôle du solde négatif, calcul du `soldeApres`. Le
 repository lit les caisses dans la transaction, appelle ce calcul, puis écrit.
 
-**Opérations branchées à ce jour : les dépenses seulement.** Les ventes,
-arrivages et règlements écrivent encore sans toucher aux caisses. La saisie de
-la répartition est le widget partagé `core/widgets/paiements_caisse_field.dart`
-(lignes caisse + montant, reste à répartir ; le montant d'une ligne unique suit
-automatiquement celui de l'opération).
+**Opérations branchées à ce jour : dépenses, règlements client et règlements
+fournisseur.** Les ventes et les arrivages écrivent encore sans toucher aux
+caisses.
+
+La saisie de la répartition est le widget partagé
+`core/widgets/paiements_caisse_field.dart` (lignes caisse + montant, reste à
+répartir ; le montant d'une ligne unique suit automatiquement celui de
+l'opération). `PaiementsCaisseBloc`, dans le même fichier, y ajoute les quatre
+états d'un formulaire autonome — chargement, boutique sans caisse, aucune
+caisse accessible, saisie normale — en s'appuyant sur
+`core/utils/caisse_contexte.dart`.
+
+### Mode de paiement : remplacé par la caisse
+
+`ModePaiement` (Espèces / Orange Money / Mobile Money / Paycard) désignait le
+même axe que les caisses. Il est donc **retiré des formulaires dès qu'une
+caisse existe**, et le champ n'est plus écrit du tout dans ce cas : sur
+`ReglementModel` et `ReglementFournisseurModel` il est devenu **nullable**,
+`null` signifiant « c'est `paiements` qui dit où est l'argent ».
+
+Deux conséquences à connaître :
+
+- l'affichage passe par le getter **`libellePaiement`** : les noms de caisses
+  s'il y en a, sinon l'ancien mode, sinon `—`. Jamais de valeur par défaut
+  inventée — six écrans et deux reçus en dépendent, d'où
+  `test/libelle_paiement_test.dart` ;
+- le filtre des listes de règlements montre **les caisses** quand la boutique
+  en a, et retombe sur les modes sinon. Sans ça, un filtre « Espèces » aurait
+  silencieusement masqué tous les règlements récents.
+
+`VenteModel` et `ApprovisionnementModel` gardent pour l'instant un
+`modePaiement` non nullable : ils seront traités avec leurs étapes.
 
 Côté dépense, deux conséquences du gel des mouvements :
 
@@ -590,8 +617,9 @@ gcloud firestore export gs://gongorevente.firebasestorage.app/backup-$(date +%F)
 - **iOS** : adoption d'UIScene et cible iOS 15 pour Xcode 27
 - **Lot 2 étape 2.1** : création et paramétrage des caisses, accès par
   gestionnaire, helper de mouvements testé. Recetté
-- **Lot 2 étape 2.2 (dépenses)** : première opération branchée sur les
-  caisses — **non encore recettée**
+- **Lot 2 étape 2.2** : dépenses, règlements client et règlements fournisseur
+  branchés sur les caisses ; mode de paiement remplacé par la caisse sur ces
+  opérations — **non encore recetté**
 
 ### Dette connue
 

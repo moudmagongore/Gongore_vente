@@ -5,6 +5,7 @@ import '../../data/models/caisse_model.dart';
 import '../../data/models/paiement_caisse.dart';
 import '../../theme/app_colors.dart';
 import '../utils/caisse_calculator.dart';
+import '../utils/caisse_contexte.dart';
 import '../utils/format_helpers.dart';
 
 /// Saisie de la répartition d'un paiement sur une ou plusieurs caisses.
@@ -328,6 +329,88 @@ class _PaiementsCaisseFieldState extends State<PaiementsCaisseField> {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Zone « payé depuis / encaissé sur » prête à poser dans un bottom sheet
+/// autonome, avec ses quatre états.
+///
+/// [contexte] vaut `null` pendant le chargement : on affiche alors une
+/// ligne d'attente plutôt que rien, sinon le bloc apparaîtrait d'un coup
+/// sous les doigts de l'utilisateur.
+class PaiementsCaisseBloc extends StatelessWidget {
+  final CaisseContexte? contexte;
+  final double montant;
+  final ValueChanged<List<PaiementCaisse>> onChanged;
+  final bool estSortie;
+
+  const PaiementsCaisseBloc({
+    super.key,
+    required this.contexte,
+    required this.montant,
+    required this.onChanged,
+    this.estSortie = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ctx = contexte;
+    if (ctx == null) {
+      return Row(
+        children: [
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor:
+                  AlwaysStoppedAnimation(AppColors.greyText(context, 500)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Chargement des caisses...',
+            style: TextStyle(
+                fontSize: 11.5, color: AppColors.greyText(context, 600)),
+          ),
+        ],
+      );
+    }
+
+    if (ctx.manquante) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.danger.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.block_rounded, color: AppColors.danger, size: 18),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Aucune caisse disponible, contactez votre administrateur.',
+                style:
+                    TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Boutique sans caisse : rien à demander, l'opération se déroule comme
+    // avant le module (RG-9).
+    if (!ctx.disponible) return const SizedBox.shrink();
+
+    return PaiementsCaisseField(
+      caisses: ctx.caisses,
+      montantAttendu: montant,
+      onChanged: onChanged,
+      estSortie: estSortie,
     );
   }
 }

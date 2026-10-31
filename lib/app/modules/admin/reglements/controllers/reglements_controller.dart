@@ -2,11 +2,13 @@ import 'package:get/get.dart';
 
 import '../../../../core/services/reglement_receipt_service.dart';
 import '../../../../core/services/user_controller.dart';
+import '../../../../data/models/caisse_model.dart';
 import '../../../../data/models/boutique_model.dart';
 import '../../../../data/models/client_model.dart';
 import '../../../../data/models/reglement_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/models/vente_model.dart';
+import '../../../../data/repositories/caisse_repository.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/client_repository.dart';
 import '../../../../data/repositories/reglement_repository.dart';
@@ -30,7 +32,17 @@ class ReglementsController extends GetxController {
   final RxnString filterBoutiqueId = RxnString();
   final RxnString filterClientId = RxnString();
   final RxnString filterUserId = RxnString();
+  /// Ancien filtre « mode de paiement ». Il ne concerne plus que les
+  /// règlements antérieurs aux caisses : l'écran ne le propose que si la
+  /// boutique n'a pas de caisse.
   final Rxn<ModePaiement> filterMode = Rxn<ModePaiement>();
+
+  /// Filtre par caisse, qui remplace le mode de paiement dès qu'une caisse
+  /// existe.
+  final RxnString filterCaisseId = RxnString();
+
+  /// Caisses accessibles à l'utilisateur, pour les chips de filtre.
+  final RxList<CaisseModel> caisses = <CaisseModel>[].obs;
   final RxString search = ''.obs;
 
   bool get isSuperAdmin => UserController.to.isSuperAdmin;
@@ -57,6 +69,12 @@ class ReglementsController extends GetxController {
     boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
     clients.bindStream(_clientRepo.watchScoped(scope));
     users.bindStream(_userRepo.watchScoped(scope: scope));
+    caisses.bindStream(CaisseRepository().watchScoped(
+      scope: scope,
+      gestionnaireId: UserController.to.isAnyAdmin
+          ? null
+          : UserController.to.user?.id,
+    ));
 
     _bind();
     everAll([periode, filterBoutiqueId], (_) => _bind());
@@ -111,6 +129,11 @@ class ReglementsController extends GetxController {
       if (filterUserId.value != null && r.userId != filterUserId.value) {
         return false;
       }
+      final caisseFiltre = filterCaisseId.value;
+      if (caisseFiltre != null &&
+          !r.paiements.any((p) => p.caisseId == caisseFiltre)) {
+        return false;
+      }
       if (filterMode.value != null && r.modePaiement != filterMode.value) {
         return false;
       }
@@ -144,10 +167,17 @@ class ReglementsController extends GetxController {
 
   Future<void> deleteReglement(ReglementModel r) async {
     try {
-      await _repo.deleteAndRestore(r.id);
+      final user = UserController.to.user;
+      await _repo.deleteAndRestore(
+        r.id,
+        userId: user?.id ?? '',
+        userNom: user?.nom ?? '',
+      );
       Get.snackbar(
         'Règlement supprimé',
-        'Le solde du client a été réajusté.',
+        r.passeParCaisse
+            ? 'Le solde du client a été réajusté, et la caisse aussi.'
+            : 'Le solde du client a été réajusté.',
         snackPosition: SnackPosition.TOP,
       );
     } catch (e) {

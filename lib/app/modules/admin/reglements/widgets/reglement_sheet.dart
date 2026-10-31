@@ -5,10 +5,13 @@ import 'package:get/get.dart';
 import '../../../../core/services/reglement_receipt_service.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../core/utils/bottom_sheet_helpers.dart';
+import '../../../../core/utils/caisse_calculator.dart';
+import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/utils/format_helpers.dart';
+import '../../../../core/widgets/paiements_caisse_field.dart';
 import '../../../../data/models/client_model.dart';
+import '../../../../data/models/paiement_caisse.dart';
 import '../../../../data/models/reglement_model.dart';
-import '../../../../data/models/vente_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/reglement_repository.dart';
 import '../../../../data/repositories/user_repository.dart';
@@ -40,8 +43,14 @@ class _ReglementSheetState extends State<ReglementSheet> {
   final _formKey = GlobalKey<FormState>();
   final _montantCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
-  ModePaiement _mode = ModePaiement.especes;
   bool _saving = false;
+
+  /// `null` tant que les caisses ne sont pas chargées : le bouton
+  /// d'enregistrement reste désactivé le temps de savoir si une caisse est
+  /// requise. Sans cette attente, un règlement pourrait partir sans
+  /// imputation alors que la boutique est équipée.
+  CaisseContexte? _ctx;
+  List<PaiementCaisse> _paiements = const [];
 
   @override
   void initState() {
@@ -49,7 +58,13 @@ class _ReglementSheetState extends State<ReglementSheet> {
     if (widget.client.solde > 0) {
       _montantCtrl.text = widget.client.solde.toStringAsFixed(0);
     }
+    CaisseContexte.charger(widget.client.boutiqueId).then((ctx) {
+      if (mounted) setState(() => _ctx = ctx);
+    });
   }
+
+  double get _montantSaisi =>
+      double.tryParse(_montantCtrl.text.replaceAll(',', '.')) ?? 0;
 
   @override
   void dispose() {
@@ -64,20 +79,44 @@ class _ReglementSheetState extends State<ReglementSheet> {
         double.tryParse(_montantCtrl.text.replaceAll(',', '.')) ?? 0;
     if (montant <= 0) return;
 
+    final ctx = _ctx ?? CaisseContexte.vide;
+    if (ctx.manquante) {
+      Get.snackbar('Encaissement impossible',
+          'Aucune caisse disponible, contactez votre administrateur.',
+          snackPosition: SnackPosition.TOP);
+      return;
+    }
+    if (ctx.disponible) {
+      // RG-11 et RG-14 : le total encaissé doit être réparti sur les
+      // caisses, exactement.
+      final probleme =
+          verifierRepartition(paiements: _paiements, attendu: montant);
+      if (_paiements.isEmpty || probleme != null) {
+        Get.snackbar(
+          'Caisse requise',
+          probleme ?? 'Indiquez sur quelle caisse l\'argent est encaissé.',
+          snackPosition: SnackPosition.TOP,
+        );
+        return;
+      }
+    }
+
     setState(() => _saving = true);
     try {
-      final userId = UserController.to.user?.id ?? '';
+      final user = UserController.to.user;
+      final userId = user?.id ?? '';
       final reg = ReglementModel(
         id: '',
         clientId: widget.client.id,
         boutiqueId: widget.client.boutiqueId,
         userId: userId,
         montant: montant,
-        modePaiement: _mode,
+        paiements: _paiements,
         date: DateTime.now(),
         note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
       );
-      final saved = await ReglementRepository().create(reg);
+      final saved = await ReglementRepository()
+          .create(reg, userNom: user?.nom ?? '');
       widget.onDone?.call();
       Get.back();
       Get.snackbar(
@@ -257,28 +296,17 @@ class _ReglementSheetState extends State<ReglementSheet> {
                   if (n <= 0) return 'Montant requis';
                   return null;
                 },
+                // La ligne de caisse unique recopie ce montant : il faut
+                // reconstruire à chaque frappe.
+                onChanged: (_) => setState(() {}),
                 autofocus: true,
               ),
               const SizedBox(height: 14),
-              const Text(
-                'Mode',
-                style: TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w700),
+              PaiementsCaisseBloc(
+                contexte: _ctx,
+                montant: _montantSaisi,
+                onChanged: (p) => _paiements = p,
               ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: ModePaiement.values
-                    .map(
-                      (m) => ChoiceChip(
-                        label: Text(m.label),
-                        selected: _mode == m,
-                        onSelected: (_) => setState(() => _mode = m),
-                      ),
-                    )
-                    .toList(),
-              ),
-              const SizedBox(height: 14),
               TextFormField(
                 controller: _noteCtrl,
                 decoration: const InputDecoration(
@@ -291,7 +319,8 @@ class _ReglementSheetState extends State<ReglementSheet> {
               ),
               const SizedBox(height: 18),
               ElevatedButton.icon(
-                onPressed: _saving ? null : _save,
+                // Désactivé tant que le contexte caisse n'est pas connu.
+                onPressed: _saving || _ctx == null ? null : _save,
                 icon: _saving
                     ? const SizedBox(
                         width: 18,

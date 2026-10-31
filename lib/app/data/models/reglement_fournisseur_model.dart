@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'paiement_caisse.dart';
 import 'vente_model.dart' show ModePaiement;
 
 /// Trace d'une imputation d'un règlement fournisseur sur une appro
@@ -44,7 +45,26 @@ class ReglementFournisseurModel {
 
   /// Montant versé (toujours positif).
   final double montant;
-  final ModePaiement modePaiement;
+
+  /// Ancien canal de paiement. `null` pour les règlements imputés sur des
+  /// caisses : c'est alors [paiements] qui dit d'où l'argent est sorti.
+  final ModePaiement? modePaiement;
+
+  /// Répartition sur les caisses (RG-10). Vide pour les règlements
+  /// antérieurs au module de caisse et pour les boutiques qui n'en ont
+  /// pas encore (RG-9).
+  final List<PaiementCaisse> paiements;
+
+  bool get passeParCaisse => paiements.isNotEmpty;
+
+  /// Libellé du canal de paiement, pour l'affichage et les reçus : les
+  /// caisses quand il y en a, sinon l'ancien mode de paiement.
+  ///
+  /// Un seul point de vérité : les écrans n'ont pas à savoir lequel des
+  /// deux renseigner.
+  String get libellePaiement => passeParCaisse
+      ? paiements.map((p) => p.caisseNom).join(' + ')
+      : (modePaiement?.label ?? '—');
 
   final DateTime date;
   final String? note;
@@ -61,8 +81,9 @@ class ReglementFournisseurModel {
     required this.boutiqueId,
     required this.userId,
     required this.montant,
-    required this.modePaiement,
     required this.date,
+    this.modePaiement,
+    this.paiements = const [],
     this.note,
     this.imputations = const [],
   });
@@ -78,7 +99,10 @@ class ReglementFournisseurModel {
       boutiqueId: (map['boutiqueId'] ?? '') as String,
       userId: (map['userId'] ?? '') as String,
       montant: (map['montant'] as num?)?.toDouble() ?? 0,
-      modePaiement: ModePaiement.fromString(map['modePaiement'] as String?),
+      modePaiement: map['modePaiement'] == null
+          ? null
+          : ModePaiement.fromString(map['modePaiement'] as String?),
+      paiements: PaiementCaisse.listFromMap(map['paiements']),
       date: (map['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
       note: map['note'] as String?,
       imputations: raw
@@ -99,7 +123,8 @@ class ReglementFournisseurModel {
         'boutiqueId': boutiqueId,
         'userId': userId,
         'montant': montant,
-        'modePaiement': modePaiement.name,
+        if (modePaiement != null) 'modePaiement': modePaiement!.name,
+        'paiements': paiements.map((p) => p.toMap()).toList(),
         'date': Timestamp.fromDate(date),
         'note': note,
         'imputations': imputations.map((i) => i.toMap()).toList(),

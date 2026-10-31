@@ -83,7 +83,8 @@ class ReglementsFournisseursListView
                   return _EmptyState(
                     hasSearch: controller.search.value.isNotEmpty ||
                         controller.filterFournisseurId.value != null ||
-                        controller.filterMode.value != null,
+                        controller.filterMode.value != null ||
+                          controller.filterCaisseId.value != null,
                   );
                 }
                 return ListView.separated(
@@ -199,27 +200,69 @@ class ReglementsFournisseursListView
                 ),
                 const SizedBox(height: 12),
               ],
-              const Text('Mode', style: TextStyle(fontSize: 12)),
-              const SizedBox(height: 6),
-              Obx(
-                () => Wrap(
-                  spacing: 8,
-                  children: [
-                    ChoiceChip(
-                      label: const Text('Tous'),
-                      selected: controller.filterMode.value == null,
-                      onSelected: (_) => controller.filterMode.value = null,
-                    ),
-                    ...ModePaiement.values.map(
-                      (m) => ChoiceChip(
-                        label: Text(m.label),
-                        selected: controller.filterMode.value == m,
-                        onSelected: (_) => controller.filterMode.value = m,
+              Obx(() {
+                // Les caisses remplacent le mode de paiement dès qu'il en
+                // existe : les deux désignent le même axe, et le mode
+                // n'est plus renseigné sur les nouveaux règlements.
+                final caisses = controller.caisses
+                    .where((c) => c.active)
+                    .toList();
+                if (caisses.isEmpty) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Mode', style: TextStyle(fontSize: 12)),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          ChoiceChip(
+                            label: const Text('Tous'),
+                            selected: controller.filterMode.value == null,
+                            onSelected: (_) =>
+                                controller.filterMode.value = null,
+                          ),
+                          ...ModePaiement.values.map(
+                            (m) => ChoiceChip(
+                              label: Text(m.label),
+                              selected: controller.filterMode.value == m,
+                              onSelected: (_) =>
+                                  controller.filterMode.value = m,
+                            ),
+                          ),
+                        ],
                       ),
+                    ],
+                  );
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Caisse', style: TextStyle(fontSize: 12)),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('Toutes'),
+                          selected: controller.filterCaisseId.value == null,
+                          onSelected: (_) =>
+                              controller.filterCaisseId.value = null,
+                        ),
+                        ...caisses.map(
+                          (c) => ChoiceChip(
+                            label: Text(c.nom),
+                            selected:
+                                controller.filterCaisseId.value == c.id,
+                            onSelected: (_) =>
+                                controller.filterCaisseId.value = c.id,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
-                ),
-              ),
+                );
+              }),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => Get.back(),
@@ -539,7 +582,7 @@ class _ReglementTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${Fmt.dateTime(reglement.date)} · ${reglement.modePaiement.label}',
+                      '${Fmt.dateTime(reglement.date)} · ${reglement.libellePaiement}',
                       style: TextStyle(
                           fontSize: 11, color: AppColors.greyText(context, 600)),
                     ),

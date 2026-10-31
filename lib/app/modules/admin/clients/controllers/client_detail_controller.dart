@@ -163,10 +163,17 @@ class ClientDetailController extends GetxController {
     );
     if (ok != true) return;
     try {
-      await _reglementRepo.deleteAndRestore(r.id);
+      final user = UserController.to.user;
+      await _reglementRepo.deleteAndRestore(
+        r.id,
+        userId: user?.id ?? '',
+        userNom: user?.nom ?? '',
+      );
       Get.snackbar(
         'Règlement supprimé',
-        'Le solde a été réajusté.',
+        r.passeParCaisse
+            ? 'Le solde a été réajusté, et la caisse aussi.'
+            : 'Le solde a été réajusté.',
         snackPosition: SnackPosition.TOP,
       );
     } catch (e) {
