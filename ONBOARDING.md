@@ -309,10 +309,35 @@ Quatre invariants, dans cet ordre d'importance :
    fonctionnent comme avant** : aucune caisse n'est créée automatiquement,
    et une liste de paiements vide n'écrit rien.
 
+5. **`boutiques/{id}.hasCaissesActives`** dit si la boutique a au moins une
+   caisse active. Ce drapeau existe parce qu'un gestionnaire ne peut pas lire
+   les caisses auxquelles il n'a pas accès : sans lui, il ne pourrait pas
+   distinguer « cette boutique n'a pas de caisse » (il opère comme avant) de
+   « elle en a, mais aucune pour moi » (ses opérations payées sont bloquées,
+   RG-19). Maintenu par `CaisseRepository` après chaque paramétrage, et
+   **absent de `BoutiqueModel.toMap()`** pour qu'un enregistrement du
+   formulaire boutique ne l'écrase pas.
+
 Le calcul vit dans `core/utils/caisse_calculator.dart` (pur, sans Firestore
 ni GetX, testé par `test/caisse_calculator_test.dart`) : regroupement des
 lignes par caisse, contrôle du solde négatif, calcul du `soldeApres`. Le
 repository lit les caisses dans la transaction, appelle ce calcul, puis écrit.
+
+**Opérations branchées à ce jour : les dépenses seulement.** Les ventes,
+arrivages et règlements écrivent encore sans toucher aux caisses. La saisie de
+la répartition est le widget partagé `core/widgets/paiements_caisse_field.dart`
+(lignes caisse + montant, reste à répartir ; le montant d'une ligne unique suit
+automatiquement celui de l'opération).
+
+Côté dépense, deux conséquences du gel des mouvements :
+
+- **le montant devient immuable** dès qu'une caisse a payé la dépense —
+  verrouillé par les règles Firestore, pas seulement par l'écran. Pour
+  corriger, on supprime et on ressaisit ;
+- **la suppression recrédite les caisses** par un mouvement inverse de type
+  `annulation` pointant vers le mouvement d'origine. C'est l'idiome déjà
+  retenu pour les règlements (`deleteAndRestore`), les ventes et arrivages
+  utilisant plutôt `cancel` avec un statut.
 
 Deux pièges de cette mécanique :
 
@@ -563,6 +588,10 @@ gcloud firestore export gs://gongorevente.firebasestorage.app/backup-$(date +%F)
   l'historique au prix d'achat actuel depuis l'écran de purge. **Recetté et
   reprise appliquée** (octobre 2026)
 - **iOS** : adoption d'UIScene et cible iOS 15 pour Xcode 27
+- **Lot 2 étape 2.1** : création et paramétrage des caisses, accès par
+  gestionnaire, helper de mouvements testé. Recetté
+- **Lot 2 étape 2.2 (dépenses)** : première opération branchée sur les
+  caisses — **non encore recettée**
 
 ### Dette connue
 

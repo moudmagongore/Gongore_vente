@@ -490,6 +490,17 @@ service cloud.firestore {
     //   • gestionnaire : uniquement sur SES propres saisies
     //   • `date`, `boutiqueId` et `userId` restent immuables (audit) —
     //     seuls la nature, le montant et le commentaire sont éditables.
+    //
+    // CAISSES — `paiements` est absent de la liste `hasOnly()` : la
+    // répartition écrite à la création n'est plus modifiable. Et dès
+    // qu'elle n'est pas vide, le `montant` est figé lui aussi : l'argent
+    // est sorti des caisses, un solde ne se corrige pas en réécrivant
+    // l'opération (RG-5). La suppression, elle, recrédite les caisses.
+    //
+    // Conséquence connue : un gestionnaire retiré d'une caisse ne peut
+    // plus supprimer ses anciennes dépenses payées dessus — l'écriture du
+    // mouvement de compensation lui est refusée. C'est alors à l'admin de
+    // le faire.
     match /depenses/{did} {
       allow read: if isSuperAdmin()
                   || (isAuthed() && userHasBoutique(resource.data.boutiqueId));
@@ -511,7 +522,10 @@ service cloud.firestore {
                         && request.resource.data.diff(resource.data)
                             .affectedKeys()
                             .hasOnly(['natureId', 'natureNom', 'montant',
-                                      'commentaire']));
+                                      'commentaire'])
+                        && (resource.data.get('paiements', []).size() == 0
+                            || request.resource.data.montant
+                               == resource.data.montant));
 
       allow delete: if isSuperAdmin()
                     || (isAdmin() && resourceBoutiqueIdMatches())

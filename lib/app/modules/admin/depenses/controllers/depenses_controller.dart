@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/services/user_controller.dart';
+import '../../../../core/utils/format_helpers.dart';
 import '../../../../data/models/boutique_model.dart';
+import '../../../../data/models/caisse_model.dart';
 import '../../../../data/models/depense_model.dart';
 import '../../../../data/models/nature_depense_model.dart';
+import '../../../../data/models/paiement_caisse.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
+import '../../../../data/repositories/caisse_repository.dart';
 import '../../../../data/repositories/depense_repository.dart';
 import '../../../../data/repositories/nature_depense_repository.dart';
 import '../../../../data/repositories/user_repository.dart';
@@ -31,6 +35,7 @@ class DepenseParNature {
 class DepensesController extends GetxController {
   final DepenseRepository _repo = DepenseRepository();
   final NatureDepenseRepository _natureRepo = NatureDepenseRepository();
+  final CaisseRepository _caisseRepo = CaisseRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
   final UserRepository _userRepo = UserRepository();
 
@@ -38,6 +43,10 @@ class DepensesController extends GetxController {
   final RxList<NatureDepenseModel> natures = <NatureDepenseModel>[].obs;
   final RxList<BoutiqueModel> boutiques = <BoutiqueModel>[].obs;
   final RxList<UserModel> users = <UserModel>[].obs;
+
+  /// Caisses actives accessibles à l'utilisateur. Un gestionnaire n'y voit
+  /// que celles où son uid figure (filtre `array-contains` côté requête).
+  final RxList<CaisseModel> caisses = <CaisseModel>[].obs;
 
   final RxBool isLoading = true.obs;
   final Rx<PeriodeDepense> periode = PeriodeDepense.mois.obs;
@@ -70,6 +79,10 @@ class DepensesController extends GetxController {
     natures.bindStream(_natureRepo.watchScoped(scope));
     boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
     users.bindStream(_userRepo.watchScoped(scope: scope));
+    caisses.bindStream(_caisseRepo.watchScoped(
+      scope: scope,
+      gestionnaireId: isAnyAdmin ? null : UserController.to.user?.id,
+    ));
 
     _bind();
     everAll([periode, filterBoutiqueId], (_) => _bind());
@@ -162,6 +175,35 @@ class DepensesController extends GetxController {
         .toList();
   }
 
+  /// Caisses proposables pour une boutique : actives, de CETTE boutique,
+  /// et accessibles à l'utilisateur (le stream s'en charge déjà pour un
+  /// gestionnaire).
+  List<CaisseModel> caissesDisponibles(String? boutiqueId) {
+    if (boutiqueId == null || boutiqueId.isEmpty) return <CaisseModel>[];
+    return caisses
+        .where((c) => c.active && c.boutiqueId == boutiqueId)
+        .toList();
+  }
+
+  /// Vrai si la boutique a au moins une caisse active, accessible ou non.
+  ///
+  /// Lu sur le drapeau dénormalisé de la boutique, parce qu'un
+  /// gestionnaire ne voit pas les caisses auxquelles il n'a pas accès :
+  /// c'est le seul moyen de distinguer « boutique sans caisse » (il
+  /// déclare sa dépense comme avant, RG-9) de « aucune caisse pour moi »
+  /// (RG-19, saisie bloquée).
+  bool boutiqueACaisses(String? boutiqueId) {
+    if (boutiqueId == null || boutiqueId.isEmpty) return false;
+    return boutiques.firstWhereOrNull((b) => b.id == boutiqueId)
+            ?.hasCaissesActives ??
+        false;
+  }
+
+  /// Saisie bloquée : la boutique a des caisses mais aucune n'est
+  /// accessible à cet utilisateur (RG-19).
+  bool caisseManquante(String? boutiqueId) =>
+      boutiqueACaisses(boutiqueId) && caissesDisponibles(boutiqueId).isEmpty;
+
   /// Natures présentes dans la liste courante (pour le filtre) — inclut
   /// celles devenues inactives depuis.
   List<({String id, String nom})> get naturesFiltrables {
@@ -182,24 +224,29 @@ class DepensesController extends GetxController {
     required NatureDepenseModel nature,
     required double montant,
     String? commentaire,
+    List<PaiementCaisse> paiements = const [],
   }) async {
-    final userId = UserController.to.user?.id;
-    if (userId == null) {
+    final user = UserController.to.user;
+    if (user == null) {
       _snackError('Session expirée, reconnectez-vous.');
       return false;
     }
     isSaving.value = true;
     try {
-      await _repo.create(DepenseModel(
-        id: '',
-        natureId: nature.id,
-        natureNom: nature.nom,
-        montant: montant,
-        commentaire: commentaire,
-        boutiqueId: nature.boutiqueId,
-        userId: userId,
-        date: DateTime.now(),
-      ));
+      await _repo.create(
+        DepenseModel(
+          id: '',
+          natureId: nature.id,
+          natureNom: nature.nom,
+          montant: montant,
+          commentaire: commentaire,
+          paiements: paiements,
+          boutiqueId: nature.boutiqueId,
+          userId: user.id,
+          date: DateTime.now(),
+        ),
+        userNom: user.nom,
+      );
       // Pas de snackbar ici : l'appelant doit d'abord fermer le sheet.
       // `Get.snackbar` pousse sa propre route, et un `Get.back()` déclenché
       // ensuite fermerait le snackbar au lieu du bottom sheet.
@@ -252,11 +299,19 @@ class DepensesController extends GetxController {
   }
 
   Future<void> confirmDelete(DepenseModel d) async {
+    final user = UserController.to.user;
+    if (user == null) {
+      _snackError('Session expirée, reconnectez-vous.');
+      return;
+    }
+    final caissesTouchees =
+        d.paiements.map((p) => p.caisseNom).toSet().join(', ');
     final ok = await Get.dialog<bool>(
       AlertDialog(
         title: const Text('Supprimer la dépense ?'),
         content: Text(
-          '« ${d.natureNom} » — ${d.montant.toStringAsFixed(0)}\n\n'
+          '« ${d.natureNom} » — ${Fmt.money(d.montant, currency: 'GNF')}\n\n'
+          '${d.estPayeeSurCaisse ? 'Le montant sera recrédité sur $caissesTouchees.\n\n' : ''}'
           'Cette suppression est définitive.',
         ),
         actions: [
@@ -274,9 +329,14 @@ class DepensesController extends GetxController {
     );
     if (ok != true) return;
     try {
-      await _repo.delete(d.id);
-      Get.snackbar('Dépense supprimée', d.natureNom,
-          snackPosition: SnackPosition.TOP);
+      await _repo.delete(d.id, userId: user.id, userNom: user.nom);
+      Get.snackbar(
+        'Dépense supprimée',
+        d.estPayeeSurCaisse
+            ? '${d.natureNom} — caisse recréditée.'
+            : d.natureNom,
+        snackPosition: SnackPosition.TOP,
+      );
     } catch (e) {
       _snackError('Suppression impossible : $e');
     }

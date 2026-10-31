@@ -18,6 +18,20 @@ class BoutiqueModel {
   /// expirés et le login est refusé.
   final DateTime? subscriptionEndsAt;
 
+  /// Vrai si la boutique a au moins une caisse ACTIVE.
+  ///
+  /// Dénormalisé ici parce qu'un gestionnaire ne peut lire que les caisses
+  /// auxquelles il a accès : sans ce drapeau, il ne saurait pas distinguer
+  /// « cette boutique n'a pas de caisse » (il opère comme avant, RG-9) de
+  /// « elle en a mais aucune pour moi » (ses opérations payées sont
+  /// bloquées, RG-19).
+  ///
+  /// Maintenu par `CaisseRepository` après chaque création, activation,
+  /// désactivation ou suppression de caisse. **Absent de [toMap]** : une
+  /// mise à jour de la boutique depuis son formulaire ne doit pas pouvoir
+  /// l'écraser avec une valeur devenue périmée.
+  final bool hasCaissesActives;
+
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -30,6 +44,7 @@ class BoutiqueModel {
     this.devise = 'GNF',
     this.active = true,
     this.subscriptionEndsAt,
+    this.hasCaissesActives = false,
     this.createdAt,
     this.updatedAt,
   });
@@ -45,6 +60,7 @@ class BoutiqueModel {
       active: (map['active'] ?? true) as bool,
       subscriptionEndsAt:
           (map['subscriptionEndsAt'] as Timestamp?)?.toDate(),
+      hasCaissesActives: (map['hasCaissesActives'] ?? false) as bool,
       createdAt: (map['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
     );
@@ -80,6 +96,7 @@ class BoutiqueModel {
   }) {
     return BoutiqueModel(
       id: id,
+      hasCaissesActives: hasCaissesActives,
       nom: nom ?? this.nom,
       adresse: adresse ?? this.adresse,
       telephone: telephone ?? this.telephone,

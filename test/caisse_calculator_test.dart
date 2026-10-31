@@ -47,6 +47,68 @@ void main() {
     });
   });
 
+  group('verifierRepartition', () {
+    test('repartition exacte : aucun probleme', () {
+      expect(
+        verifierRepartition(
+          paiements: [_ligne('especes', 200000), _ligne('om', 150000)],
+          attendu: 350000,
+        ),
+        isNull,
+      );
+    });
+
+    test('repartition incomplete : annonce le reste', () {
+      final msg = verifierRepartition(
+        paiements: [_ligne('especes', 200000)],
+        attendu: 350000,
+      );
+      expect(msg, isNotNull);
+      expect(msg, contains('150'));
+    });
+
+    test('depassement : annonce l ecart', () {
+      final msg = verifierRepartition(
+        paiements: [_ligne('especes', 400000)],
+        attendu: 350000,
+      );
+      expect(msg, isNotNull);
+      expect(msg, contains('50'));
+    });
+
+    test('liste vide acceptee : boutique sans caisse (RG-9)', () {
+      expect(verifierRepartition(paiements: const [], attendu: 350000),
+          isNull);
+    });
+
+    test('tolerance a l erreur flottante', () {
+      expect(
+        verifierRepartition(
+          paiements: [_ligne('a', 0.1), _ligne('b', 0.2)],
+          attendu: 0.3,
+        ),
+        isNull,
+      );
+    });
+  });
+
+  group('totalPaiements', () {
+    test('somme toutes les lignes, meme caisse comprise', () {
+      expect(
+        totalPaiements([
+          _ligne('especes', 1000),
+          _ligne('especes', 500),
+          _ligne('om', 250),
+        ]),
+        1750,
+      );
+    });
+
+    test('liste vide : zero', () {
+      expect(totalPaiements([]), 0);
+    });
+  });
+
   group('planifierPaiements', () {
     test('aucun paiement : plan vide, rien a ecrire (RG-9)', () {
       final plan = planifierPaiements(

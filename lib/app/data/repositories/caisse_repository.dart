@@ -139,6 +139,7 @@ class CaisseRepository {
     }
 
     await batch.commit();
+    await _rafraichirDrapeauBoutique(caisse.boutiqueId);
     return ref.id;
   }
 
@@ -151,11 +152,15 @@ class CaisseRepository {
     return _col.doc(caisse.id).update(caisse.toMapParametres());
   }
 
-  Future<void> setActive(String id, bool active) {
-    return _col.doc(id).update({
+  Future<void> setActive(String id, bool active) async {
+    final caisse = await getById(id);
+    await _col.doc(id).update({
       'active': active,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+    if (caisse != null) {
+      await _rafraichirDrapeauBoutique(caisse.boutiqueId);
+    }
   }
 
   /// Supprime une caisse qui n'a jamais servi.
@@ -163,6 +168,7 @@ class CaisseRepository {
   /// Le contrôle est refait ici, dans une transaction : l'écran a pu être
   /// ouvert avant le premier mouvement de la caisse.
   Future<void> delete(String id) async {
+    String? boutiqueId;
     await _fs.db.runTransaction((tx) async {
       final ref = _col.doc(id);
       final snap = await tx.get(ref);
@@ -175,7 +181,38 @@ class CaisseRepository {
         );
       }
       tx.delete(ref);
+      boutiqueId = caisse.boutiqueId;
     });
+    final bid = boutiqueId;
+    if (bid != null) {
+      await _rafraichirDrapeauBoutique(bid);
+    }
+  }
+
+  /// Met à jour `boutiques/{id}.hasCaissesActives`.
+  ///
+  /// Appelé après chaque création, activation, désactivation ou suppression
+  /// de caisse. Recalculé par une requête plutôt que déduit de l'action :
+  /// le drapeau se répare ainsi tout seul s'il a divergé, et l'opération
+  /// reste rare (paramétrage par l'admin uniquement).
+  ///
+  /// Un échec ici n'annule pas l'action sur la caisse : le drapeau est une
+  /// commodité d'affichage, pas une donnée comptable. Il sera recalculé au
+  /// prochain paramétrage.
+  Future<void> _rafraichirDrapeauBoutique(String boutiqueId) async {
+    if (boutiqueId.isEmpty) return;
+    try {
+      final actives = await _col
+          .where('boutiqueId', isEqualTo: boutiqueId)
+          .where('active', isEqualTo: true)
+          .limit(1)
+          .get();
+      await _fs.boutiques.doc(boutiqueId).update({
+        'hasCaissesActives': actives.docs.isNotEmpty,
+      });
+    } catch (_) {
+      // Volontairement silencieux : cf. commentaire ci-dessus.
+    }
   }
 
   // ========== Mouvements ==========
@@ -203,6 +240,10 @@ class CaisseRepository {
   /// [exigerActive] est mis à `false` par les annulations : une caisse
   /// désactivée entre-temps doit rester créditable, sinon l'opération
   /// deviendrait impossible à annuler.
+  ///
+  /// [mouvementsAnnules] associe à chaque `caisseId` le mouvement d'origine
+  /// que l'on compense. Les lignes étant regroupées par caisse, une caisse
+  /// n'a qu'un mouvement par opération : la correspondance est exacte.
   Future<List<PaiementCaisse>> appliquerPaiements({
     required Transaction tx,
     required List<PaiementCaisse> paiements,
@@ -217,6 +258,7 @@ class CaisseRepository {
     String? numero,
     String? transfertId,
     String? motif,
+    Map<String, String>? mouvementsAnnules,
     bool exigerActive = true,
   }) async {
     if (paiements.isEmpty) return const [];
@@ -257,6 +299,7 @@ class CaisseRepository {
           sourceId: sourceId,
           numero: numero,
           transfertId: transfertId,
+          mouvementAnnuleId: mouvementsAnnules?[m.caisseId],
           motif: motif,
           userId: userId,
           userNom: userNom,

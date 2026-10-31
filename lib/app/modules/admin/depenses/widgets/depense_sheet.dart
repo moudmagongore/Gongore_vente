@@ -4,8 +4,11 @@ import 'package:get/get.dart';
 
 import '../../../../core/services/user_controller.dart';
 import '../../../../core/utils/bottom_sheet_helpers.dart';
+import '../../../../core/utils/caisse_calculator.dart';
 import '../../../../core/utils/format_helpers.dart';
+import '../../../../core/widgets/paiements_caisse_field.dart';
 import '../../../../data/models/depense_model.dart';
+import '../../../../data/models/paiement_caisse.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../../theme/app_colors.dart';
 import '../controllers/depenses_controller.dart';
@@ -46,8 +49,19 @@ class _DepenseSheetState extends State<DepenseSheet> {
   String? _boutiqueId;
   String? _natureId;
 
+  /// Répartition saisie dans [PaiementsCaisseField]. Vide pour une
+  /// boutique sans caisse (RG-9).
+  List<PaiementCaisse> _paiements = const [];
+
   DepensesController get c => widget.controller;
   bool get _isEdit => widget.editing != null;
+
+  /// Une dépense déjà payée depuis une caisse a son montant figé : l'argent
+  /// est sorti, et un solde ne se corrige pas en réécrivant l'opération.
+  bool get _montantFige => widget.editing?.estPayeeSurCaisse ?? false;
+
+  double get _montantSaisi =>
+      double.tryParse(_montantCtrl.text.trim()) ?? 0;
 
   @override
   void initState() {
@@ -215,17 +229,35 @@ class _DepenseSheetState extends State<DepenseSheet> {
 
                 TextFormField(
                   controller: _montantCtrl,
-                  decoration: const InputDecoration(
+                  readOnly: _montantFige,
+                  decoration: InputDecoration(
                     labelText: 'Montant *',
-                    prefixIcon: Icon(Icons.payments_outlined),
+                    prefixIcon: const Icon(Icons.payments_outlined),
                     suffixText: 'GNF',
                     isDense: true,
+                    helperText: _montantFige
+                        ? 'Payé depuis une caisse : montant non modifiable. '
+                            'Supprimez la dépense pour la ressaisir.'
+                        : null,
+                    helperMaxLines: 3,
                   ),
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   validator: _validateMontant,
+                  // Le champ de répartition suit le montant tant qu'il n'y
+                  // a qu'une caisse : il faut donc le reconstruire à chaque
+                  // frappe.
+                  onChanged: _montantFige ? null : (_) => setState(() {}),
                 ),
                 const SizedBox(height: 14),
+
+                _BlocCaisses(
+                  controller: c,
+                  boutiqueId: _boutiqueId,
+                  montant: _montantSaisi,
+                  editing: widget.editing,
+                  onChanged: (p) => _paiements = p,
+                ),
 
                 TextFormField(
                   controller: _commentaireCtrl,
@@ -296,6 +328,35 @@ class _DepenseSheetState extends State<DepenseSheet> {
         ? null
         : _commentaireCtrl.text.trim();
 
+    // RG-19 : la boutique a des caisses mais aucune pour cet utilisateur.
+    if (!_isEdit && c.caisseManquante(_boutiqueId)) {
+      Get.snackbar(
+        'Saisie impossible',
+        'Aucune caisse disponible, contactez votre administrateur.',
+        snackPosition: SnackPosition.TOP,
+      );
+      return;
+    }
+
+    // RG-11 et RG-15 : dès qu'une caisse est disponible, la dépense doit
+    // être imputée, et la répartition doit couvrir exactement le montant.
+    final aDesCaisses = c.caissesDisponibles(_boutiqueId).isNotEmpty;
+    if (!_isEdit && aDesCaisses) {
+      if (_paiements.isEmpty) {
+        Get.snackbar('Caisse requise',
+            'Indiquez depuis quelle caisse la dépense est payée.',
+            snackPosition: SnackPosition.TOP);
+        return;
+      }
+      final probleme =
+          verifierRepartition(paiements: _paiements, attendu: montant);
+      if (probleme != null) {
+        Get.snackbar('Répartition incomplète', probleme,
+            snackPosition: SnackPosition.TOP);
+        return;
+      }
+    }
+
     final ok = _isEdit
         ? await c.corriger(
             depense: widget.editing!,
@@ -307,6 +368,7 @@ class _DepenseSheetState extends State<DepenseSheet> {
             nature: nature,
             montant: montant,
             commentaire: commentaire,
+            paiements: _paiements,
           );
     if (!ok || !mounted) return;
     // `Navigator.pop` et non `Get.back()` : ce dernier viserait la route la
@@ -314,6 +376,214 @@ class _DepenseSheetState extends State<DepenseSheet> {
     // ferme donc explicitement la route du sheet, PUIS on confirme.
     Navigator.of(context).pop();
     c.snackSucces(edition: _isEdit, natureNom: nature.nom);
+  }
+}
+
+/// Zone « payé depuis quelle caisse », avec ses trois cas de bord.
+///
+/// - La boutique n'a aucune caisse → rien à saisir, la dépense fonctionne
+///   comme avant le module (RG-9). Un bandeau invite l'admin à en créer.
+/// - La boutique a des caisses mais aucune accessible à l'utilisateur →
+///   saisie bloquée (RG-19).
+/// - En correction d'une dépense déjà payée → la répartition est affichée
+///   en lecture seule : un mouvement ne se réécrit pas (RG-6).
+class _BlocCaisses extends StatelessWidget {
+  final DepensesController controller;
+  final String? boutiqueId;
+  final double montant;
+  final DepenseModel? editing;
+  final ValueChanged<List<PaiementCaisse>> onChanged;
+
+  const _BlocCaisses({
+    required this.controller,
+    required this.boutiqueId,
+    required this.montant,
+    required this.editing,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      // Lectures explicites : les caisses et les boutiques arrivent par
+      // stream, et les helpers du controller sortent parfois avant de les
+      // toucher — l'Obx se retrouverait alors sans observable.
+      controller.caisses.length;
+      controller.boutiques.length;
+
+      final edit = editing;
+      if (edit != null && edit.estPayeeSurCaisse) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: _RepartitionFigee(paiements: edit.paiements),
+        );
+      }
+
+      if (controller.caisseManquante(boutiqueId)) {
+        return const Padding(
+          padding: EdgeInsets.only(bottom: 14),
+          child: _Avertissement(
+            texte: 'Aucune caisse disponible, contactez votre '
+                'administrateur.',
+          ),
+        );
+      }
+
+      final dispo = controller.caissesDisponibles(boutiqueId);
+      if (dispo.isEmpty) {
+        // RG-9 : on n'empêche rien, on invite seulement l'admin à créer
+        // ses caisses. Le gestionnaire n'a pas la main, inutile de le lui
+        // afficher.
+        if (!controller.isAnyAdmin || boutiqueId == null) {
+          return const SizedBox.shrink();
+        }
+        return const Padding(
+          padding: EdgeInsets.only(bottom: 14),
+          child: _InviteCaisses(),
+        );
+      }
+
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: PaiementsCaisseField(
+          caisses: dispo,
+          montantAttendu: montant,
+          onChanged: onChanged,
+        ),
+      );
+    });
+  }
+}
+
+/// Répartition d'une dépense déjà payée : lecture seule.
+class _RepartitionFigee extends StatelessWidget {
+  final List<PaiementCaisse> paiements;
+  const _RepartitionFigee({required this.paiements});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.greyText(context, 400).withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.lock_outline_rounded,
+                  size: 16, color: AppColors.greyText(context, 700)),
+              const SizedBox(width: 8),
+              Text(
+                'Payé depuis',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.greyText(context, 700),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ...paiements.map(
+            (p) => Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                '${p.caisseNom} — '
+                '${Fmt.money(p.montant, currency: 'GNF')}',
+                style: const TextStyle(
+                    fontSize: 12.5, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Avertissement extends StatelessWidget {
+  final String texte;
+  const _Avertissement({required this.texte});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.danger.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.block_rounded, color: AppColors.danger, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              texte,
+              style: const TextStyle(
+                  fontSize: 12.5, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bandeau RG-9 : la boutique n'a pas encore de caisse. Admin uniquement.
+class _InviteCaisses extends StatelessWidget {
+  const _InviteCaisses();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.primary(context).withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.account_balance_wallet_outlined,
+                  size: 18, color: AppColors.primary(context)),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Aucune caisse dans cette boutique.',
+                  style: TextStyle(
+                      fontSize: 12.5, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Créez vos caisses pour suivre où va l\'argent. '
+            'En attendant, les dépenses s\'enregistrent normalement.',
+            style: TextStyle(
+              fontSize: 11.5,
+              color: AppColors.greyText(context, 600),
+            ),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () {
+              Get.back();
+              Get.toNamed(AppRoutes.adminCaisses);
+            },
+            icon: const Icon(Icons.add_rounded, size: 16),
+            label: const Text('Créer une caisse'),
+          ),
+        ],
+      ),
+    );
   }
 }
 

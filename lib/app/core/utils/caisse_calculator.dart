@@ -63,6 +63,35 @@ class PlanPaiements {
 /// la soustraction de deux doubles égaux peut rendre -1e-13, donc « < 0 ».
 const _epsilon = 0.000001;
 
+/// Somme des lignes de paiement saisies.
+double totalPaiements(List<PaiementCaisse> paiements) =>
+    paiements.fold<double>(0, (acc, p) => acc + p.montant);
+
+/// Vérifie que la répartition sur les caisses couvre exactement [attendu].
+///
+/// Sert aux opérations dont le montant est connu d'avance : une dépense
+/// (RG-15), un règlement. Une vente, elle, autorise une somme inférieure
+/// au total — la différence partant en crédit client.
+///
+/// Renvoie `null` si la répartition est bonne, sinon le message à afficher.
+/// Une liste vide est acceptée : c'est le cas d'une boutique sans caisse,
+/// géré en amont par l'appelant.
+String? verifierRepartition({
+  required List<PaiementCaisse> paiements,
+  required double attendu,
+}) {
+  if (paiements.isEmpty) return null;
+  final total = totalPaiements(paiements);
+  final ecart = total - attendu;
+  if (ecart.abs() < _epsilon) return null;
+  if (ecart > 0) {
+    return 'La répartition dépasse le montant de '
+        '${Fmt.money(ecart, currency: 'GNF')}.';
+  }
+  return 'Il reste ${Fmt.money(-ecart, currency: 'GNF')} à répartir '
+      'sur les caisses.';
+}
+
 /// Regroupe les lignes de paiement par caisse, en sommant les montants.
 ///
 /// Une même caisse ne doit figurer qu'une fois par opération (RG-10) ;
