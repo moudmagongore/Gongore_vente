@@ -97,7 +97,8 @@ class ApproDetailController extends GetxController {
     );
     if (motif == null) return;
 
-    final userId = UserController.to.user?.id;
+    final user = UserController.to.user;
+    final userId = user?.id;
     if (userId == null) return;
 
     isCanceling.value = true;
@@ -105,11 +106,14 @@ class ApproDetailController extends GetxController {
       await _repo.cancel(
         approId: approId!,
         userId: userId,
+        userNom: user?.nom ?? '',
         motif: motif,
       );
       Get.snackbar(
         'Appro annulé',
-        'Le stock et le solde fournisseur ont été réajustés.',
+        appro.value?.passeParCaisse ?? false
+            ? 'Stock, solde fournisseur et caisse réajustés.'
+            : 'Le stock et le solde fournisseur ont été réajustés.',
         snackPosition: SnackPosition.TOP,
       );
       await _load();

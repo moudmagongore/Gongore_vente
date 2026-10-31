@@ -203,7 +203,7 @@ class _Body extends StatelessWidget {
                 _InfoLine(
                   icon: Icons.payments_outlined,
                   label: 'Mode de paiement',
-                  value: appro.modePaiement.label,
+                  value: appro.libellePaiement,
                 ),
                 _InfoLine(
                   icon: Icons.shopping_basket_outlined,

@@ -93,7 +93,7 @@ class ApproReceiptService {
                       _kv('N° bon', appro.numeroAffichage, bold: true),
                       _kv('Date', Fmt.dateTime(appro.date)),
                       _kv('Réceptionné par', user?.nom ?? '—'),
-                      _kv('Mode paiement', appro.modePaiement.label),
+                      _kv('Mode paiement', appro.libellePaiement),
                       if (annulee)
                         _kv('Motif annulation',
                             appro.motifAnnulation ?? '—'),

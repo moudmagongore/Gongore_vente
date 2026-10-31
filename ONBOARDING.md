@@ -323,9 +323,13 @@ ni GetX, testé par `test/caisse_calculator_test.dart`) : regroupement des
 lignes par caisse, contrôle du solde négatif, calcul du `soldeApres`. Le
 repository lit les caisses dans la transaction, appelle ce calcul, puis écrit.
 
-**Opérations branchées à ce jour : dépenses, règlements client et règlements
-fournisseur.** Les ventes et les arrivages écrivent encore sans toucher aux
-caisses.
+**Opérations branchées à ce jour : dépenses, règlements client et fournisseur,
+arrivages.** Seules les ventes écrivent encore sans toucher aux caisses.
+
+Sur un arrivage, ce qui sort des caisses est **`montantPaye`, jamais `total`** :
+la part non payée devient une dette fournisseur. Un arrivage entièrement à
+crédit ne touche donc aucune caisse. Même piège que sur la vente avec
+`avanceUtilisee` — voir ci-dessous.
 
 La saisie de la répartition est le widget partagé
 `core/widgets/paiements_caisse_field.dart` (lignes caisse + montant, reste à
@@ -353,8 +357,11 @@ Deux conséquences à connaître :
   en a, et retombe sur les modes sinon. Sans ça, un filtre « Espèces » aurait
   silencieusement masqué tous les règlements récents.
 
-`VenteModel` et `ApprovisionnementModel` gardent pour l'instant un
-`modePaiement` non nullable : ils seront traités avec leurs étapes.
+`VenteModel` garde pour l'instant un `modePaiement` non nullable : il sera
+traité avec son étape. Sur les règlements et les arrivages, le sélecteur de
+mode **reste affiché tant que la boutique n'a aucune caisse** : c'est RG-9 —
+sans caisse, l'opération se comporte exactement comme avant, et l'information
+ne doit pas être perdue.
 
 Côté dépense, deux conséquences du gel des mouvements :
 
@@ -617,9 +624,9 @@ gcloud firestore export gs://gongorevente.firebasestorage.app/backup-$(date +%F)
 - **iOS** : adoption d'UIScene et cible iOS 15 pour Xcode 27
 - **Lot 2 étape 2.1** : création et paramétrage des caisses, accès par
   gestionnaire, helper de mouvements testé. Recetté
-- **Lot 2 étape 2.2** : dépenses, règlements client et règlements fournisseur
+- **Lot 2 étape 2.2** : dépenses, règlements client et fournisseur, arrivages
   branchés sur les caisses ; mode de paiement remplacé par la caisse sur ces
-  opérations — **non encore recetté**
+  opérations — **non encore recetté**. Reste les ventes.
 
 ### Dette connue
 

@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/services/user_controller.dart';
+import '../../../../core/utils/caisse_calculator.dart';
 import '../../../../data/models/approvisionnement_model.dart';
 import '../../../../data/models/boutique_model.dart';
+import '../../../../data/models/caisse_model.dart';
 import '../../../../data/models/fournisseur_model.dart';
+import '../../../../data/models/paiement_caisse.dart';
 import '../../../../data/models/produit_model.dart';
 import '../../../../data/models/vente_model.dart' show ModePaiement;
 import '../../../../data/repositories/approvisionnement_repository.dart';
 import '../../../../data/repositories/boutique_repository.dart';
+import '../../../../data/repositories/caisse_repository.dart';
 import '../../../../data/repositories/fournisseur_repository.dart';
 import '../../../../data/repositories/produit_repository.dart';
 import '../../../../routes/app_routes.dart';
@@ -60,6 +64,7 @@ class ApproFormController extends GetxController {
       ApprovisionnementRepository();
   final ProduitRepository _produitRepo = ProduitRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
+  final CaisseRepository _caisseRepo = CaisseRepository();
   final FournisseurRepository _fournRepo = FournisseurRepository();
 
   // ===== Boutique =====
@@ -78,8 +83,27 @@ class ApproFormController extends GetxController {
 
   // ===== Paiement =====
   final RxDouble remiseGlobale = 0.0.obs;
+
+  /// Conservé pour les boutiques sans caisse : dès qu'une caisse existe,
+  /// c'est [paiements] qui dit d'où sort l'argent et ce mode n'est plus
+  /// ni demandé ni enregistré.
   final Rx<ModePaiement> modePaiement = ModePaiement.especes.obs;
   final RxString note = ''.obs;
+
+  /// Caisses actives accessibles à l'utilisateur dans la boutique active.
+  final RxList<CaisseModel> caisses = <CaisseModel>[].obs;
+
+  /// La boutique a au moins une caisse active, accessible ou non (RG-19).
+  final RxBool boutiqueEquipee = false.obs;
+
+  /// Répartition de [montantPaye] sur les caisses.
+  final RxList<PaiementCaisse> paiements = <PaiementCaisse>[].obs;
+
+  /// Une caisse est disponible : son choix devient obligatoire (RG-11).
+  bool get caisseRequise => caisses.any((c) => c.active);
+
+  /// La boutique a des caisses mais aucune pour cet utilisateur (RG-19).
+  bool get caisseManquante => boutiqueEquipee.value && !caisseRequise;
 
   /// Montant versé au fournisseur au comptant. Par défaut suit le total.
   /// Si édité manuellement, l'auto-sync se désactive.
@@ -133,6 +157,19 @@ class ApproFormController extends GetxController {
       );
       debounce(produits, (_) => isLoadingProduits.value = false,
           time: const Duration(milliseconds: 200));
+
+      // Les caisses suivent la boutique active : un admin multi-boutique
+      // ne doit pas voir celles de la boutique précédente.
+      final uc = UserController.to;
+      caisses.bindStream(_caisseRepo.watchScoped(
+        scope: id,
+        gestionnaireId: uc.isAnyAdmin ? null : uc.user?.id,
+      ));
+      // Drapeau de la boutique : seul moyen pour un gestionnaire de savoir
+      // qu'elle a des caisses auxquelles il n'a pas accès (RG-19).
+      _boutiqueRepo.getById(id).then((b) {
+        boutiqueEquipee.value = b?.hasCaissesActives ?? false;
+      });
     });
 
     final user = UserController.to.user;
@@ -167,6 +204,7 @@ class ApproFormController extends GetxController {
     fournisseurId.value = null;
     remiseGlobale.value = 0;
     modePaiement.value = ModePaiement.especes;
+    paiements.clear();
     note.value = '';
     montantPaye.value = 0;
     avanceUtilisee.value = 0;
@@ -351,10 +389,28 @@ class ApproFormController extends GetxController {
       _snackError('Sélectionnez un fournisseur');
       return;
     }
-    final userId = UserController.to.user?.id;
+    final user = UserController.to.user;
+    final userId = user?.id;
     if (userId == null) {
       _snackError('Session expirée');
       return;
+    }
+    if (caisseManquante && montantPaye.value > 0) {
+      _snackError('Aucune caisse disponible, contactez votre administrateur.');
+      return;
+    }
+    if (caisseRequise && montantPaye.value > 0) {
+      // RG-13 : seule la part réellement payée sort des caisses ; le reste
+      // devient une dette fournisseur.
+      final probleme = verifierRepartition(
+        paiements: paiements,
+        attendu: montantPaye.value,
+      );
+      if (paiements.isEmpty || probleme != null) {
+        _snackError(probleme ??
+            'Indiquez depuis quelle caisse l\'arrivage est payé.');
+        return;
+      }
     }
 
     isSaving.value = true;
@@ -370,12 +426,16 @@ class ApproFormController extends GetxController {
         total: total,
         montantPaye: montantPaye.value,
         avanceUtilisee: avanceUtilisee.value,
-        modePaiement: modePaiement.value,
+        // Le mode de paiement ne survit que pour les boutiques sans
+        // caisse : ailleurs, `paiements` fait foi.
+        modePaiement: caisseRequise ? null : modePaiement.value,
+        paiements: caisseRequise ? paiements.toList() : const [],
         date: DateTime.now(),
         note: note.value.isEmpty ? null : note.value,
       );
 
-      final approId = await _approRepo.create(appro);
+      final approId =
+          await _approRepo.create(appro, userNom: user?.nom ?? '');
 
       _resetAppro();
       Get.back();

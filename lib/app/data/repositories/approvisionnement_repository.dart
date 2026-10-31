@@ -1,11 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/services/firestore_service.dart';
+import '../../core/utils/caisse_calculator.dart';
 import '../../core/utils/stream_helpers.dart';
 import '../models/approvisionnement_model.dart';
+import '../models/mouvement_caisse_model.dart';
+import 'caisse_repository.dart';
 
 class ApprovisionnementRepository {
   final FirestoreService _fs = FirestoreService.to;
+  final CaisseRepository _caisses = CaisseRepository();
 
   CollectionReference<Map<String, dynamic>> get _col =>
       _fs.approvisionnements;
@@ -63,13 +67,23 @@ class ApprovisionnementRepository {
   ///    flagge `hasOperations: true`
   ///
   /// Tout est atomique. Lève si articles vides ou fournisseur introuvable.
-  Future<String> create(ApprovisionnementModel appro) async {
+  Future<String> create(
+    ApprovisionnementModel appro, {
+    required String userNom,
+  }) async {
     if (appro.articles.isEmpty) {
       throw ArgumentError('Approvisionnement sans article impossible');
     }
     if (appro.fournisseurId.isEmpty) {
       throw ArgumentError('fournisseurId requis');
     }
+    // RG-13 : ce qui sort des caisses est le montant PAYÉ à l'arrivage,
+    // pas le total. La part non payée devient une dette fournisseur.
+    final probleme = verifierRepartition(
+      paiements: appro.paiements,
+      attendu: appro.montantPaye,
+    );
+    if (probleme != null) throw CaisseException(probleme);
 
     return _fs.db.runTransaction<String>((tx) async {
       // ===== Étape 1 : tous les reads =====
@@ -131,6 +145,25 @@ class ApprovisionnementRepository {
       final approNumero =
           'A-$year-${nextCount.toString().padLeft(5, '0')}';
 
+      // ===== Étape 1b : sortie de caisse =====
+      // Avant le premier write : `appliquerPaiements` lit les caisses, et
+      // Firestore interdit toute lecture après une écriture dans la même
+      // transaction.
+      final approRef = _col.doc();
+      final paiements = await _caisses.appliquerPaiements(
+        tx: tx,
+        paiements: appro.paiements,
+        sens: SensMouvement.sortie,
+        boutiqueId: appro.boutiqueId,
+        type: TypeMouvementCaisse.approvisionnement,
+        userId: appro.userId,
+        userNom: userNom,
+        date: appro.date,
+        sourceType: 'approvisionnements',
+        sourceId: approRef.id,
+        numero: approNumero,
+      );
+
       // ===== Étape 2 : writes =====
 
       // 2a. CMUP + stock pour chaque produit
@@ -190,10 +223,10 @@ class ApprovisionnementRepository {
       });
 
       // 2b. Crée le doc appro avec le numéro injecté
-      final approRef = _col.doc();
       tx.set(approRef, {
         ...appro.toMap(),
         'numero': approNumero,
+        'paiements': paiements.map((p) => p.toMap()).toList(),
       });
 
       // 2c. Persiste le compteur
@@ -229,9 +262,12 @@ class ApprovisionnementRepository {
   ///    car le CMUP historique est perdu).
   /// 3. Inverse l'effet sur le solde fournisseur.
   /// 4. Marque l'appro `annulee` avec un motif.
+  /// 5. Si l'arrivage était payé depuis des caisses, l'argent y revient
+  ///    (mouvement inverse de type `annulation`).
   Future<void> cancel({
     required String approId,
     required String userId,
+    required String userNom,
     required String motif,
   }) async {
     await _fs.db.runTransaction((tx) async {
@@ -315,6 +351,31 @@ class ApprovisionnementRepository {
           }
         }
       });
+
+      // L'argent payé revient dans les caisses d'où il était sorti. Avant
+      // les premières écritures : `appliquerPaiements` lit les caisses.
+      if (appro.passeParCaisse) {
+        final annules = <String, String>{};
+        for (final p in appro.paiements) {
+          final mid = p.mouvementId;
+          if (mid != null) annules[p.caisseId] = mid;
+        }
+        await _caisses.appliquerPaiements(
+          tx: tx,
+          paiements: appro.paiements,
+          sens: SensMouvement.entree,
+          boutiqueId: appro.boutiqueId,
+          type: TypeMouvementCaisse.annulation,
+          userId: userId,
+          userNom: userNom,
+          date: DateTime.now(),
+          sourceType: 'approvisionnements',
+          sourceId: approId,
+          numero: appro.numero,
+          mouvementsAnnules: annules,
+          exigerActive: false,
+        );
+      }
 
       // Décrémente le stock total + le stock par variante.
       qteParProduit.forEach((pid, qteRetrait) {

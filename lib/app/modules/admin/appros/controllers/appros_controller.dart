@@ -3,11 +3,13 @@ import 'package:get/get.dart';
 
 import '../../../../core/services/appro_receipt_service.dart';
 import '../../../../core/services/user_controller.dart';
+import '../../../../data/models/caisse_model.dart';
 import '../../../../data/models/approvisionnement_model.dart';
 import '../../../../data/models/boutique_model.dart';
 import '../../../../data/models/fournisseur_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/models/vente_model.dart' show ModePaiement;
+import '../../../../data/repositories/caisse_repository.dart';
 import '../../../../data/repositories/approvisionnement_repository.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/fournisseur_repository.dart';
@@ -31,7 +33,16 @@ class ApprosController extends GetxController {
   final RxnString filterBoutiqueId = RxnString();
   final RxnString filterUserId = RxnString();
   final RxnString filterFournisseurId = RxnString();
+  /// Ancien filtre « mode de paiement » : ne concerne plus que les
+  /// arrivages antérieurs aux caisses. L'écran ne le propose que si la
+  /// boutique n'en a pas.
   final Rxn<ModePaiement> filterModePaiement = Rxn<ModePaiement>();
+
+  /// Filtre par caisse, qui le remplace dès qu'une caisse existe.
+  final RxnString filterCaisseId = RxnString();
+
+  /// Caisses accessibles, pour les chips de filtre.
+  final RxList<CaisseModel> caisses = <CaisseModel>[].obs;
   final RxBool inclureAnnulees = false.obs;
   final RxBool onlyAvecCredit = false.obs;
   final RxString search = ''.obs;
@@ -49,6 +60,12 @@ class ApprosController extends GetxController {
     final scope = UserController.to.scopeBoutiqueId;
     boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
     users.bindStream(_userRepo.watchScoped(scope: scope));
+    caisses.bindStream(CaisseRepository().watchScoped(
+      scope: scope,
+      gestionnaireId: UserController.to.isAnyAdmin
+          ? null
+          : UserController.to.user?.id,
+    ));
     fournisseurs.bindStream(_fournRepo.watchScoped(scope));
 
     if (scope != null) {
@@ -105,6 +122,11 @@ class ApprosController extends GetxController {
     return _all.where((a) {
       if (avant != null && a.date.isAfter(avant)) return false;
       if (!inclureAnnulees.value && a.statut == ApproStatut.annulee) {
+        return false;
+      }
+      final caisseFiltre = filterCaisseId.value;
+      if (caisseFiltre != null &&
+          !a.paiements.any((p) => p.caisseId == caisseFiltre)) {
         return false;
       }
       if (filterModePaiement.value != null &&
