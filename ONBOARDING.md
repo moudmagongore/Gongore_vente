@@ -156,6 +156,19 @@ canPerformSales     // superAdmin || isVendeur     → ventes, encaissements
 canDeclareDepense   // superAdmin || admin || isVendeur
 ```
 
+### Accès aux caisses — par utilisateur, pas par rôle
+
+Les caisses sont la seule donnée dont l'accès ne se déduit **pas** du rôle :
+l'admin choisit, caisse par caisse, quels gestionnaires y ont accès
+(`gestionnaireIds`). Un gestionnaire qui n'y figure pas ne voit pas la caisse,
+y compris en lecture directe en base.
+
+Conséquence sur les requêtes : côté gestionnaire, elles **doivent** filtrer
+avec `array-contains` sur son uid. Sans ce filtre, Firestore refuse la requête
+entière — pas seulement les documents hors de sa portée. Un admin, même
+cumulant le rôle gestionnaire, passe par la branche admin et voit toutes les
+caisses de sa boutique.
+
 ### Scope des requêtes — à comprendre absolument
 
 ```dart
@@ -187,7 +200,8 @@ categories                ventes                 clients
 reglements                fournisseurs           approvisionnements
 reglementsFournisseurs    mouvementsStock        naturesDepense
 depenses                  counters               abonnements
-parametres                phone_index
+parametres                phone_index            caisses
+mouvementsCaisse
 ```
 
 **Chaque document métier porte un `boutiqueId`** — c'est la clé du cloisonnement
@@ -269,6 +283,47 @@ Visibilité : marges, bénéfices et coûts d'achat sont réservés à l'admin v
 le rôle gestionnaire les voit). Ils n'apparaissent **jamais** sur l'écran de
 vente, le détail d'une vente ni le reçu.
 
+### Caisses et mouvements
+
+Une **caisse** est un compte de trésorerie de la boutique : tiroir espèces,
+Orange Money, compte bancaire. L'admin les crée, le gestionnaire n'y a accès
+que si son uid figure dans `gestionnaireIds` de la caisse.
+
+Quatre invariants, dans cet ordre d'importance :
+
+1. **Le solde n'est jamais écrit directement.** Il ne bouge que par des
+   mouvements, et uniquement via `CaisseRepository.appliquerPaiements`, à
+   l'intérieur de la transaction de l'opération qui provoque le mouvement.
+   C'est pourquoi `CaisseModel.toMapParametres()` **ne contient pas**
+   `solde` : un enregistrement du formulaire ne doit pas pouvoir écraser le
+   solde avec la valeur chargée à l'ouverture de l'écran.
+2. **Un mouvement n'est jamais modifié ni supprimé.** Une erreur se corrige
+   par un mouvement inverse (annulation) ou une correction de l'admin. Seul
+   le super-admin supprime.
+3. **Une caisse qui a servi (`hasMouvements`) ne se supprime plus**, elle se
+   désactive. Une caisse désactivée disparaît des opérations mais reste
+   créditable : sinon une vente payée dessus deviendrait impossible à
+   annuler. D'où le paramètre `exigerActive` de `planifierPaiements`, mis à
+   `false` par les annulations.
+4. **Tant qu'une boutique n'a aucune caisse active, les opérations
+   fonctionnent comme avant** : aucune caisse n'est créée automatiquement,
+   et une liste de paiements vide n'écrit rien.
+
+Le calcul vit dans `core/utils/caisse_calculator.dart` (pur, sans Firestore
+ni GetX, testé par `test/caisse_calculator_test.dart`) : regroupement des
+lignes par caisse, contrôle du solde négatif, calcul du `soldeApres`. Le
+repository lit les caisses dans la transaction, appelle ce calcul, puis écrit.
+
+Deux pièges de cette mécanique :
+
+- `appliquerPaiements` **lit puis écrit**. Firestore interdit toute lecture
+  après une écriture dans une même transaction : l'appeler après le premier
+  `tx.set` de l'opération lève une erreur à l'exécution.
+- Le contrôle « la boutique a-t-elle une caisse ? » **ne peut pas** se faire
+  dans la transaction : Firestore n'y autorise que des `get` par référence,
+  pas de requête. Il est donc applicatif (la liste chargée par le
+  formulaire), et c'est une limite assumée.
+
 ### Stock
 
 `quantiteStock` est maintenu **atomiquement par transaction** (vente, appro,
@@ -341,6 +396,15 @@ authentifié à ce stade.
 L'en-tête du fichier indique une publication manuelle via la console. Attention
 donc : `firebase deploy --only firestore:rules` **écrase** ce qui est en ligne.
 Vérifier que la console et le fichier sont alignés avant de déployer.
+
+### Mouvements de caisse : relevé mono-caisse obligatoire
+
+La règle de lecture de `mouvementsCaisse` contrôle l'accès du gestionnaire par
+un `get()` sur la caisse du mouvement. Firestore mutualise les `get()`
+identiques d'une même requête : un relevé filtré sur **un** `caisseId` ne coûte
+donc qu'une lecture de plus. Une requête portant sur plusieurs caisses
+exploserait la limite de 10 accès documentaires par requête. Les relevés
+filtrent toujours sur une caisse précise — ce n'est pas un choix d'ergonomie.
 
 ### `firestore.indexes.json`
 

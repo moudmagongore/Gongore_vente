@@ -152,6 +152,12 @@ class VendeurDrawer extends StatelessWidget {
                       currentRoute: currentRoute,
                     ),
                     _Item(
+                      icon: Icons.account_balance_wallet_outlined,
+                      label: 'Mes caisses',
+                      route: AppRoutes.adminCaisses,
+                      currentRoute: currentRoute,
+                    ),
+                    _Item(
                       icon: Icons.bar_chart_rounded,
                       label: 'Mes rapports',
                       route: AppRoutes.adminRapports,

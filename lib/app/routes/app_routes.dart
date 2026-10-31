@@ -44,6 +44,11 @@ abstract class AppRoutes {
 
   // Dépenses : la déclaration est ouverte à l'admin comme au gestionnaire,
   // le paramétrage des natures est réservé à l'admin de la boutique.
+  /// Liste des caisses. Partagée : paramétrage pour l'admin, lecture
+  /// seule (« Mes caisses ») pour le gestionnaire.
+  static const adminCaisses = '/admin/caisses';
+  static const adminCaisseForm = '/admin/caisses/form';
+
   static const adminDepenses = '/admin/depenses';
   static const adminNaturesDepense = '/admin/depenses/natures';
   static const adminNatureDepenseForm = '/admin/depenses/natures/form';

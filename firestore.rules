@@ -520,6 +520,119 @@ service cloud.firestore {
                         && resource.data.userId == request.auth.uid);
     }
 
+    // ================== Caisses ==================
+    // Politique :
+    //   • l'admin de la boutique crée et paramètre ses caisses (RG-1) ;
+    //   • le gestionnaire ne voit QUE les caisses où son uid figure dans
+    //     `gestionnaireIds` — y compris en lecture directe en base ;
+    //   • un admin cumulant le rôle gestionnaire passe par la branche
+    //     admin : il voit toutes les caisses de sa boutique.
+    //
+    // Côté app, les requêtes du gestionnaire DOIVENT filtrer avec
+    // `array-contains` sur son uid : sans ce filtre, Firestore refuse la
+    // requête entière et non les seuls documents hors de sa portée.
+    match /caisses/{caid} {
+      allow read: if isSuperAdmin()
+                  || (isAdmin() && resourceBoutiqueIdMatches())
+                  || (isVendeur()
+                      && resourceBoutiqueIdMatches()
+                      && request.auth.uid in resource.data.gestionnaireIds);
+
+      allow create: if isSuperAdmin()
+                    || (isAdmin()
+                        && createBoutiqueIdMatches()
+                        && request.resource.data.solde is number
+                        && (request.resource.data.autoriseNegatif == true
+                            || request.resource.data.solde >= 0));
+
+      // Update :
+      //   • admin : tout le paramétrage de ses caisses ;
+      //   • gestionnaire : UNIQUEMENT le solde et ses deux compagnons, sur
+      //     une caisse qui lui est accessible. C'est ce qui lui permet
+      //     d'encaisser une vente ou de déclarer une dépense.
+      //
+      // `gestionnaireIds` n'est pas dans la liste autorisée : seul l'admin
+      // peut donner ou retirer un accès.
+      //
+      // Volontairement, on NE vérifie PAS `resource.data.active` ici : une
+      // caisse désactivée doit rester créditable pour qu'une opération
+      // payée dessus puisse encore être annulée (RG-16). L'interdiction de
+      // l'utiliser pour une NOUVELLE opération est applicative
+      // (`caisse_calculator.dart`, paramètre `exigerActive`).
+      //
+      // Limite connue, assumée : les règles ne peuvent pas vérifier que le
+      // nouveau solde vaut bien l'ancien plus le mouvement — cela
+      // supposerait de lire le mouvement en cours d'écriture. Un
+      // gestionnaire ayant accès à une caisse peut donc, par une requête
+      // forgée hors de l'app, y écrire un solde arbitraire. Le contrôle
+      // réel est dans la transaction de `CaisseRepository`.
+      allow update: if isSuperAdmin()
+                    || (isAdmin()
+                        && resourceBoutiqueIdMatches()
+                        && boutiqueIdNotChanged()
+                        && (request.resource.data.autoriseNegatif == true
+                            || request.resource.data.solde >= 0))
+                    || (isVendeur()
+                        && resourceBoutiqueIdMatches()
+                        && boutiqueIdNotChanged()
+                        && request.auth.uid in resource.data.gestionnaireIds
+                        && request.resource.data.diff(resource.data)
+                            .affectedKeys()
+                            .hasOnly(['solde', 'hasMouvements', 'updatedAt'])
+                        && (resource.data.autoriseNegatif == true
+                            || request.resource.data.solde >= 0));
+
+      // Une caisse qui a des mouvements ne devrait pas être supprimée
+      // (RG-7) ; le contrôle est fait dans la transaction du repository,
+      // les règles ne savent pas compter les mouvements liés.
+      allow delete: if isSuperAdmin()
+                    || (isAdmin() && resourceBoutiqueIdMatches());
+    }
+
+    // ================== Mouvements de caisse ==================
+    // Un mouvement n'est JAMAIS modifié : une erreur se corrige par un
+    // mouvement inverse (annulation) ou par une correction de l'admin
+    // (RG-6). Seul le super-admin peut supprimer.
+    //
+    // Le contrôle d'accès du gestionnaire passe par un `get()` sur la
+    // caisse. Conséquence à connaître : les requêtes de relevé doivent
+    // porter sur UN `caisseId` précis. Firestore mutualise les `get()`
+    // identiques d'une même requête, donc un relevé mono-caisse ne coûte
+    // qu'une lecture de plus ; une requête multi-caisses exploserait le
+    // quota de 10 accès documentaires par requête.
+    match /mouvementsCaisse/{mid} {
+      allow read: if isSuperAdmin()
+                  || (isAdmin() && resourceBoutiqueIdMatches())
+                  || (isVendeur()
+                      && resourceBoutiqueIdMatches()
+                      && request.auth.uid in
+                         get(/databases/$(database)/documents/caisses/$(resource.data.caisseId))
+                           .data.gestionnaireIds);
+
+      // Création par l'auteur de l'opération. Les types `apport`,
+      // `retrait` et `correction` n'ont aucune opération derrière eux :
+      // ils sont réservés à l'admin (RG-25).
+      allow create: if isSuperAdmin()
+                    || (isAdmin()
+                        && createBoutiqueIdMatches()
+                        && request.resource.data.userId == request.auth.uid
+                        && request.resource.data.montant is number
+                        && request.resource.data.montant > 0)
+                    || (isVendeur()
+                        && createBoutiqueIdMatches()
+                        && request.resource.data.userId == request.auth.uid
+                        && request.resource.data.montant is number
+                        && request.resource.data.montant > 0
+                        && !(request.resource.data.type
+                             in ['apport', 'retrait', 'correction'])
+                        && request.auth.uid in
+                           get(/databases/$(database)/documents/caisses/$(request.resource.data.caisseId))
+                             .data.gestionnaireIds);
+
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
     // ================== Compteurs (numéros séquentiels) ==================
     // Document ID = boutiqueId. Champs `ventes{ANNEE}`, `appros{ANNEE}`
     // incrémentés atomiquement dans les transactions correspondantes.

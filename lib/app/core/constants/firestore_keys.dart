@@ -24,6 +24,14 @@ abstract class FirestoreKeys {
   /// nature de dépense de la même boutique.
   static const depenses = 'depenses';
 
+  /// Caisses (comptes de trésorerie) d'une boutique : tiroir espèces,
+  /// Orange Money, banque... Créées par l'admin de la boutique.
+  static const caisses = 'caisses';
+
+  /// Mouvements de caisse (une entrée ou une sortie par ligne). Jamais
+  /// modifiés : une erreur se corrige par un mouvement inverse.
+  static const mouvementsCaisse = 'mouvementsCaisse';
+
   /// Compteurs par boutique pour la génération des numéros séquentiels.
   /// Document = boutiqueId, champs = "ventesYYYY", "approsYYYY".
   static const counters = 'counters';

@@ -411,6 +411,70 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "caisses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "ordre",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "gestionnaireIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "ordre",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "mouvementsCaisse",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "caisseId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "mouvementsCaisse",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "boutiqueId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

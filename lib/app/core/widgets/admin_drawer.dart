@@ -170,6 +170,12 @@ class AdminDrawer extends StatelessWidget {
                         ),
                       ],
                     ),
+                    _Item(
+                      icon: Icons.account_balance_wallet_outlined,
+                      label: 'Caisses',
+                      route: AppRoutes.adminCaisses,
+                      currentRoute: currentRoute,
+                    ),
                     _ExpansionGroup(
                       icon: Icons.savings_outlined,
                       title: 'Dépenses',

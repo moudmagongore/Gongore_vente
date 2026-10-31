@@ -22,6 +22,10 @@ import '../modules/admin/clients/bindings/clients_binding.dart';
 import '../modules/admin/clients/views/client_detail_view.dart';
 import '../modules/admin/clients/views/client_form_view.dart';
 import '../modules/admin/clients/views/clients_list_view.dart';
+import '../modules/admin/caisses/bindings/caisse_form_binding.dart';
+import '../modules/admin/caisses/bindings/caisses_binding.dart';
+import '../modules/admin/caisses/views/caisse_form_view.dart';
+import '../modules/admin/caisses/views/caisses_list_view.dart';
 import '../modules/admin/depenses/bindings/depenses_binding.dart';
 import '../modules/admin/depenses/bindings/nature_depense_form_binding.dart';
 import '../modules/admin/depenses/bindings/natures_depense_binding.dart';
@@ -268,6 +272,21 @@ class AppPages {
       page: () => const VenteDetailView(),
       binding: VenteDetailBinding(),
       middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.adminCaisses,
+      page: () => const CaissesListView(),
+      binding: CaissesBinding(),
+      // AuthGuard : le gestionnaire y accède en lecture seule (la vue et
+      // les règles Firestore limitent ce qu'il voit à ses caisses).
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.adminCaisseForm,
+      page: () => const CaisseFormView(),
+      binding: CaisseFormBinding(),
+      // Le paramétrage des caisses est réservé à l'admin (RG-1).
+      middlewares: [AdminGuard()],
     ),
     GetPage(
       name: AppRoutes.adminDepenses,
