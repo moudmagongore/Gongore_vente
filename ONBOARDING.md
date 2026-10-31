@@ -65,6 +65,22 @@ Failed to load dynamic library 'objective_c.framework/objective_c'
 Avant de lever l'override, vérifier que `flutter pub deps | grep objective_c`
 ne remonte rien.
 
+### ⚠️ iOS — deux réglages à ne pas défaire
+
+| Fichier | Réglage | Pourquoi |
+|---|---|---|
+| `ios/Podfile` | `platform :ios, '15.0'`, puis `IPHONEOS_DEPLOYMENT_TARGET = '15.0'` forcé sur **chaque** configuration dans `post_install` | `flutter_additional_ios_build_settings` laisse certains pods sur la cible de leur podspec (jusqu'à 10.0) ; Xcode 27 remonte alors un avertissement « Target Integrity » par pod. iOS 15 couvre tout depuis l'iPhone 6s. |
+| `ios/Runner/Info.plist` | `UIApplicationSceneManifest` → `UISceneDelegateClassName` = `FlutterSceneDelegate` | Le SDK iOS 26 exige l'adoption d'UIScene. Sans ce manifeste, l'app se lance **et se ferme aussitôt** ; le rapport de crash porte `NoSceneLifecycleAdoption`. |
+
+Après toute modification du `Podfile` : `cd ios && pod install`.
+
+**`flutter build ios --simulator` échoue** avec Flutter 3.38.7 sous Xcode 27.1 :
+Flutter appelle `lipo -verify_arch arm64 x86_64`, que ce `lipo` refuse
+(« requires exactly one input file »). Ce n'est pas une régression du projet,
+et c'est sans effet sur le travail quotidien : `flutter run` ne compile que
+l'architecture active et fonctionne, comme `flutter build ios` (appareil,
+architecture unique). Le correctif réel est un `flutter upgrade`.
+
 ---
 
 ## 3. Architecture
@@ -445,6 +461,18 @@ Drawer → **« Purge des données »** (super-admin uniquement). Permet de vide
 collection par collection les données d'**une seule** boutique, avec le compte
 réel affiché avant action et confirmation par recopie du nom de la boutique.
 
+Le même écran porte la carte **« Marges des ventes passées »** (*Analyser* puis
+*Figer*), qui ne supprime rien — voir § 6. Deux détails de fonctionnement :
+
+- Le comptage **n'est pas lancé à l'ouverture** de l'écran. Firestore ne sait
+  pas interroger l'*absence* d'un champ : il faut parcourir toutes les ventes
+  de la boutique et trier côté client (`MaintenanceRepository._parcourirVentes`,
+  pages de 300 triées sur `FieldPath.documentId`). Payer ces lectures à chaque
+  visite de l'écran serait inutile.
+- L'écriture se fait par lots de 400 **depuis le téléphone**. Si l'opération
+  est interrompue, seule une partie des ventes est figée ; l'écran recompte et
+  il suffit de relancer, les ventes déjà figées étant ignorées.
+
 **Faire une sauvegarde avant.** Firestore n'a pas de corbeille :
 
 ```bash
@@ -467,8 +495,9 @@ gcloud firestore export gs://gongorevente.firebasestorage.app/backup-$(date +%F)
 - Écran de **purge** des données d'une boutique
 - **Timeouts** sur les lectures réseau du démarrage
 - **Lot 1 — marge figée** : marges calculées et enregistrées à la validation
-  de la vente, masquage des marges pour le gestionnaire, script de reprise
-  `scripts/backfill_marges_ventes.js` (reprise **non encore appliquée**)
+  de la vente, masquage des marges pour le gestionnaire, reprise de
+  l'historique au prix d'achat actuel depuis l'écran de purge
+- **iOS** : adoption d'UIScene et cible iOS 15 pour Xcode 27
 
 ### Dette connue
 
@@ -480,6 +509,17 @@ gcloud firestore export gs://gongorevente.firebasestorage.app/backup-$(date +%F)
 - `vente_form_view.dart` et `appro_form_view.dart` dépassent 2 500 lignes et
   gagneraient à être découpés en widgets.
 - `README.md` est resté le template Flutter par défaut.
+- **Le lot 1 n'a pas été recetté** sur des données réelles, et la reprise de
+  l'historique n'a été appliquée sur **aucune** boutique. Le test qui compte :
+  valider une vente, faire un appro qui change le CMUP du produit, et vérifier
+  que la marge de cette vente ne bouge plus dans les rapports.
+- **Règles et index Firestore du module Dépenses peut-être non déployés** — le
+  déploiement a échoué sur une erreur de `firebaserules.googleapis.com`. Les
+  fichiers sont à jour (`firestore.rules`, collections `depenses` et
+  `naturesDepense` ; `firestore.indexes.json`). À rejouer :
+  `firebase deploy --only firestore:rules,firestore:indexes`.
+- `flutter build ios --simulator` reste cassé (cf. § 2), en attente d'un
+  `flutter upgrade`.
 
 ### Chantier en discussion
 
