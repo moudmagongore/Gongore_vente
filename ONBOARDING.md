@@ -496,7 +496,8 @@ gcloud firestore export gs://gongorevente.firebasestorage.app/backup-$(date +%F)
 - **Timeouts** sur les lectures réseau du démarrage
 - **Lot 1 — marge figée** : marges calculées et enregistrées à la validation
   de la vente, masquage des marges pour le gestionnaire, reprise de
-  l'historique au prix d'achat actuel depuis l'écran de purge
+  l'historique au prix d'achat actuel depuis l'écran de purge. **Recetté et
+  reprise appliquée** (octobre 2026)
 - **iOS** : adoption d'UIScene et cible iOS 15 pour Xcode 27
 
 ### Dette connue
@@ -509,10 +510,11 @@ gcloud firestore export gs://gongorevente.firebasestorage.app/backup-$(date +%F)
 - `vente_form_view.dart` et `appro_form_view.dart` dépassent 2 500 lignes et
   gagneraient à être découpés en widgets.
 - `README.md` est resté le template Flutter par défaut.
-- **Le lot 1 n'a pas été recetté** sur des données réelles, et la reprise de
-  l'historique n'a été appliquée sur **aucune** boutique. Le test qui compte :
-  valider une vente, faire un appro qui change le CMUP du produit, et vérifier
-  que la marge de cette vente ne bouge plus dans les rapports.
+- **Le repli sur l'ancien calcul de marge est désormais du code mort** pour les
+  boutiques reprises (`dashboard_controller.dart`, `rapports_controller.dart` :
+  les branches après `if (v.aMargeFigee)`). Il reste utile tant qu'une boutique
+  n'a pas été reprise — une boutique créée avant le lot et jamais passée par
+  l'écran de purge. À retirer quand c'est vrai partout, pas avant.
 - **Règles et index Firestore du module Dépenses peut-être non déployés** — le
   déploiement a échoué sur une erreur de `firebaserules.googleapis.com`. Les
   fichiers sont à jour (`firestore.rules`, collections `depenses` et
