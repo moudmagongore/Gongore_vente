@@ -30,6 +30,17 @@ class MaintenanceController extends GetxController {
   /// Progression de la purge en cours (documents supprimés).
   final RxInt progression = 0.obs;
 
+  // ===== Marges des ventes passées =====
+
+  /// Ventes dont la marge n'est pas encore figée. `null` = pas encore
+  /// analysé (le comptage exige de parcourir les ventes, on ne le lance
+  /// donc pas automatiquement à l'ouverture de l'écran).
+  final RxnInt ventesSansMarge = RxnInt();
+
+  final RxBool analyseMargesEnCours = false.obs;
+  final RxBool figeageEnCours = false.obs;
+  final RxInt margesTraitees = 0.obs;
+
   List<PurgeCible> get cibles => PurgeCible.values;
 
   BoutiqueModel? get boutique =>
@@ -42,7 +53,10 @@ class MaintenanceController extends GetxController {
     boutiques.bindStream(
       _boutiqueRepo.watchScoped(scope: UserController.to.scopeBoutiqueId),
     );
-    ever(boutiqueId, (_) => rafraichirCompteurs());
+    ever(boutiqueId, (_) {
+      ventesSansMarge.value = null;
+      rafraichirCompteurs();
+    });
   }
 
   /// Recompte toutes les cibles pour la boutique sélectionnée.
@@ -59,6 +73,90 @@ class MaintenanceController extends GetxController {
       _snackError('Comptage impossible : $e');
     } finally {
       isCounting.value = false;
+    }
+  }
+
+  /// Compte les ventes dont la marge n'est pas encore figée.
+  Future<void> analyserMarges() async {
+    final bid = boutiqueId.value;
+    if (bid == null || bid.isEmpty) return;
+    analyseMargesEnCours.value = true;
+    try {
+      ventesSansMarge.value = await _repo.compterVentesSansMarge(bid);
+    } catch (e) {
+      _snackError('Analyse impossible : $e');
+    } finally {
+      analyseMargesEnCours.value = false;
+    }
+  }
+
+  /// Fige la marge des ventes passées au prix d'achat actuel, après
+  /// confirmation.
+  Future<void> confirmerEtFigerMarges() async {
+    final b = boutique;
+    if (b == null) {
+      _snackError('Sélectionnez d\'abord une boutique.');
+      return;
+    }
+    final nb = ventesSansMarge.value ?? 0;
+    if (nb == 0) {
+      Get.snackbar(
+        'Rien à traiter',
+        'Toutes les ventes de « ${b.nom} » ont déjà leur marge figée.',
+        snackPosition: SnackPosition.TOP,
+      );
+      return;
+    }
+
+    final ok = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Figer les marges ?'),
+        content: Text(
+          '$nb vente(s) de « ${b.nom} » vont recevoir leur marge, '
+          'calculée avec le prix d\'achat ACTUEL de chaque produit.\n\n'
+          'Leur marge cessera définitivement de bouger. En contrepartie, '
+          'elle ne reflète pas le prix d\'achat du jour de la vente : '
+          'pour une vente ancienne, le chiffre reste approximatif.\n\n'
+          'Cette opération ne se rejoue pas : une vente figée n\'est '
+          'jamais recalculée.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            child: const Text('Figer les marges'),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+    if (ok != true) return;
+
+    figeageEnCours.value = true;
+    margesTraitees.value = 0;
+    try {
+      final total = await _repo.figerMargesVentes(
+        b.id,
+        onProgress: (n) => margesTraitees.value = n,
+      );
+      ventesSansMarge.value = await _repo.compterVentesSansMarge(b.id);
+      Get.snackbar(
+        'Marges figées',
+        '$total vente(s) mises à jour.',
+        snackPosition: SnackPosition.TOP,
+        duration: const Duration(seconds: 4),
+      );
+    } catch (e) {
+      _snackError('Opération interrompue : $e');
+      // Une interruption laisse une partie des ventes traitées : on
+      // recompte pour que l'écran reflète l'état réel.
+      await analyserMarges();
+    } finally {
+      figeageEnCours.value = false;
+      margesTraitees.value = 0;
     }
   }
 

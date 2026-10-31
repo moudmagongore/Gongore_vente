@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/constants/firestore_keys.dart';
 import '../../core/services/firestore_service.dart';
+import '../../core/utils/marge_calculator.dart';
+import '../models/vente_model.dart';
 
 /// Un jeu de données purgeable, scopé à une boutique.
 enum PurgeCible {
@@ -194,6 +196,108 @@ class MaintenanceRepository {
       if (snap.docs.length < _tailleLot) break;
     }
     return total;
+  }
+
+  // ================= Marges des ventes passées =================
+  //
+  // Les ventes enregistrées avant le lot « marge figée » n'ont pas de
+  // `margeTotale` : leur marge est encore recalculée à l'affichage avec le
+  // prix d'achat du jour, donc elle bouge à chaque approvisionnement.
+  //
+  // On ne peut pas interroger Firestore sur l'ABSENCE d'un champ
+  // (`isNull` ne remonte pas les documents où la clé n'existe pas) : il
+  // faut parcourir les ventes et trier côté client.
+
+  /// Nombre de ventes de la boutique dont la marge n'est pas encore figée.
+  Future<int> compterVentesSansMarge(String boutiqueId) async {
+    if (boutiqueId.isEmpty) return 0;
+    var total = 0;
+    await _parcourirVentes(boutiqueId, (vente) async {
+      if (!vente.aMargeFigee) total += 1;
+    });
+    return total;
+  }
+
+  /// Fige la marge des ventes passées **au prix d'achat actuel** du
+  /// produit.
+  ///
+  /// Choix assumé : on ne reconstitue pas le CMUP historique. La marge
+  /// obtenue n'est donc pas exacte au centime pour une vente ancienne,
+  /// mais elle cesse définitivement de bouger — ce qui est l'objectif.
+  /// Les ventes déjà figées ne sont jamais réécrites.
+  Future<int> figerMargesVentes(
+    String boutiqueId, {
+    void Function(int traitees)? onProgress,
+  }) async {
+    if (boutiqueId.isEmpty) {
+      throw ArgumentError('boutiqueId requis');
+    }
+
+    // Prix d'achat courant de chaque produit de la boutique.
+    final produits = await _fs.produits
+        .where('boutiqueId', isEqualTo: boutiqueId)
+        .get();
+    final prixAchat = <String, double>{
+      for (final d in produits.docs)
+        d.id: ((d.data())['prixAchat'] as num?)?.toDouble() ?? 0,
+    };
+
+    var traitees = 0;
+    var batch = _fs.db.batch();
+    var enAttente = 0;
+
+    await _parcourirVentes(boutiqueId, (vente) async {
+      if (vente.aMargeFigee) return;
+      final marges = calculerMarges(
+        articles: vente.articles,
+        remiseGlobale: vente.remise,
+        prixAchatParProduit: prixAchat,
+      );
+      batch.update(_fs.ventes.doc(vente.id), {
+        'articles': marges.articles.map((a) => a.toMap()).toList(),
+        'coutAchatTotal': marges.coutAchatTotal,
+        'margeTotale': marges.margeTotale,
+      });
+      enAttente += 1;
+      traitees += 1;
+
+      if (enAttente >= _tailleLot) {
+        await batch.commit();
+        batch = _fs.db.batch();
+        enAttente = 0;
+        onProgress?.call(traitees);
+      }
+    });
+
+    if (enAttente > 0) {
+      await batch.commit();
+      onProgress?.call(traitees);
+    }
+    return traitees;
+  }
+
+  /// Parcourt les ventes d'une boutique par pages, pour ne jamais charger
+  /// tout l'historique en mémoire d'un coup.
+  Future<void> _parcourirVentes(
+    String boutiqueId,
+    Future<void> Function(VenteModel vente) action,
+  ) async {
+    const taillePage = 300;
+    DocumentSnapshot<Map<String, dynamic>>? dernier;
+    while (true) {
+      var q = _fs.ventes
+          .where('boutiqueId', isEqualTo: boutiqueId)
+          .orderBy(FieldPath.documentId)
+          .limit(taillePage);
+      if (dernier != null) q = q.startAfterDocument(dernier);
+      final snap = await q.get();
+      if (snap.docs.isEmpty) break;
+      for (final d in snap.docs) {
+        await action(VenteModel.fromFirestore(d));
+      }
+      dernier = snap.docs.last;
+      if (snap.docs.length < taillePage) break;
+    }
   }
 
   Future<int> _purgerVariantes(

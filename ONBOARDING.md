@@ -238,6 +238,16 @@ Trois points à connaître :
 Les champs sont `null` sur les ventes antérieures à la reprise : les lectures
 prévoient un repli sur l'ancien calcul (`VenteModel.aMargeFigee`).
 
+**Reprise de l'historique** — écran *Purge des données* (super-admin), carte
+« Marges des ventes passées » : elle fige les ventes anciennes **au prix
+d'achat actuel**. Choix assumé — la marge obtenue n'est pas exacte pour une
+vente ancienne, mais elle cesse définitivement de bouger, ce qui est
+l'objectif. Une vente déjà figée n'est jamais recalculée.
+
+`scripts/backfill_marges_ventes.js` fait la même chose en reconstituant le
+CMUP historique (plus fidèle, mais nécessite une clé de compte de service).
+Il reste disponible et n'a jamais été exécuté.
+
 Visibilité : marges, bénéfices et coûts d'achat sont réservés à l'admin via
 `UserController.canSeeMarges` (basé sur `isAnyAdmin`, donc un admin cumulant
 le rôle gestionnaire les voit). Ils n'apparaissent **jamais** sur l'écran de

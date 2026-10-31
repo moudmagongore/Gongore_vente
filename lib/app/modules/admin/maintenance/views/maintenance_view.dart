@@ -44,6 +44,12 @@ class MaintenanceView extends GetView<MaintenanceController> {
               if (controller.boutiqueId.value == null) {
                 return const _AucuneBoutique();
               }
+              return _MargesCard(c: controller);
+            }),
+            Obx(() {
+              if (controller.boutiqueId.value == null) {
+                return const SizedBox.shrink();
+              }
               if (controller.isCounting.value) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 40),
@@ -63,6 +69,144 @@ class MaintenanceView extends GetView<MaintenanceController> {
         ),
       ),
     );
+  }
+}
+
+/// Reprise des marges : fige la marge des ventes passées au prix d'achat
+/// actuel. Séparé des purges : rien n'est supprimé ici, on complète des
+/// données manquantes.
+class _MargesCard extends StatelessWidget {
+  final MaintenanceController c;
+  const _MargesCard({required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final nb = c.ventesSansMarge.value;
+      final analyse = c.analyseMargesEnCours.value;
+      final fige = c.figeageEnCours.value;
+      final rienAFaire = nb == 0;
+
+      return Container(
+        margin: const EdgeInsets.only(bottom: 18),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardTheme.color,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.borderOf(context)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary(context).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: analyse
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child:
+                              CircularProgressIndicator(strokeWidth: 2.2),
+                        )
+                      : Text(
+                          nb == null ? '—' : Fmt.number(nb),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: nb != null && nb > 999 ? 12 : 14,
+                            color: AppColors.primary(context),
+                          ),
+                        ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Marges des ventes passées',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        fige
+                            ? 'Traitement… ${Fmt.number(c.margesTraitees.value)}'
+                            : nb == null
+                                ? 'Analysez pour savoir combien de ventes '
+                                    'n\'ont pas encore de marge figée.'
+                                : rienAFaire
+                                    ? 'Toutes les ventes ont leur marge figée.'
+                                    : '$nb vente(s) sans marge figée. Leur '
+                                        'marge bouge encore à chaque appro.',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: fige
+                              ? AppColors.primary(context)
+                              : AppColors.greyText(context, 600),
+                          fontWeight:
+                              fige ? FontWeight.w600 : FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: analyse || fige ? null : c.analyserMarges,
+                    icon: const Icon(Icons.search_rounded, size: 18),
+                    label: const Text('Analyser'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: (nb == null || rienAFaire || analyse || fige)
+                        ? null
+                        : c.confirmerEtFigerMarges,
+                    icon: fige
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.2,
+                              valueColor:
+                                  AlwaysStoppedAnimation(Colors.white),
+                            ),
+                          )
+                        : const Icon(Icons.lock_outline_rounded, size: 18),
+                    label: const Text('Figer'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Les marges sont figées au prix d\'achat ACTUEL : elles '
+              'cessent de bouger, mais ne reflètent pas le prix du jour de '
+              'la vente. Les ventes à venir, elles, sont exactes.',
+              style: TextStyle(
+                fontSize: 11,
+                color: AppColors.greyText(context, 600),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
   }
 }
 
