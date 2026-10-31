@@ -41,6 +41,11 @@ class ReportData {
 
   final String devise;
 
+  /// Pilote l'affichage des marges, bénéfices et marge brute (RG-8).
+  /// `false` pour un gestionnaire : les blocs concernés ne sont pas
+  /// rendus du tout — ni vides, ni grisés.
+  final bool afficherMarges;
+
   ReportData({
     required this.debut,
     required this.fin,
@@ -64,6 +69,7 @@ class ReportData {
     this.resultatNet = 0,
     this.depensesParNature = const [],
     this.devise = 'GNF',
+    this.afficherMarges = true,
   });
 }
 
@@ -156,11 +162,12 @@ class ReportPdfService {
                 Fmt.money(data.caTotal, currency: data.devise),
                 PdfColors.blue700,
               ),
-              _kpiBox(
-                'Bénéfice estimé',
-                Fmt.money(data.benefice, currency: data.devise),
-                PdfColors.green700,
-              ),
+              if (data.afficherMarges)
+                _kpiBox(
+                  'Bénéfice estimé',
+                  Fmt.money(data.benefice, currency: data.devise),
+                  PdfColors.green700,
+                ),
               _kpiBox('Ventes validées', '${data.nbVentes}', PdfColors.indigo),
               _kpiBox(
                 'Articles vendus',
@@ -273,13 +280,14 @@ class ReportPdfService {
                 '${data.nbAppros}',
                 PdfColors.indigo,
               ),
-              _kpiBox(
-                'Marge brute (CA - achats)',
-                Fmt.money(data.margePeriode, currency: data.devise),
-                data.margePeriode >= 0
-                    ? PdfColors.green700
-                    : PdfColors.red700,
-              ),
+              if (data.afficherMarges)
+                _kpiBox(
+                  'Marge brute (CA - achats)',
+                  Fmt.money(data.margePeriode, currency: data.devise),
+                  data.margePeriode >= 0
+                      ? PdfColors.green700
+                      : PdfColors.red700,
+                ),
               _kpiBox(
                 'Dette appros période',
                 Fmt.money(data.detteFournisseurPeriode,
@@ -316,13 +324,14 @@ class ReportPdfService {
                 '${data.nbDepenses}',
                 PdfColors.indigo,
               ),
-              _kpiBox(
-                'Résultat net estimé',
-                Fmt.money(data.resultatNet, currency: data.devise),
-                data.resultatNet >= 0
-                    ? PdfColors.green700
-                    : PdfColors.red700,
-              ),
+              if (data.afficherMarges)
+                _kpiBox(
+                  'Résultat net estimé',
+                  Fmt.money(data.resultatNet, currency: data.devise),
+                  data.resultatNet >= 0
+                      ? PdfColors.green700
+                      : PdfColors.red700,
+                ),
             ],
           ),
           pw.SizedBox(height: 10),

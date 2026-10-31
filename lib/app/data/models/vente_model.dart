@@ -74,6 +74,25 @@ class VenteArticle {
   final double prixUnitaire;
   final double remise;
 
+  /// Prix d'achat unitaire (CMUP) du produit **au moment exact de la
+  /// vente**, lu dans la transaction. Figé une fois pour toutes : sans lui,
+  /// le moindre approvisionnement ultérieur ferait bouger la marge des
+  /// ventes déjà passées (cf. ONBOARDING.md §6, « marge figée »).
+  ///
+  /// `null` pour les ventes antérieures à la reprise
+  /// (`scripts/backfill_marges_ventes.js`).
+  final double? prixAchatUnitaire;
+
+  /// Part de la remise globale de la vente imputée à cette ligne, au
+  /// prorata de son montant net. La remise globale n'étant portée par
+  /// aucune ligne, il faut la répartir pour obtenir une marge par ligne.
+  final double? remiseGlobaleAllouee;
+
+  /// Marge de la ligne, figée à la validation :
+  /// `sousTotal - remiseGlobaleAllouee - (prixAchatUnitaire × quantite)`.
+  /// Négative en cas de vente à perte — enregistrée telle quelle.
+  final double? marge;
+
   const VenteArticle({
     required this.produitId,
     required this.nom,
@@ -82,7 +101,34 @@ class VenteArticle {
     this.varianteId,
     this.varianteLibelle,
     this.remise = 0,
+    this.prixAchatUnitaire,
+    this.remiseGlobaleAllouee,
+    this.marge,
   });
+
+  /// Vrai quand la ligne porte ses valeurs de marge figées. Les lectures
+  /// doivent prévoir un repli tant que la reprise n'a pas tourné.
+  bool get aMargeFigee => marge != null && prixAchatUnitaire != null;
+
+  VenteArticle copyWith({
+    double? prixAchatUnitaire,
+    double? remiseGlobaleAllouee,
+    double? marge,
+  }) {
+    return VenteArticle(
+      produitId: produitId,
+      nom: nom,
+      varianteId: varianteId,
+      varianteLibelle: varianteLibelle,
+      quantite: quantite,
+      prixUnitaire: prixUnitaire,
+      remise: remise,
+      prixAchatUnitaire: prixAchatUnitaire ?? this.prixAchatUnitaire,
+      remiseGlobaleAllouee:
+          remiseGlobaleAllouee ?? this.remiseGlobaleAllouee,
+      marge: marge ?? this.marge,
+    );
+  }
 
   double get sousTotal => (prixUnitaire * quantite) - remise;
 
@@ -100,6 +146,10 @@ class VenteArticle {
       quantite: (map['quantite'] as num?)?.toInt() ?? 0,
       prixUnitaire: (map['prixUnitaire'] as num?)?.toDouble() ?? 0,
       remise: (map['remise'] as num?)?.toDouble() ?? 0,
+      prixAchatUnitaire: (map['prixAchatUnitaire'] as num?)?.toDouble(),
+      remiseGlobaleAllouee:
+          (map['remiseGlobaleAllouee'] as num?)?.toDouble(),
+      marge: (map['marge'] as num?)?.toDouble(),
     );
   }
 
@@ -111,6 +161,12 @@ class VenteArticle {
         'quantite': quantite,
         'prixUnitaire': prixUnitaire,
         'remise': remise,
+        // Omis tant que la marge n'est pas figée, pour ne pas écrire des
+        // `null` sur les ventes reprises par lot.
+        if (prixAchatUnitaire != null) 'prixAchatUnitaire': prixAchatUnitaire,
+        if (remiseGlobaleAllouee != null)
+          'remiseGlobaleAllouee': remiseGlobaleAllouee,
+        if (marge != null) 'marge': marge,
       };
 }
 
@@ -160,6 +216,14 @@ class VenteModel {
   final String? note;
   final String? motifAnnulation;
 
+  /// Coût d'achat total de la vente, figé à la validation :
+  /// somme de `prixAchatUnitaire × quantite` sur les lignes.
+  final double? coutAchatTotal;
+
+  /// Marge totale figée : somme des marges de ligne. `null` tant que la
+  /// reprise n'a pas tourné sur cette vente.
+  final double? margeTotale;
+
   const VenteModel({
     required this.id,
     required this.boutiqueId,
@@ -179,7 +243,12 @@ class VenteModel {
     this.statut = VenteStatut.validee,
     this.note,
     this.motifAnnulation,
+    this.coutAchatTotal,
+    this.margeTotale,
   });
+
+  /// Vrai quand la vente porte ses valeurs de marge figées.
+  bool get aMargeFigee => margeTotale != null;
 
   factory VenteModel.fromMap(Map<String, dynamic> map, String id) {
     final raw = (map['articles'] as List?) ?? const [];
@@ -206,6 +275,8 @@ class VenteModel {
       date: (map['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
       note: map['note'] as String?,
       motifAnnulation: map['motifAnnulation'] as String?,
+      coutAchatTotal: (map['coutAchatTotal'] as num?)?.toDouble(),
+      margeTotale: (map['margeTotale'] as num?)?.toDouble(),
     );
   }
 
@@ -238,6 +309,10 @@ class VenteModel {
         'date': Timestamp.fromDate(date),
         'note': note,
         'motifAnnulation': motifAnnulation,
+        // Omis tant que la marge n'est pas figée (ventes anterieures a la
+        // reprise), pour ne pas ecrire des `null` en base.
+        if (coutAchatTotal != null) 'coutAchatTotal': coutAchatTotal,
+        if (margeTotale != null) 'margeTotale': margeTotale,
       };
 
   /// Numéro affichable : utilise `numero` si présent, sinon les 8 premiers

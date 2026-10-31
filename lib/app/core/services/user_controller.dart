@@ -75,6 +75,18 @@ class UserController extends GetxController {
   /// super-admin ou gestionnaire (vendeur OU admin avec alsoGestionnaire).
   bool get canPerformSales => isSuperAdmin || isVendeur;
 
+  /// Vrai si l'utilisateur a le droit de voir les marges, bénéfices et
+  /// coûts d'achat (rapports, tableau de bord, exports PDF).
+  ///
+  /// Basé sur [isAnyAdmin] et NON sur `!isVendeur` : un admin qui coche
+  /// « Aussi gestionnaire » reste admin et doit continuer à les voir
+  /// (cf. ONBOARDING.md §4, cumul admin + gestionnaire).
+  ///
+  /// Limite connue : ce masquage est purement applicatif. Les documents de
+  /// vente restent lisibles par le gestionnaire au niveau base de données,
+  /// donc les champs de marge y sont techniquement accessibles.
+  bool get canSeeMarges => isAnyAdmin;
+
   /// Vrai si l'utilisateur peut DÉCLARER une dépense : super-admin, admin
   /// de boutique ou gestionnaire. Le PARAMÉTRAGE des natures de dépense
   /// reste, lui, réservé à l'admin (voir [canManageCatalog]).

@@ -51,6 +51,10 @@ class RapportsController extends GetxController {
   bool get isAnyAdmin => UserController.to.isAnyAdmin;
   bool get isVendeur => UserController.to.isVendeur;
 
+  /// Marges, bénéfices et marge brute : réservés à l'admin (RG-8).
+  /// Le gestionnaire garde tous les chiffres de vente et d'achat.
+  bool get canSeeMarges => UserController.to.canSeeMarges;
+
   @override
   void onInit() {
     super.onInit();
@@ -271,6 +275,15 @@ class RapportsController extends GetxController {
     double benefice = 0;
     final prodMap = {for (final p in produits) p.id: p};
     for (final v in _validees) {
+      // Marge figée à la validation : c'est la valeur de référence, elle
+      // ne bouge plus quand un appro change le CMUP (ONBOARDING.md §6).
+      if (v.aMargeFigee) {
+        benefice += v.margeTotale!;
+        continue;
+      }
+      // Repli pour les ventes antérieures à la reprise
+      // (`scripts/backfill_marges_ventes.js`) : ancien calcul au prix du
+      // jour. À retirer une fois la reprise appliquée partout.
       for (final a in v.articles) {
         final p = prodMap[a.produitId];
         if (p != null) {

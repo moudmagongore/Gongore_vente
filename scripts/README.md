@@ -67,3 +67,58 @@ node purge_boutique.js --boutique=<ID> --only=ventes,reglements --confirm
 - **Les sous-collections ne suivent pas leur parent.** Supprimer un produit
   laisse ses `variantes` orphelines et invisibles dans la console. Le script
   les purge explicitement, avant les produits.
+
+---
+
+## `backfill_marges_ventes.js` — reprise des marges (Lot 1)
+
+Reconstitue le prix d'achat (CMUP) réellement en vigueur à la date de chaque
+vente passée, puis écrit les marges figées (`prixAchatUnitaire`,
+`remiseGlobaleAllouee`, `marge` sur les lignes ; `coutAchatTotal` et
+`margeTotale` sur la vente).
+
+```bash
+node backfill_marges_ventes.js --boutique=<ID>           # essai à blanc
+node backfill_marges_ventes.js --all                     # essai, toutes
+node backfill_marges_ventes.js --all --csv=rapport.csv   # + export CSV
+node backfill_marges_ventes.js --boutique=<ID> --apply   # écriture réelle
+```
+
+**Le mode par défaut est un essai à blanc** : il n'écrit rien et produit le
+rapport (marge avant / après / écart, produits en repli). `--apply` n'est à
+lancer qu'après validation de ce rapport par le chef de projet, et **après
+une sauvegarde Firestore** (voir `ONBOARDING.md` §10).
+
+Une vente qui porte déjà ses valeurs de marge n'est jamais réécrite : le
+script est donc rejouable sans risque.
+
+### Comment le CMUP est reconstitué
+
+Le rejeu ne se contente pas des appros non annulés, pour deux raisons
+vérifiées dans le code applicatif :
+
+1. **L'annulation d'un appro ne recalcule pas le prix d'achat**
+   (`ApprovisionnementRepository.cancel` : « sans toucher au PA car le CMUP
+   historique est perdu »). Son effet sur le PA persiste donc : on rejoue
+   **tous** les appros, l'annulation ne reprenant que le stock.
+2. **Le CMUP dépend du stock au moment de l'appro.** Les mouvements de stock
+   manuels (sortie, perte, casse, ajustement) le modifient aussi : les
+   ignorer fausserait le dénominateur de tous les appros suivants.
+
+Les cas où la reconstitution n'est pas fiable (stock reconstitué négatif,
+vente antérieure à tout appro, appro sans prix exploitable) basculent sur le
+**prix d'achat actuel**, et le produit est listé dans le rapport.
+
+### Tests
+
+La logique de calcul et de rejeu est dans `lib/marges.js`, testée sans
+dépendance :
+
+```bash
+node --test test/marges.test.js
+```
+
+⚠️ `lib/marges.js` est un **portage** de
+`lib/app/core/utils/marge_calculator.dart`. Les deux implémentations doivent
+rester synchronisées : les mêmes cas sont rejoués dans
+`test/marge_calculator_test.dart`.

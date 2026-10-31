@@ -293,6 +293,19 @@ service cloud.firestore {
       //       - imputation FIFO d'un règlement client (champ `montantPaye`)
       //       - annulation : passer `statut` à 'annulee' + `motifAnnulation`
       //   admin ne modifie pas de vente.
+      //
+      // MARGES FIGÉES — les `hasOnly()` ci-dessous verrouillent déjà, sans
+      // règle supplémentaire, les champs `prixAchatUnitaire`,
+      // `remiseGlobaleAllouee`, `marge` (dans `articles`), `coutAchatTotal`
+      // et `margeTotale` : aucun rôle hors super-admin ne peut les toucher
+      // après création, puisque seules les clés listées sont modifiables.
+      //
+      // Deux limites connues, assumées pour ce lot :
+      //   1. les règles ne savent pas vérifier la JUSTESSE des marges à la
+      //      création (elles ne parcourent pas une liste d'articles) ;
+      //   2. le masquage des marges pour le gestionnaire est applicatif :
+      //      il peut lire les ventes de sa boutique, donc les champs de
+      //      marge lui restent accessibles au niveau base de données.
       allow update: if isSuperAdmin()
                     || (isVendeur()
                         && resourceBoutiqueIdMatches()

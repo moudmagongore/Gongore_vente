@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/services/firestore_service.dart';
+import '../../core/utils/marge_calculator.dart';
 import '../../core/utils/stream_helpers.dart';
 import '../models/vente_model.dart';
 
@@ -202,11 +203,36 @@ class VenteRepository {
         }
       });
 
-      // 2b. Création du document vente avec numéro séquentiel injecté
+      // 2b. Création du document vente avec numéro séquentiel injecté.
+      //
+      // Les marges sont figées ici, à partir du `prixAchat` lu DANS la
+      // transaction (`produitSnaps`) et non de la valeur chargée côté
+      // client : un approvisionnement validé entre l'ouverture du panier
+      // et cette validation aurait changé le CMUP entre-temps.
+      //
+      // Un produit supprimé entre-temps n'a pas de snapshot : il est
+      // absent de la table et sa ligne sera comptée avec un coût d'achat
+      // nul (cf. `calculerMarges`).
+      final prixAchatParProduit = <String, double>{};
+      produitSnaps.forEach((pid, snap) {
+        if (!snap.exists) return;
+        prixAchatParProduit[pid] =
+            ((snap.data() ?? {})['prixAchat'] as num?)?.toDouble() ?? 0;
+      });
+      final marges = calculerMarges(
+        articles: vente.articles,
+        remiseGlobale: vente.remise,
+        prixAchatParProduit: prixAchatParProduit,
+      );
+
       final venteRef = _ventes.doc();
       tx.set(venteRef, {
         ...vente.toMap(),
         'numero': venteNumero,
+        // Écrase les articles par leur version enrichie des marges.
+        'articles': marges.articles.map((a) => a.toMap()).toList(),
+        'coutAchatTotal': marges.coutAchatTotal,
+        'margeTotale': marges.margeTotale,
       });
 
       // 2c. Persiste le compteur

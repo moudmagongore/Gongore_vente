@@ -158,6 +158,9 @@ class RapportsView extends GetView<RapportsController> {
                   (nom: t.nom, nbAppros: t.nbAppros, total: t.total))
               .toList(),
           devise: devise,
+          // Un export fait par un gestionnaire ne doit contenir aucune
+          // marge : le masquage porte aussi sur le PDF (RG-9).
+          afficherMarges: c.canSeeMarges,
         ),
       );
     } catch (e) {
@@ -494,10 +497,15 @@ class _FinancierSection extends StatelessWidget {
                 _Row('Chiffre d\'affaires',
                     Fmt.money(c.caTotal, currency: 'GNF'),
                     color: AppColors.primary(context), big: true),
+                // Marges réservées à l'admin (RG-8). Rien n'est affiché
+                // en gris ou à blanc : la ligne disparaît entièrement.
+                if (c.canSeeMarges) ...[
+                  const Divider(),
+                  _Row('Bénéfice estimé',
+                      Fmt.money(c.beneficeTotal, currency: 'GNF'),
+                      color: AppColors.success),
+                ],
                 const Divider(),
-                _Row('Bénéfice estimé',
-                    Fmt.money(c.beneficeTotal, currency: 'GNF'),
-                    color: AppColors.success),
                 _Row('Chiffre d\'affaires annulé',
                     Fmt.money(c.caAnnule, currency: 'GNF'),
                     color: c.caAnnule > 0 ? Colors.red : null),
@@ -505,12 +513,14 @@ class _FinancierSection extends StatelessWidget {
                 _Row('Dépenses de la période',
                     Fmt.money(c.totalDepenses, currency: 'GNF'),
                     color: c.totalDepenses > 0 ? AppColors.danger : null),
-                _Row('Résultat net estimé',
-                    Fmt.money(c.resultatNet, currency: 'GNF'),
-                    color: c.resultatNet >= 0
-                        ? AppColors.success
-                        : AppColors.danger,
-                    big: true),
+                // Dérive du bénéfice : masqué avec lui.
+                if (c.canSeeMarges)
+                  _Row('Résultat net estimé',
+                      Fmt.money(c.resultatNet, currency: 'GNF'),
+                      color: c.resultatNet >= 0
+                          ? AppColors.success
+                          : AppColors.danger,
+                      big: true),
               ],
             ),
           ),
@@ -646,13 +656,14 @@ class _AchatsSection extends StatelessWidget {
                 ),
                 const Divider(),
                 _Row('Approvisionnements', '${c.nbAppros}'),
-                _Row(
-                  'Marge brute (CA - achats)',
-                  Fmt.money(c.margePeriode, currency: 'GNF'),
-                  color: c.margePeriode >= 0
-                      ? AppColors.success
-                      : Colors.red,
-                ),
+                if (c.canSeeMarges)
+                  _Row(
+                    'Marge brute (CA - achats)',
+                    Fmt.money(c.margePeriode, currency: 'GNF'),
+                    color: c.margePeriode >= 0
+                        ? AppColors.success
+                        : Colors.red,
+                  ),
                 _Row(
                   'Dette sur appros de la période',
                   Fmt.money(c.detteFournisseurPeriode,
@@ -697,13 +708,14 @@ class _DepensesSection extends StatelessWidget {
               ),
               const Divider(),
               _Row('Nombre de dépenses', '${c.nbDepenses}'),
-              _Row(
-                'Résultat net (bénéfice - dépenses)',
-                Fmt.money(c.resultatNet, currency: 'GNF'),
-                color: c.resultatNet >= 0
-                    ? AppColors.success
-                    : AppColors.danger,
-              ),
+              if (c.canSeeMarges)
+                _Row(
+                  'Résultat net (bénéfice - dépenses)',
+                  Fmt.money(c.resultatNet, currency: 'GNF'),
+                  color: c.resultatNet >= 0
+                      ? AppColors.success
+                      : AppColors.danger,
+                ),
               if (parNature.isNotEmpty) ...[
                 const Divider(),
                 const SizedBox(height: 4),
