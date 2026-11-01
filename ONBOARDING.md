@@ -727,8 +727,8 @@ gcloud firestore export gs://gongorevente.firebasestorage.app/backup-$(date +%F)
   gestionnaire, helper de mouvements testé. Recetté
 - **Lot 2 complet** : caisses paramétrables, cinq opérations branchées,
   transferts, apports, retraits et corrections, relevé de caisse avec export
-  PDF, trésorerie au tableau de bord et synthèse par caisse dans les rapports
-  — **seule l'étape 2.1 a été recettée**
+  PDF, trésorerie au tableau de bord et synthèse par caisse dans les rapports.
+  **Recetté** (novembre 2026)
 
 ### Dette connue
 
