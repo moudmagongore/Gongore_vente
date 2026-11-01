@@ -281,7 +281,7 @@ class AppPages {
       binding: CaissesBinding(),
       // AuthGuard : le gestionnaire y accède en lecture seule (la vue et
       // les règles Firestore limitent ce qu'il voit à ses caisses).
-      middlewares: [AuthGuard()],
+      middlewares: [AuthGuard(), CaisseGuard()],
     ),
     GetPage(
       name: AppRoutes.caisseReleve,
@@ -289,14 +289,14 @@ class AppPages {
       binding: ReleveCaisseBinding(),
       // AuthGuard : le gestionnaire consulte le relevé de ses caisses
       // accessibles (RG-30). Les règles Firestore font le tri.
-      middlewares: [AuthGuard()],
+      middlewares: [AuthGuard(), CaisseGuard()],
     ),
     GetPage(
       name: AppRoutes.adminCaisseForm,
       page: () => const CaisseFormView(),
       binding: CaisseFormBinding(),
       // Le paramétrage des caisses est réservé à l'admin (RG-1).
-      middlewares: [AdminGuard()],
+      middlewares: [AdminGuard(), CaisseGuard()],
     ),
     GetPage(
       name: AppRoutes.adminDepenses,

@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/services/receipt_service.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/caisse_model.dart';
@@ -11,7 +12,6 @@ import '../../../../data/models/client_model.dart';
 import '../../../../data/models/produit_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/models/vente_model.dart';
-import '../../../../data/repositories/caisse_repository.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/categorie_repository.dart';
 import '../../../../data/repositories/client_repository.dart';
@@ -79,12 +79,7 @@ class VentesController extends GetxController {
     super.onInit();
     final scope = UserController.to.scopeBoutiqueId;
     boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
-    caisses.bindStream(CaisseRepository().watchScoped(
-      scope: scope,
-      gestionnaireId: UserController.to.isAnyAdmin
-          ? null
-          : UserController.to.user?.id,
-    ));
+    caisses.bindStream(CaisseContexte.watchCaisses(scope));
     vendeurs.bindStream(_userRepo.watchScoped(scope: scope));
     clients.bindStream(_clientRepo.watchScoped(scope));
     produits.bindStream(_produitRepo.watchAll(boutiqueId: scope));

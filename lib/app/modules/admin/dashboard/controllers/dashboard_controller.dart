@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 
+import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/caisse_model.dart';
 import '../../../../data/models/boutique_model.dart';
@@ -7,7 +8,6 @@ import '../../../../data/models/depense_model.dart';
 import '../../../../data/models/produit_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/models/vente_model.dart';
-import '../../../../data/repositories/caisse_repository.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/depense_repository.dart';
 import '../../../../data/repositories/produit_repository.dart';
@@ -65,12 +65,7 @@ class DashboardController extends GetxController {
     final startOfMonth = DateTime(now.year, now.month, 1);
     final scope = UserController.to.scopeBoutiqueId;
 
-    caisses.bindStream(CaisseRepository().watchScoped(
-      scope: scope,
-      gestionnaireId: UserController.to.isAnyAdmin
-          ? null
-          : UserController.to.user?.id,
-    ));
+    caisses.bindStream(CaisseContexte.watchCaisses(scope));
 
     _ventesMois.bindStream(_venteRepo.watchAll(
       after: startOfMonth,

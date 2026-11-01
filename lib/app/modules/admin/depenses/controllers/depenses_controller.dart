@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../data/models/boutique_model.dart';
@@ -10,7 +11,6 @@ import '../../../../data/models/nature_depense_model.dart';
 import '../../../../data/models/paiement_caisse.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
-import '../../../../data/repositories/caisse_repository.dart';
 import '../../../../data/repositories/depense_repository.dart';
 import '../../../../data/repositories/nature_depense_repository.dart';
 import '../../../../data/repositories/user_repository.dart';
@@ -35,7 +35,6 @@ class DepenseParNature {
 class DepensesController extends GetxController {
   final DepenseRepository _repo = DepenseRepository();
   final NatureDepenseRepository _natureRepo = NatureDepenseRepository();
-  final CaisseRepository _caisseRepo = CaisseRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
   final UserRepository _userRepo = UserRepository();
 
@@ -79,10 +78,7 @@ class DepensesController extends GetxController {
     natures.bindStream(_natureRepo.watchScoped(scope));
     boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
     users.bindStream(_userRepo.watchScoped(scope: scope));
-    caisses.bindStream(_caisseRepo.watchScoped(
-      scope: scope,
-      gestionnaireId: isAnyAdmin ? null : UserController.to.user?.id,
-    ));
+    caisses.bindStream(CaisseContexte.watchCaisses(scope));
 
     _bind();
     everAll([periode, filterBoutiqueId], (_) => _bind());

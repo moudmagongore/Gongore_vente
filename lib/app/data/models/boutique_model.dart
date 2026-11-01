@@ -18,6 +18,19 @@ class BoutiqueModel {
   /// expirés et le login est refusé.
   final DateTime? subscriptionEndsAt;
 
+  /// Le module de caisse est-il ouvert à cette boutique ?
+  ///
+  /// **Décidé par le super-admin seul** — c'est un verrou commercial, pas
+  /// un réglage de boutique : l'admin ne doit pas pouvoir s'ouvrir le
+  /// module lui-même (verrouillé aussi dans `firestore.rules`).
+  ///
+  /// À `false`, toute l'application se comporte comme avant le module :
+  /// les caisses disparaissent des écrans, les opérations retrouvent leur
+  /// sélecteur de mode de paiement, et plus rien ne touche aux soldes. Les
+  /// caisses et mouvements déjà enregistrés sont **conservés** et
+  /// réapparaissent intacts si le module est réactivé.
+  final bool caissesActivees;
+
   /// Vrai si la boutique a au moins une caisse ACTIVE.
   ///
   /// Dénormalisé ici parce qu'un gestionnaire ne peut lire que les caisses
@@ -44,6 +57,7 @@ class BoutiqueModel {
     this.devise = 'GNF',
     this.active = true,
     this.subscriptionEndsAt,
+    this.caissesActivees = false,
     this.hasCaissesActives = false,
     this.createdAt,
     this.updatedAt,
@@ -60,6 +74,7 @@ class BoutiqueModel {
       active: (map['active'] ?? true) as bool,
       subscriptionEndsAt:
           (map['subscriptionEndsAt'] as Timestamp?)?.toDate(),
+      caissesActivees: (map['caissesActivees'] ?? false) as bool,
       hasCaissesActives: (map['hasCaissesActives'] ?? false) as bool,
       createdAt: (map['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
@@ -79,6 +94,10 @@ class BoutiqueModel {
         'logoUrl': logoUrl,
         'devise': devise,
         'active': active,
+        // Présent dans toMap, contrairement à `hasCaissesActives` : c'est
+        // le formulaire boutique du super-admin qui le renseigne. Les
+        // règles Firestore empêchent un admin de le modifier.
+        'caissesActivees': caissesActivees,
         if (subscriptionEndsAt != null)
           'subscriptionEndsAt': Timestamp.fromDate(subscriptionEndsAt!),
         if (createdAt != null) 'createdAt': Timestamp.fromDate(createdAt!),
@@ -92,10 +111,12 @@ class BoutiqueModel {
     String? logoUrl,
     String? devise,
     bool? active,
+    bool? caissesActivees,
     DateTime? subscriptionEndsAt,
   }) {
     return BoutiqueModel(
       id: id,
+      caissesActivees: caissesActivees ?? this.caissesActivees,
       hasCaissesActives: hasCaissesActives,
       nom: nom ?? this.nom,
       adresse: adresse ?? this.adresse,

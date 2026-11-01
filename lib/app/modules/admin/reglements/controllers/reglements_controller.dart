@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 
+import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/services/reglement_receipt_service.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/caisse_model.dart';
@@ -8,7 +9,6 @@ import '../../../../data/models/client_model.dart';
 import '../../../../data/models/reglement_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/models/vente_model.dart';
-import '../../../../data/repositories/caisse_repository.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/client_repository.dart';
 import '../../../../data/repositories/reglement_repository.dart';
@@ -69,12 +69,7 @@ class ReglementsController extends GetxController {
     boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
     clients.bindStream(_clientRepo.watchScoped(scope));
     users.bindStream(_userRepo.watchScoped(scope: scope));
-    caisses.bindStream(CaisseRepository().watchScoped(
-      scope: scope,
-      gestionnaireId: UserController.to.isAnyAdmin
-          ? null
-          : UserController.to.user?.id,
-    ));
+    caisses.bindStream(CaisseContexte.watchCaisses(scope));
 
     _bind();
     everAll([periode, filterBoutiqueId], (_) => _bind());

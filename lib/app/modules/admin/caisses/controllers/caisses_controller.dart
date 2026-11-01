@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../data/models/boutique_model.dart';
@@ -43,12 +44,7 @@ class CaissesController extends GetxController {
     super.onInit();
     final uc = UserController.to;
     final scope = uc.scopeBoutiqueId;
-    _all.bindStream(_repo.watchScoped(
-      scope: scope,
-      // Un admin, même cumulant le rôle gestionnaire, voit toutes les
-      // caisses de sa boutique : on ne filtre que pour un gestionnaire.
-      gestionnaireId: uc.isAnyAdmin ? null : uc.user?.id,
-    ));
+    _all.bindStream(CaisseContexte.watchCaisses(scope));
     boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
     if (canManage) {
       users.bindStream(_userRepo.watchScoped(scope: scope));

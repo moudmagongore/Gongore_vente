@@ -32,6 +32,26 @@ class AuthGuard extends GetMiddleware {
   }
 }
 
+/// Bloque les écrans de caisse quand le module n'est pas ouvert à la
+/// boutique par le super-admin.
+///
+/// Les entrées de drawer sont déjà masquées ; cette garde couvre les
+/// chemins qui restent : lien direct, retour arrière après une
+/// désactivation, ou `Get.toNamed` depuis un écran resté ouvert.
+class CaisseGuard extends GetMiddleware {
+  @override
+  RouteSettings? redirect(String? route) {
+    final uc = UserController.to;
+    if (!uc.isLoggedIn) {
+      return const RouteSettings(name: AppRoutes.login);
+    }
+    if (uc.caissesModuleActif) return null;
+    return RouteSettings(
+      name: uc.isAnyAdmin ? AppRoutes.adminHome : AppRoutes.vendeurHome,
+    );
+  }
+}
+
 /// Bloque l'accès aux routes réservées au super-admin (gestion des
 /// abonnements, paramètres globaux). Un admin de boutique est redirigé
 /// vers son accueil ; un vendeur idem.

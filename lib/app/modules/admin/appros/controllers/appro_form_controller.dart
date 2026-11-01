@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../core/utils/caisse_calculator.dart';
 import '../../../../data/models/approvisionnement_model.dart';
@@ -12,7 +13,6 @@ import '../../../../data/models/produit_model.dart';
 import '../../../../data/models/vente_model.dart' show ModePaiement;
 import '../../../../data/repositories/approvisionnement_repository.dart';
 import '../../../../data/repositories/boutique_repository.dart';
-import '../../../../data/repositories/caisse_repository.dart';
 import '../../../../data/repositories/fournisseur_repository.dart';
 import '../../../../data/repositories/produit_repository.dart';
 import '../../../../routes/app_routes.dart';
@@ -64,7 +64,6 @@ class ApproFormController extends GetxController {
       ApprovisionnementRepository();
   final ProduitRepository _produitRepo = ProduitRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
-  final CaisseRepository _caisseRepo = CaisseRepository();
   final FournisseurRepository _fournRepo = FournisseurRepository();
 
   // ===== Boutique =====
@@ -160,11 +159,7 @@ class ApproFormController extends GetxController {
 
       // Les caisses suivent la boutique active : un admin multi-boutique
       // ne doit pas voir celles de la boutique précédente.
-      final uc = UserController.to;
-      caisses.bindStream(_caisseRepo.watchScoped(
-        scope: id,
-        gestionnaireId: uc.isAnyAdmin ? null : uc.user?.id,
-      ));
+      caisses.bindStream(CaisseContexte.watchCaisses(id));
       // Drapeau de la boutique : seul moyen pour un gestionnaire de savoir
       // qu'elle a des caisses auxquelles il n'a pas accès (RG-19).
       _boutiqueRepo.getById(id).then((b) {

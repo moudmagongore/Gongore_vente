@@ -151,12 +151,13 @@ class VendeurDrawer extends StatelessWidget {
                       route: AppRoutes.adminDepenses,
                       currentRoute: currentRoute,
                     ),
-                    _Item(
-                      icon: Icons.account_balance_wallet_outlined,
-                      label: 'Mes caisses',
-                      route: AppRoutes.adminCaisses,
-                      currentRoute: currentRoute,
-                    ),
+                    if (UserController.to.caissesModuleActif)
+                      _Item(
+                        icon: Icons.account_balance_wallet_outlined,
+                        label: 'Mes caisses',
+                        route: AppRoutes.adminCaisses,
+                        currentRoute: currentRoute,
+                      ),
                     _Item(
                       icon: Icons.bar_chart_rounded,
                       label: 'Mes rapports',

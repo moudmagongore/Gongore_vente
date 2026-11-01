@@ -13,6 +13,8 @@ enum PurgeCible {
   reglementsFournisseurs,
   mouvementsStock,
   depenses,
+  mouvementsCaisse,
+  caisses,
   produits,
   categories,
   clients,
@@ -37,6 +39,10 @@ extension PurgeCibleX on PurgeCible {
         return FirestoreKeys.mouvementsStock;
       case PurgeCible.depenses:
         return FirestoreKeys.depenses;
+      case PurgeCible.mouvementsCaisse:
+        return FirestoreKeys.mouvementsCaisse;
+      case PurgeCible.caisses:
+        return FirestoreKeys.caisses;
       case PurgeCible.produits:
         return FirestoreKeys.produits;
       case PurgeCible.categories:
@@ -66,6 +72,10 @@ extension PurgeCibleX on PurgeCible {
         return 'Mouvements de stock';
       case PurgeCible.depenses:
         return 'Dépenses';
+      case PurgeCible.mouvementsCaisse:
+        return 'Mouvements de caisse';
+      case PurgeCible.caisses:
+        return 'Caisses';
       case PurgeCible.produits:
         return 'Produits (et variantes)';
       case PurgeCible.categories:
@@ -96,6 +106,10 @@ extension PurgeCibleX on PurgeCible {
         return 'Efface la trace des sorties, pertes et ajustements manuels.';
       case PurgeCible.depenses:
         return 'Efface les charges déclarées et le résultat net des rapports.';
+      case PurgeCible.mouvementsCaisse:
+        return 'Efface les relevés. Les soldes des caisses ne sont PAS remis à zéro : ils deviennent injustifiables.';
+      case PurgeCible.caisses:
+        return 'Supprime les caisses et leurs soldes. Les opérations gardent le nom de leur caisse, qui n\'existera plus.';
       case PurgeCible.produits:
         return 'Les ventes et appros existants pointeront vers des produits inexistants.';
       case PurgeCible.categories:

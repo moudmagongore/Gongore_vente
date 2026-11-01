@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../core/utils/caisse_calculator.dart';
 import '../../../../data/models/paiement_caisse.dart';
@@ -10,7 +11,6 @@ import '../../../../data/models/categorie_model.dart';
 import '../../../../data/models/client_model.dart';
 import '../../../../data/models/produit_model.dart';
 import '../../../../data/models/vente_model.dart';
-import '../../../../data/repositories/caisse_repository.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/categorie_repository.dart';
 import '../../../../data/repositories/client_repository.dart';
@@ -73,7 +73,6 @@ class LigneVente {
 class VenteFormController extends GetxController {
   final ProduitRepository _produitRepo = ProduitRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
-  final CaisseRepository _caisseRepo = CaisseRepository();
   final CategorieRepository _catRepo = CategorieRepository();
   final ClientRepository _clientRepo = ClientRepository();
   final VenteRepository _venteRepo = VenteRepository();
@@ -190,11 +189,7 @@ class VenteFormController extends GetxController {
 
       // Les caisses suivent la boutique active : un admin multi-boutique
       // ne doit pas encaisser sur la caisse d'une autre boutique.
-      final uc = UserController.to;
-      caisses.bindStream(_caisseRepo.watchScoped(
-        scope: id,
-        gestionnaireId: uc.isAnyAdmin ? null : uc.user?.id,
-      ));
+      caisses.bindStream(CaisseContexte.watchCaisses(id));
       // Seul moyen, pour un gestionnaire, de savoir que la boutique a des
       // caisses auxquelles il n'a pas accès (RG-19).
       _boutiqueRepo.getById(id).then((b) {

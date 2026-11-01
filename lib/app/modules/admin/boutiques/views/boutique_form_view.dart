@@ -65,6 +65,25 @@ class BoutiqueFormView extends GetView<BoutiqueFormController> {
                 contentPadding: EdgeInsets.zero,
               ),
             ),
+            // Module de caisse : super-admin uniquement. Un admin ne voit
+            // pas ce réglage et ne peut pas se l'ouvrir lui-même.
+            if (controller.peutOuvrirCaisses)
+              Obx(
+                () => SwitchListTile(
+                  value: controller.caissesActivees.value,
+                  onChanged: (v) => controller.caissesActivees.value = v,
+                  title: const Text('Module de caisse'),
+                  subtitle: Text(
+                    controller.caissesActivees.value
+                        ? 'La boutique suit sa trésorerie : chaque opération '
+                            'indique sa caisse.'
+                        : 'Caisses masquées. Les opérations gardent leur '
+                            'mode de paiement, comme avant le module.',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
             const SizedBox(height: 32),
             Obx(
               () => ElevatedButton.icon(

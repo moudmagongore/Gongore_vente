@@ -87,6 +87,14 @@ service cloud.firestore {
       return request.resource.data.boutiqueId == resource.data.boutiqueId;
     }
 
+    // Le module de caisse est un verrou commercial : seul le super-admin
+    // l'ouvre ou le ferme. Un admin peut modifier sa boutique, il ne doit
+    // pas pouvoir s'ouvrir le module lui-même.
+    function caissesActiveesNotChanged() {
+      return request.resource.data.get('caissesActivees', false)
+          == resource.data.get('caissesActivees', false);
+    }
+
     // Empêche de modifier la liste des boutiques additionnelles à l'update
     // (réservé au super-admin, qui n'est pas concerné par cette contrainte).
     function additionalBoutiquesNotChanged() {
@@ -173,8 +181,12 @@ service cloud.firestore {
       allow create: if isSuperAdmin();
       allow delete: if isSuperAdmin();
 
-      // Update : super-admin tout, admin sa boutique
-      allow update: if isSuperAdmin() || (isAdmin() && ownsBoutique(bid));
+      // Update : super-admin tout, admin sa boutique — sauf le drapeau
+      // d'ouverture du module de caisse, qui lui reste interdit.
+      allow update: if isSuperAdmin()
+                    || (isAdmin()
+                        && ownsBoutique(bid)
+                        && caissesActiveesNotChanged());
     }
 
     // ================== Catégories (par boutique) ==================

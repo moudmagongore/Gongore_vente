@@ -188,7 +188,12 @@ class RapportsController extends GetxController {
   /// entrées et sorties, et les retirer ferait mentir la variation.
   Future<void> _chargerSyntheseCaisses() async {
     final bid = boutiqueId.value;
-    if (bid == null || bid.isEmpty || !UserController.to.isAnyAdmin) {
+    // Module fermé à la boutique : la section disparaît du rapport, même
+    // s'il reste des mouvements en base.
+    if (bid == null ||
+        bid.isEmpty ||
+        !UserController.to.isAnyAdmin ||
+        !UserController.to.caissesModuleActif) {
       syntheseCaisses.clear();
       return;
     }

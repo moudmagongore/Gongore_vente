@@ -35,6 +35,11 @@ class UserController extends GetxController {
   /// fait `Get.offAllNamed(adminHome)` après le switch (voir drawer).
   final RxnString currentBoutiqueId = RxnString();
 
+  /// Boutique ACTIVE telle qu'elle est en base, alimentée par le stream du
+  /// document déjà en place (aucune lecture supplémentaire). `null` pour un
+  /// super-admin, qui n'est rattaché à aucune boutique.
+  final Rxn<BoutiqueModel> boutiqueActive = Rxn<BoutiqueModel>();
+
   StreamSubscription<User?>? _authSub;
 
   // Cache de `graceDays` (paramètres globaux d'abonnement). Lu UNE seule
@@ -86,6 +91,19 @@ class UserController extends GetxController {
   /// vente restent lisibles par le gestionnaire au niveau base de données,
   /// donc les champs de marge y sont techniquement accessibles.
   bool get canSeeMarges => isAnyAdmin;
+
+  /// Le module de caisse est-il ouvert à l'utilisateur courant ?
+  ///
+  /// Point de vérité unique : le drawer, les gardes de route et le chargement
+  /// des caisses s'y réfèrent. Décidé par le super-admin boutique par
+  /// boutique (`BoutiqueModel.caissesActivees`).
+  ///
+  /// Le super-admin l'a toujours : il administre toutes les boutiques, y
+  /// compris celles à qui il vient d'ouvrir le module.
+  bool get caissesModuleActif {
+    if (isSuperAdmin) return true;
+    return boutiqueActive.value?.caissesActivees ?? false;
+  }
 
   /// Vrai si l'utilisateur peut DÉCLARER une dépense : super-admin, admin
   /// de boutique ou gestionnaire. Le PARAMÉTRAGE des natures de dépense
@@ -247,11 +265,21 @@ class UserController extends GetxController {
     _boutiqueDocSub?.cancel();
     _boutiqueDocSub = null;
     _watchedBoutiqueId = boutiqueId;
+    boutiqueActive.value = null;
     // Nouvelle boutique null/vide (signOut) → on s'arrête là
     if (boutiqueId == null || boutiqueId.isEmpty) return;
     _boutiqueDocSub =
         FirestoreService.to.boutiques.doc(boutiqueId).snapshots().listen(
       (snap) async {
+        // Le modèle est publié même depuis le cache : sans cela, au
+        // démarrage hors ligne, `caissesModuleActif` resterait faux et le
+        // module disparaîtrait le temps que le serveur réponde.
+        if (snap.exists) {
+          boutiqueActive.value = BoutiqueModel.fromFirestore(snap);
+        }
+        // Les contrôles qui suivent (suppression, désactivation,
+        // abonnement) exigent en revanche une donnée serveur : un cache
+        // périmé ne doit pas déconnecter l'utilisateur.
         if (snap.metadata.isFromCache) return;
         if (!snap.exists) {
           await _forceSignOut(

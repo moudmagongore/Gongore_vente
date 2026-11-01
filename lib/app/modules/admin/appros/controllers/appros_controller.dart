@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/services/appro_receipt_service.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/caisse_model.dart';
@@ -9,7 +10,6 @@ import '../../../../data/models/boutique_model.dart';
 import '../../../../data/models/fournisseur_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/models/vente_model.dart' show ModePaiement;
-import '../../../../data/repositories/caisse_repository.dart';
 import '../../../../data/repositories/approvisionnement_repository.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/fournisseur_repository.dart';
@@ -60,12 +60,7 @@ class ApprosController extends GetxController {
     final scope = UserController.to.scopeBoutiqueId;
     boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
     users.bindStream(_userRepo.watchScoped(scope: scope));
-    caisses.bindStream(CaisseRepository().watchScoped(
-      scope: scope,
-      gestionnaireId: UserController.to.isAnyAdmin
-          ? null
-          : UserController.to.user?.id,
-    ));
+    caisses.bindStream(CaisseContexte.watchCaisses(scope));
     fournisseurs.bindStream(_fournRepo.watchScoped(scope));
 
     if (scope != null) {

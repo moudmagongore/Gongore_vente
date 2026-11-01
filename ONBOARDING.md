@@ -285,6 +285,23 @@ vente, le détail d'une vente ni le reçu.
 
 ### Caisses et mouvements
 
+**Le module est ouvert boutique par boutique par le super-admin**
+(`boutiques/{id}.caissesActivees`, réglé depuis le formulaire boutique). Par
+défaut **fermé** : une boutique qui n'a pas le module se comporte exactement
+comme avant — caisses masquées, sélecteur de mode de paiement de retour, aucun
+solde touché. Les caisses et mouvements déjà enregistrés sont **conservés** et
+réapparaissent intacts si on rouvre le module.
+
+Le verrou a **un seul point de vérité**, `UserController.caissesModuleActif`,
+et **un seul point de passage** pour les données :
+`CaisseContexte.watchCaisses(scope)`. Les quatorze écrans qui chargent des
+caisses passent par là plutôt que par le repository, ce qui ferme le module
+partout d'un coup : liste vide ⇒ chaque écran retombe de lui-même sur le
+comportement RG-9, déjà recetté. Un nouvel écran qui appellerait
+`CaisseRepository` en direct contournerait le verrou — ne pas le faire.
+S'ajoutent le masquage des entrées de drawer et `CaisseGuard` sur les trois
+routes de caisse.
+
 Une **caisse** est un compte de trésorerie de la boutique : tiroir espèces,
 Orange Money, compte bancaire. L'admin les crée, le gestionnaire n'y a accès
 que si son uid figure dans `gestionnaireIds` de la caisse.

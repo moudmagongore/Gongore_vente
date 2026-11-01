@@ -37,6 +37,28 @@ class CaisseContexte {
 
   static const vide = CaisseContexte(caisses: [], boutiqueEquipee: false);
 
+  /// Stream des caisses visibles par l'utilisateur courant.
+  ///
+  /// **Passage obligé de tous les écrans.** Deux filtres y sont appliqués
+  /// d'un seul coup :
+  ///
+  /// 1. le module de caisse doit être ouvert à la boutique par le
+  ///    super-admin — sinon la liste est vide, et toute l'application
+  ///    retombe sur le comportement d'avant le module (RG-9) sans qu'aucun
+  ///    écran ait à le savoir ;
+  /// 2. un gestionnaire ne voit que les caisses où son uid figure.
+  ///
+  /// Les contrôleurs appellent ceci plutôt que `CaisseRepository` en direct :
+  /// un seul verrou, impossible à oublier en ajoutant un écran.
+  static Stream<List<CaisseModel>> watchCaisses(String? scope) {
+    final uc = UserController.to;
+    if (!uc.caissesModuleActif) return Stream.value(<CaisseModel>[]);
+    return CaisseRepository().watchScoped(
+      scope: scope,
+      gestionnaireId: uc.isAnyAdmin ? null : uc.user?.id,
+    );
+  }
+
   /// Charge le contexte d'une boutique. Deux lectures : le document
   /// boutique (pour le drapeau) et les caisses accessibles.
   ///
@@ -46,6 +68,9 @@ class CaisseContexte {
   static Future<CaisseContexte> charger(String boutiqueId) async {
     if (boutiqueId.isEmpty) return vide;
     final uc = UserController.to;
+    // Module fermé à cette boutique : l'opération se déroule comme avant,
+    // sans choix de caisse.
+    if (!uc.caissesModuleActif) return vide;
     try {
       final boutique = await BoutiqueRepository().getById(boutiqueId);
       final caisses = await CaisseRepository().getActives(

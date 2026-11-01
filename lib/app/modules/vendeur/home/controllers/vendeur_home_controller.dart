@@ -1,11 +1,11 @@
 import 'package:get/get.dart';
 
+import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/boutique_model.dart';
 import '../../../../data/models/caisse_model.dart';
 import '../../../../data/models/vente_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
-import '../../../../data/repositories/caisse_repository.dart';
 import '../../../../data/repositories/vente_repository.dart';
 
 class VendeurHomeController extends GetxController {
@@ -39,10 +39,7 @@ class VendeurHomeController extends GetxController {
     // boutique via le drawer. Les ventes du jour affichées doivent
     // correspondre à la boutique sélectionnée.
     final scope = UserController.to.scopeBoutiqueId;
-    caisses.bindStream(CaisseRepository().watchScoped(
-      scope: scope,
-      gestionnaireId: UserController.to.isAnyAdmin ? null : user.id,
-    ));
+    caisses.bindStream(CaisseContexte.watchCaisses(scope));
     if (scope != null && scope.isNotEmpty) {
       boutique.value = await _boutiqueRepo.getById(scope);
     }

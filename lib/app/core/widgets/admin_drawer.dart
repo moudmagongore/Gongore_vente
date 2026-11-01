@@ -170,12 +170,15 @@ class AdminDrawer extends StatelessWidget {
                         ),
                       ],
                     ),
-                    _Item(
-                      icon: Icons.account_balance_wallet_outlined,
-                      label: 'Caisses',
-                      route: AppRoutes.adminCaisses,
-                      currentRoute: currentRoute,
-                    ),
+                    // Module de caisse : ouvert boutique par boutique par
+                    // le super-admin.
+                    if (UserController.to.caissesModuleActif)
+                      _Item(
+                        icon: Icons.account_balance_wallet_outlined,
+                        label: 'Caisses',
+                        route: AppRoutes.adminCaisses,
+                        currentRoute: currentRoute,
+                      ),
                     _ExpansionGroup(
                       icon: Icons.savings_outlined,
                       title: 'Dépenses',
