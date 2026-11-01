@@ -588,6 +588,28 @@ Firestore n'a **pas** de `ON DELETE CASCADE`. Supprimer un produit laisse ses
 variantes orphelines : invisibles, inatteignables, toujours facturées. Les
 purger explicitement **avant** le parent (voir `MaintenanceRepository`).
 
+### Une transaction Firestore n'accepte aucune lecture après une écriture
+
+`CaisseRepository.appliquerPaiements` **lit puis écrit**. Appelée après le
+premier `tx.set` de l'opération, elle lève une erreur à l'exécution. Dans les
+cinq opérations branchées, elle est donc invoquée juste à la frontière entre la
+phase de lecture et la phase d'écriture — voir le commentaire `Étape 1b` /
+`Étape 1c` dans chaque repository. En ajouter une sixième, c'est respecter cet
+ordre.
+
+Corollaire : **aucune requête n'est possible dans une transaction**, seulement
+des `get` par référence. C'est pourquoi la paire de mouvements d'un transfert
+est retrouvée *avant* d'ouvrir la transaction, et pourquoi le contrôle « cette
+boutique a-t-elle une caisse ? » passe par le drapeau dénormalisé
+`boutiques/{id}.hasCaissesActives` plutôt que par un comptage.
+
+### L'auteur d'un mouvement de caisse doit être celui qui l'écrit
+
+Les règles imposent `request.resource.data.userId == request.auth.uid` à la
+création d'un `mouvementsCaisse`. Un mouvement de compensation doit donc porter
+l'uid de **celui qui annule**, jamais celui de l'auteur du mouvement d'origine —
+sinon l'écriture est refusée dès qu'une autre personne annule.
+
 ### Ne pas lancer `dart format` sur un fichier existant
 
 Le code n'est pas formaté au standard `dart format` : le lancer produit ~140
