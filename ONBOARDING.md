@@ -680,12 +680,17 @@ suivant le style du fichier.
 
 ```bash
 flutter analyze        # doit être à zéro problème
-flutter test           # suite Dart
-node --test scripts/test/marges.test.js   # suite des scripts
+flutter test           # 51 tests Dart
+node --test scripts/test/marges.test.js   # 18 tests, suite des scripts
 flutter build bundle --debug
 ```
 
 Le projet est maintenu **sans aucun avertissement d'analyse**. Le conserver.
+
+Ces suites ne couvrent que les calculs purs : **elles ne disent rien sur les
+transactions**. Toute modification touchant au stock, aux soldes ou aux
+caisses demande une recette manuelle sur un appareil, avec les trois rôles
+(cf. § 11).
 
 ---
 
@@ -751,11 +756,16 @@ gcloud firestore export gs://gongorevente.firebasestorage.app/backup-$(date +%F)
 
 ### Dette connue
 
-- **Tests encore très partiels** — seuls le calcul des marges et la
-  reconstitution du CMUP sont couverts (`test/marge_calculator_test.dart`,
-  `scripts/test/marges.test.js`). Les transactions elles-mêmes (stock, FIFO,
-  soldes client et fournisseur) n'ont aucun test, alors qu'elles sont le cœur
-  critique.
+- **Les transactions sont vérifiées, mais pas protégées.** Les suites
+  automatisées (51 tests Dart, 18 JS) couvrent les **calculs purs** :
+  `marge_calculator_test.dart`, `caisse_calculator_test.dart`,
+  `libelle_paiement_test.dart`, `scripts/test/marges.test.js`. Les
+  transactions elles-mêmes — stock, FIFO, soldes client, fournisseur et
+  caisse — ont été validées **par recette manuelle à chaque lot** et
+  fonctionnent. Mais rien ne les protège d'une régression : une modification
+  qui les casse passera l'analyse, les tests et le build sans alerte, et ne
+  se verra qu'en production. C'est le cœur critique de l'application, et le
+  chantier de test qui aurait le plus de valeur.
 - `vente_form_view.dart` et `appro_form_view.dart` dépassent 2 500 lignes et
   gagneraient à être découpés en widgets.
 - `README.md` est resté le template Flutter par défaut.
