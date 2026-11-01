@@ -402,6 +402,13 @@ Trois garde-fous à connaître :
 - l'auteur du mouvement de compensation est **celui qui annule**, pas l'auteur
   d'origine : les règles exigent `userId == request.auth.uid` à la création.
 
+Pour un transfert, le droit du gestionnaire (RG-24 : les **deux** caisses
+doivent lui être accessibles) est tranché par les règles Firestore et non par
+l'écran — le relevé ne montre qu'une caisse, il ne peut pas savoir si l'autre
+moitié lui est ouverte. Le bouton reste donc proposé, et `annulerMouvement`
+traduit le `permission-denied` en message métier. Choix assumé : cacher le
+bouton demanderait de charger le mouvement jumeau à chaque affichage.
+
 ### Relevé de caisse
 
 `modules/admin/caisses/` → `releve_caisse_*`. Le solde de départ se calcule de

@@ -486,6 +486,36 @@ class CaisseRepository {
       );
     }
 
+    final estTransfert =
+        mouvement.transfertId != null && mouvement.transfertId!.isNotEmpty;
+
+    // Un gestionnaire ne peut annuler un transfert que si les DEUX caisses
+    // lui sont accessibles (RG-24). Le contrôle est fait par les règles
+    // Firestore, pas par l'écran : le relevé ne montre qu'une caisse, il
+    // ne peut pas savoir si l'autre moitié lui est ouverte.
+    //
+    // Le refus arrive donc sous forme de `permission-denied`, sur la
+    // requête de la paire ou sur l'écriture. On le traduit ici en message
+    // lisible — l'appelant affiche `CaisseException.message` tel quel.
+    try {
+      await _annuler(mouvement, userId: userId, userNom: userNom);
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied') rethrow;
+      throw CaisseException(
+        estTransfert
+            ? 'Ce transfert touche une caisse qui ne vous est pas '
+                'accessible : seul un administrateur peut l\'annuler.'
+            : 'Vous n\'avez pas accès à cette caisse : demandez à votre '
+                'administrateur d\'annuler ce mouvement.',
+      );
+    }
+  }
+
+  Future<void> _annuler(
+    MouvementCaisseModel mouvement, {
+    required String userId,
+    required String userNom,
+  }) async {
     // Un transfert a deux mouvements liés. La requête est faite HORS
     // transaction (Firestore n'y autorise pas de requête), puis chaque
     // document est relu dedans pour travailler sur l'état frais.
