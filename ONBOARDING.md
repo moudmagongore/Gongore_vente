@@ -373,6 +373,47 @@ espèces ») et des ventes antérieures qui ne portent qu'un mode (« Espèces �
 Une vente encaissée sur plusieurs caisses compte une fois par caisse, au
 prorata — sinon un paiement mixte faussserait le total.
 
+### Transferts, apports, retraits, corrections
+
+Quatre mouvements sans opération derrière eux, dans `CaisseRepository` :
+
+- **transfert** (`transferer`) : une sortie et une entrée écrites ensemble,
+  liées par un `transfertId`. La règle du solde négatif ne s'applique qu'à la
+  source. L'admin transfère entre toutes ses caisses, le gestionnaire
+  seulement entre deux caisses qui lui sont accessibles — son stream ne
+  contient que celles-là, le filtrage est donc automatique ;
+- **apport / retrait / correction** (`mouvementManuel`) : réservés à l'admin,
+  **motif obligatoire**. Une correction peut viser une caisse désactivée,
+  c'est tout l'intérêt : rattraper un solde faux sur une caisse qu'on
+  n'utilise plus.
+
+Ces quatre-là ne sont **ni des ventes ni des dépenses** : ils ne vivent que
+dans `mouvementsCaisse`, qu'aucun rapport de vente ne lit. Ils n'entrent donc
+pas dans le chiffre d'affaires, les charges ni les marges (RG-28).
+
+`annulerMouvement` écrit l'inverse d'un mouvement, jamais ne le supprime.
+Trois garde-fous à connaître :
+
+- un mouvement **issu d'une opération** est refusé : on annule l'opération
+  elle-même, sinon stock, soldes client et marges resteraient inchangés ;
+- un **transfert** compense ses **deux** mouvements. La paire est retrouvée par
+  une requête sur `transfertId` faite **hors** transaction (Firestore n'y
+  autorise pas de requête), puis chaque document est relu dedans ;
+- l'auteur du mouvement de compensation est **celui qui annule**, pas l'auteur
+  d'origine : les règles exigent `userId == request.auth.uid` à la création.
+
+### Relevé de caisse
+
+`modules/admin/caisses/` → `releve_caisse_*`. Le solde de départ se calcule de
+deux façons, selon que la période contient des mouvements : s'il y en a, il se
+déduit du plus ancien (`soldeApres - montantSigne`, aucune lecture de plus) ;
+sinon il faut aller chercher le dernier mouvement antérieur
+(`dernierMouvementAvant`), sans quoi on ne distinguerait pas une caisse à zéro
+d'une caisse pleine mais inactive sur la période.
+
+Le relevé est **toujours mono-caisse** — voir § 7. L'export PDF est en A4 et
+non en 80 mm : c'est un document de contrôle, pas un ticket client.
+
 Côté dépense, deux conséquences du gel des mouvements :
 
 - **le montant devient immuable** dès qu'une caisse a payé la dépense —
@@ -634,9 +675,10 @@ gcloud firestore export gs://gongorevente.firebasestorage.app/backup-$(date +%F)
 - **iOS** : adoption d'UIScene et cible iOS 15 pour Xcode 27
 - **Lot 2 étape 2.1** : création et paramétrage des caisses, accès par
   gestionnaire, helper de mouvements testé. Recetté
-- **Lot 2 étape 2.2 complète** : les cinq opérations sont branchées sur les
-  caisses, le mode de paiement est remplacé par la caisse partout, et le reçu
-  de vente détaille la répartition — **non encore recetté**
+- **Lot 2 complet** : caisses paramétrables, cinq opérations branchées,
+  transferts, apports, retraits et corrections, relevé de caisse avec export
+  PDF, trésorerie au tableau de bord et synthèse par caisse dans les rapports
+  — **seule l'étape 2.1 a été recettée**
 
 ### Dette connue
 

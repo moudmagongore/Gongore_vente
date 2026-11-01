@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 
 import '../../../../core/services/user_controller.dart';
+import '../../../../data/models/mouvement_caisse_model.dart';
 import '../../../../data/models/approvisionnement_model.dart';
 import '../../../../data/models/boutique_model.dart';
 import '../../../../data/models/depense_model.dart';
@@ -8,6 +9,7 @@ import '../../../../data/models/fournisseur_model.dart';
 import '../../../../data/models/produit_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/models/vente_model.dart';
+import '../../../../data/repositories/caisse_repository.dart';
 import '../../../../data/repositories/approvisionnement_repository.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/depense_repository.dart';
@@ -17,6 +19,23 @@ import '../../../../data/repositories/user_repository.dart';
 import '../../../../data/repositories/vente_repository.dart';
 
 enum PeriodePreset { jour, semaine, mois, trimestre, personnalise }
+
+/// Entrées, sorties et variation d'une caisse sur la période (RG-32).
+class SyntheseCaisse {
+  final String caisseId;
+  final String nom;
+  final double entrees;
+  final double sorties;
+
+  const SyntheseCaisse({
+    required this.caisseId,
+    required this.nom,
+    required this.entrees,
+    required this.sorties,
+  });
+
+  double get variation => entrees - sorties;
+}
 
 class RapportsController extends GetxController {
   final VenteRepository _venteRepo = VenteRepository();
@@ -44,6 +63,14 @@ class RapportsController extends GetxController {
   final RxList<ProduitModel> produits = <ProduitModel>[].obs;
   final RxList<FournisseurModel> fournisseurs = <FournisseurModel>[].obs;
   final RxList<DepenseModel> depenses = <DepenseModel>[].obs;
+
+  /// Synthèse de trésorerie par caisse sur la période (RG-32).
+  ///
+  /// Chargée par une requête ponctuelle et non par un stream : elle
+  /// balaie toutes les caisses de la boutique, ce qui n'est permis qu'à
+  /// l'admin — la règle de lecture d'un gestionnaire exige un `get()` par
+  /// caisse et ferait sauter le quota sur une requête multi-caisses.
+  final RxList<SyntheseCaisse> syntheseCaisses = <SyntheseCaisse>[].obs;
 
   final RxBool isLoading = true.obs;
 
@@ -150,8 +177,54 @@ class RapportsController extends GetxController {
       before: dateFin.value.add(const Duration(seconds: 1)),
       limit: 1000,
     ));
+    _chargerSyntheseCaisses();
     debounce(ventes, (_) => isLoading.value = false,
         time: const Duration(milliseconds: 250));
+  }
+
+  /// Agrège les mouvements de caisse de la période par caisse.
+  ///
+  /// Les mouvements d'annulation ne sont pas écartés : ils sont de vraies
+  /// entrées et sorties, et les retirer ferait mentir la variation.
+  Future<void> _chargerSyntheseCaisses() async {
+    final bid = boutiqueId.value;
+    if (bid == null || bid.isEmpty || !UserController.to.isAnyAdmin) {
+      syntheseCaisses.clear();
+      return;
+    }
+    try {
+      final mouvements = await CaisseRepository().mouvementsDeLaBoutique(
+        boutiqueId: bid,
+        after: dateDebut.value,
+        before: dateFin.value.add(const Duration(seconds: 1)),
+      );
+      final parCaisse = <String, ({String nom, double entrees, double sorties})>{};
+      for (final m in mouvements) {
+        final cur = parCaisse[m.caisseId] ??
+            (nom: m.caisseNom, entrees: 0.0, sorties: 0.0);
+        parCaisse[m.caisseId] = (
+          nom: cur.nom,
+          entrees: cur.entrees +
+              (m.sens == SensMouvement.entree ? m.montant : 0),
+          sorties: cur.sorties +
+              (m.sens == SensMouvement.sortie ? m.montant : 0),
+        );
+      }
+      final list = parCaisse.entries
+          .map((e) => SyntheseCaisse(
+                caisseId: e.key,
+                nom: e.value.nom,
+                entrees: e.value.entrees,
+                sorties: e.value.sorties,
+              ))
+          .toList()
+        ..sort((a, b) => b.variation.abs().compareTo(a.variation.abs()));
+      syntheseCaisses.assignAll(list);
+    } catch (_) {
+      // Une synthèse de trésorerie indisponible ne doit pas priver
+      // l'utilisateur du reste du rapport.
+      syntheseCaisses.clear();
+    }
   }
 
   // ====== Helpers ======

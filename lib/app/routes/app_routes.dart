@@ -49,6 +49,9 @@ abstract class AppRoutes {
   static const adminCaisses = '/admin/caisses';
   static const adminCaisseForm = '/admin/caisses/form';
 
+  /// Relevé d'une caisse. Accessible au gestionnaire pour ses caisses.
+  static const caisseReleve = '/admin/caisses/releve';
+
   static const adminDepenses = '/admin/depenses';
   static const adminNaturesDepense = '/admin/depenses/natures';
   static const adminNatureDepenseForm = '/admin/depenses/natures/form';

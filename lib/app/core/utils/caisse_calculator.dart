@@ -171,3 +171,60 @@ PlanPaiements planifierPaiements({
 
   return PlanPaiements(mouvements: mouvements, sens: sens);
 }
+
+/// Plan d'un transfert entre deux caisses : une sortie et une entrée,
+/// toujours écrites ensemble (RG-22).
+class PlanTransfert {
+  final MouvementPlanifie sortie;
+  final MouvementPlanifie entree;
+  const PlanTransfert({required this.sortie, required this.entree});
+}
+
+/// Calcule les deux mouvements d'un transfert.
+///
+/// La règle du solde négatif ne s'applique qu'à la caisse **source** : la
+/// destination ne peut que monter.
+///
+/// Lève [CaisseException] si les deux caisses sont la même, si le montant
+/// est nul ou négatif, ou si la source passerait sous zéro sans y être
+/// autorisée.
+PlanTransfert planifierTransfert({
+  required CaisseModel source,
+  required CaisseModel destination,
+  required double montant,
+}) {
+  if (source.id == destination.id) {
+    throw CaisseException(
+      'La caisse de départ et la caisse d\'arrivée doivent être '
+      'différentes.',
+    );
+  }
+  if (montant <= 0) {
+    throw CaisseException('Le montant doit être supérieur à 0.');
+  }
+
+  final soldeSource = source.solde - montant;
+  if (soldeSource < -_epsilon && !source.autoriseNegatif) {
+    throw CaisseException(
+      'Solde insuffisant sur ${source.nom} '
+      '(disponible : ${Fmt.money(source.solde, currency: 'GNF')}).',
+    );
+  }
+
+  return PlanTransfert(
+    sortie: MouvementPlanifie(
+      caisseId: source.id,
+      caisseNom: source.nom,
+      montant: montant,
+      soldeAvant: source.solde,
+      soldeApres: soldeSource,
+    ),
+    entree: MouvementPlanifie(
+      caisseId: destination.id,
+      caisseNom: destination.nom,
+      montant: montant,
+      soldeAvant: destination.solde,
+      soldeApres: destination.solde + montant,
+    ),
+  );
+}

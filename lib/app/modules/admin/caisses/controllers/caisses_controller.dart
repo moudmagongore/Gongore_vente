@@ -87,6 +87,31 @@ class CaissesController extends GetxController {
 
   int get nbActives => _all.where((c) => c.active).length;
 
+  /// Caisses actives visibles par l'utilisateur, filtre boutique appliqué.
+  ///
+  /// Sert aux transferts et aux mouvements manuels : pour un gestionnaire,
+  /// le stream ne contient déjà que ses caisses accessibles (RG-21).
+  List<CaisseModel> get caissesActives {
+    final boutiqueFilter = filterBoutiqueId.value;
+    return _all.where((c) {
+      if (!c.active) return false;
+      if (boutiqueFilter != null && c.boutiqueId != boutiqueFilter) {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  /// Toutes les caisses visibles, désactivées comprises : une correction
+  /// doit pouvoir viser une caisse qu'on a cessé d'utiliser.
+  List<CaisseModel> get caisses => _all.toList();
+
+  /// Un transfert exige deux caisses accessibles (RG-20, RG-21).
+  bool get peutTransferer => caissesActives.length >= 2;
+
+  /// Apports, retraits et corrections sont réservés à l'admin (RG-25).
+  bool get peutMouvementManuel => canManage && _all.isNotEmpty;
+
   /// Total des caisses affichées. Il suit donc la recherche et les
   /// filtres : c'est voulu, l'utilisateur veut le total de ce qu'il voit.
   double get soldeTotal =>

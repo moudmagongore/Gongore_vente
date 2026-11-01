@@ -7,6 +7,8 @@ import '../../../../data/models/caisse_model.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../../theme/app_colors.dart';
 import '../controllers/caisses_controller.dart';
+import '../widgets/mouvement_manuel_sheet.dart';
+import '../widgets/transfert_sheet.dart';
 
 /// Liste des caisses d'une boutique.
 ///
@@ -22,6 +24,48 @@ class CaissesListView extends GetView<CaissesController> {
     return Scaffold(
       appBar: AppBar(
         title: Text(canManage ? 'Caisses' : 'Mes caisses'),
+        actions: [
+          Obx(() {
+            // Lectures explicites : les actions dépendent de la liste, qui
+            // arrive par stream.
+            controller.caisses.length;
+            final actions = <PopupMenuEntry<String>>[
+              if (controller.peutTransferer)
+                const PopupMenuItem(
+                  value: 'transfert',
+                  child: ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.swap_horiz_rounded),
+                    title: Text('Transférer'),
+                  ),
+                ),
+              if (controller.peutMouvementManuel)
+                const PopupMenuItem(
+                  value: 'manuel',
+                  child: ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.tune_rounded),
+                    title: Text('Apport / Retrait / Correction'),
+                  ),
+                ),
+            ];
+            if (actions.isEmpty) return const SizedBox.shrink();
+            return PopupMenuButton<String>(
+              tooltip: 'Opérations de caisse',
+              icon: const Icon(Icons.more_vert_rounded),
+              onSelected: (v) {
+                if (v == 'transfert') {
+                  TransfertSheet.open(context, controller);
+                } else {
+                  MouvementManuelSheet.open(context, controller);
+                }
+              },
+              itemBuilder: (_) => actions,
+            );
+          }),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(64),
           child: Padding(
@@ -199,9 +243,10 @@ class _CaisseTile extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: c.canManage
-            ? () => Get.toNamed(AppRoutes.adminCaisseForm, arguments: caisse)
-            : null,
+        // Taper une caisse ouvre son relevé — c'est ce qu'on vient voir le
+        // plus souvent. Le paramétrage passe par le menu d'actions.
+        onTap: () =>
+            Get.toNamed(AppRoutes.caisseReleve, arguments: caisse),
         child: Padding(
           padding: EdgeInsets.fromLTRB(14, 14, c.canManage ? 8 : 14, 14),
           child: Row(
@@ -292,6 +337,17 @@ class _CaisseTile extends StatelessWidget {
                   tooltip: 'Actions',
                   onSelected: (v) {
                     switch (v) {
+                      case 'releve':
+                        Get.toNamed(AppRoutes.caisseReleve,
+                            arguments: caisse);
+                        break;
+                      case 'transfert':
+                        TransfertSheet.open(context, c, source: caisse);
+                        break;
+                      case 'manuel':
+                        MouvementManuelSheet.open(context, c,
+                            caisse: caisse);
+                        break;
                       case 'edit':
                         Get.toNamed(AppRoutes.adminCaisseForm,
                             arguments: caisse);
@@ -305,6 +361,35 @@ class _CaisseTile extends StatelessWidget {
                     }
                   },
                   itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: 'releve',
+                      child: ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(Icons.receipt_long_outlined),
+                        title: Text('Relevé'),
+                      ),
+                    ),
+                    if (c.peutTransferer)
+                      const PopupMenuItem(
+                        value: 'transfert',
+                        child: ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.swap_horiz_rounded),
+                          title: Text('Transférer depuis'),
+                        ),
+                      ),
+                    if (c.peutMouvementManuel)
+                      const PopupMenuItem(
+                        value: 'manuel',
+                        child: ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.tune_rounded),
+                          title: Text('Apport / Retrait / Correction'),
+                        ),
+                      ),
                     const PopupMenuItem(
                       value: 'edit',
                       child: ListTile(

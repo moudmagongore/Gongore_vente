@@ -47,6 +47,80 @@ void main() {
     });
   });
 
+  group('planifierTransfert', () {
+    test('cas nominal : la source baisse, la destination monte', () {
+      final plan = planifierTransfert(
+        source: _caisse('tiroir', solde: 1500000),
+        destination: _caisse('banque', solde: 200000),
+        montant: 1000000,
+      );
+      expect(plan.sortie.soldeApres, 500000);
+      expect(plan.entree.soldeApres, 1200000);
+      expect(plan.sortie.montant, plan.entree.montant);
+    });
+
+    test('meme caisse en depart et arrivee : refuse', () {
+      expect(
+        () => planifierTransfert(
+          source: _caisse('tiroir', solde: 1000),
+          destination: _caisse('tiroir', solde: 1000),
+          montant: 100,
+        ),
+        throwsA(isA<CaisseException>()),
+      );
+    });
+
+    test('source insuffisante : refuse', () {
+      expect(
+        () => planifierTransfert(
+          source: _caisse('tiroir', solde: 500),
+          destination: _caisse('banque', solde: 0),
+          montant: 1000,
+        ),
+        throwsA(isA<CaisseException>()),
+      );
+    });
+
+    test('source autorisee au negatif : accepte', () {
+      final plan = planifierTransfert(
+        source: _caisse('tiroir', solde: 500, autoriseNegatif: true),
+        destination: _caisse('banque', solde: 0),
+        montant: 1000,
+      );
+      expect(plan.sortie.soldeApres, -500);
+    });
+
+    test('la destination peut etre non autorisee au negatif : elle monte', () {
+      final plan = planifierTransfert(
+        source: _caisse('tiroir', solde: 1000),
+        destination: _caisse('banque', solde: 0),
+        montant: 1000,
+      );
+      expect(plan.sortie.soldeApres, 0);
+      expect(plan.entree.soldeApres, 1000);
+    });
+
+    test('montant nul : refuse', () {
+      expect(
+        () => planifierTransfert(
+          source: _caisse('a', solde: 1000),
+          destination: _caisse('b'),
+          montant: 0,
+        ),
+        throwsA(isA<CaisseException>()),
+      );
+    });
+
+    test('transferer tout le solde disponible passe', () {
+      final plan = planifierTransfert(
+        source: _caisse('a', solde: 0.1 + 0.2),
+        destination: _caisse('b'),
+        montant: 0.3,
+      );
+      expect(plan.sortie.soldeApres.abs(), lessThan(0.000001));
+    });
+  });
+
   group('verifierRepartition', () {
     test('repartition exacte : aucun probleme', () {
       expect(

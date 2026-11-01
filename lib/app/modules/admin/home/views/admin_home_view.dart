@@ -9,6 +9,7 @@ import '../../../../core/widgets/admin_drawer.dart';
 import '../../../../core/widgets/subscription_badge_card.dart';
 import '../../../../core/widgets/subscription_warning_banner.dart';
 import '../../../../routes/app_routes.dart';
+import '../../../../core/widgets/caisses_soldes_card.dart';
 import '../../../../theme/app_colors.dart';
 import '../../dashboard/controllers/dashboard_controller.dart';
 
@@ -67,6 +68,11 @@ class AdminHomeView extends StatelessWidget {
               // super-admin et users sans boutiqueId).
               const SubscriptionBadgeCard(),
               const SizedBox(height: 16),
+              // Trésorerie : masquée d'elle-même si la boutique n'a pas
+              // encore de caisse (RG-9).
+              Obx(() => CaissesSoldesCard(caisses: c.caisses.toList())),
+              Obx(() => SizedBox(
+                  height: c.caisses.any((x) => x.active) ? 20 : 0)),
               const _SectionTitle('Aujourd\'hui'),
               const SizedBox(height: 10),
               _KpisJour(c: c),
@@ -88,7 +94,7 @@ class AdminHomeView extends StatelessWidget {
               const SizedBox(height: 10),
               _ChartCard(child: _BarChartTopProduits(c: c)),
               const SizedBox(height: 20),
-              const _SectionTitle('Modes de paiement (mois)'),
+              const _SectionTitle('Encaissements par canal (mois)'),
               const SizedBox(height: 10),
               _ChartCard(child: _PiePaiements(c: c)),
               const SizedBox(height: 20),

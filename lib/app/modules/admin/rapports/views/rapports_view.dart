@@ -58,13 +58,32 @@ class RapportsView extends GetView<RapportsController> {
             _FinancierSection(c: controller),
             const SizedBox(height: 20),
 
-            // ====== Section Modes paiement ======
+            // ====== Section Canaux d'encaissement ======
             const _SectionTitle(
-                label: 'Modes de paiement',
+                label: 'Encaissements par canal',
                 icon: Icons.payments_outlined),
             const SizedBox(height: 10),
             _PaiementsSection(c: controller),
             const SizedBox(height: 20),
+
+            // ====== Section Trésorerie par caisse (RG-32) ======
+            // Toute la section disparaît s'il n'y a pas de mouvement :
+            // inutile sur une boutique qui n'a pas encore de caisse.
+            Obx(() {
+              if (controller.syntheseCaisses.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return Column(
+                children: [
+                  const _SectionTitle(
+                      label: 'Trésorerie par caisse',
+                      icon: Icons.account_balance_outlined),
+                  const SizedBox(height: 10),
+                  _CaissesSection(c: controller),
+                  const SizedBox(height: 20),
+                ],
+              );
+            }),
 
             // ====== Section Top produits ======
             const _SectionTitle(
@@ -913,5 +932,72 @@ class _Row extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+
+/// Entrées, sorties et variation de chaque caisse sur la période (RG-32).
+class _CaissesSection extends StatelessWidget {
+  final RapportsController c;
+  const _CaissesSection({required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final list = c.syntheseCaisses;
+      if (list.isEmpty) {
+        return const _EmptyCard(
+            message: 'Aucun mouvement de caisse sur cette période');
+      }
+      return Card(
+        child: Column(
+          children: [
+            for (final s in list)
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            s.nom,
+                            style: const TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w700),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          '${s.variation >= 0 ? '+' : '−'} '
+                          '${Fmt.money(s.variation.abs(), currency: 'GNF')}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: s.variation >= 0
+                                ? AppColors.success
+                                : AppColors.danger,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Entrées ${Fmt.money(s.entrees, currency: 'GNF')}'
+                      '  ·  Sorties ${Fmt.money(s.sorties, currency: 'GNF')}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.greyText(context, 600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      );
+    });
   }
 }

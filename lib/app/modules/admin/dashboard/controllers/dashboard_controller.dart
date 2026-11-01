@@ -1,11 +1,13 @@
 import 'package:get/get.dart';
 
 import '../../../../core/services/user_controller.dart';
+import '../../../../data/models/caisse_model.dart';
 import '../../../../data/models/boutique_model.dart';
 import '../../../../data/models/depense_model.dart';
 import '../../../../data/models/produit_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/models/vente_model.dart';
+import '../../../../data/repositories/caisse_repository.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/depense_repository.dart';
 import '../../../../data/repositories/produit_repository.dart';
@@ -42,6 +44,9 @@ class DashboardController extends GetxController {
   // ====== Données live ======
   /// Toutes les ventes du mois courant (limit 500 par sécurité)
   final RxList<VenteModel> _ventesMois = <VenteModel>[].obs;
+
+  /// Caisses visibles par l'utilisateur, pour la carte Trésorerie (RG-31).
+  final RxList<CaisseModel> caisses = <CaisseModel>[].obs;
   final RxList<BoutiqueModel> boutiques = <BoutiqueModel>[].obs;
   final RxList<UserModel> users = <UserModel>[].obs;
   final RxList<ProduitModel> produits = <ProduitModel>[].obs;
@@ -59,6 +64,13 @@ class DashboardController extends GetxController {
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
     final scope = UserController.to.scopeBoutiqueId;
+
+    caisses.bindStream(CaisseRepository().watchScoped(
+      scope: scope,
+      gestionnaireId: UserController.to.isAnyAdmin
+          ? null
+          : UserController.to.user?.id,
+    ));
 
     _ventesMois.bindStream(_venteRepo.watchAll(
       after: startOfMonth,

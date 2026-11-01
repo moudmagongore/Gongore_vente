@@ -24,8 +24,10 @@ import '../modules/admin/clients/views/client_form_view.dart';
 import '../modules/admin/clients/views/clients_list_view.dart';
 import '../modules/admin/caisses/bindings/caisse_form_binding.dart';
 import '../modules/admin/caisses/bindings/caisses_binding.dart';
+import '../modules/admin/caisses/bindings/releve_caisse_binding.dart';
 import '../modules/admin/caisses/views/caisse_form_view.dart';
 import '../modules/admin/caisses/views/caisses_list_view.dart';
+import '../modules/admin/caisses/views/releve_caisse_view.dart';
 import '../modules/admin/depenses/bindings/depenses_binding.dart';
 import '../modules/admin/depenses/bindings/nature_depense_form_binding.dart';
 import '../modules/admin/depenses/bindings/natures_depense_binding.dart';
@@ -279,6 +281,14 @@ class AppPages {
       binding: CaissesBinding(),
       // AuthGuard : le gestionnaire y accède en lecture seule (la vue et
       // les règles Firestore limitent ce qu'il voit à ses caisses).
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.caisseReleve,
+      page: () => const ReleveCaisseView(),
+      binding: ReleveCaisseBinding(),
+      // AuthGuard : le gestionnaire consulte le relevé de ses caisses
+      // accessibles (RG-30). Les règles Firestore font le tri.
       middlewares: [AuthGuard()],
     ),
     GetPage(
