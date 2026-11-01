@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/services/appro_receipt_service.dart';
 import '../../../../core/services/user_controller.dart';
+import '../../../../data/models/caisse_model.dart';
 import '../../../../data/models/approvisionnement_model.dart';
 import '../../../../data/models/boutique_model.dart';
 import '../../../../data/models/fournisseur_model.dart';
@@ -31,7 +33,16 @@ class ApprosController extends GetxController {
   final RxnString filterBoutiqueId = RxnString();
   final RxnString filterUserId = RxnString();
   final RxnString filterFournisseurId = RxnString();
+  /// Ancien filtre « mode de paiement » : ne concerne plus que les
+  /// arrivages antérieurs aux caisses. L'écran ne le propose que si la
+  /// boutique n'en a pas.
   final Rxn<ModePaiement> filterModePaiement = Rxn<ModePaiement>();
+
+  /// Filtre par caisse, qui le remplace dès qu'une caisse existe.
+  final RxnString filterCaisseId = RxnString();
+
+  /// Caisses accessibles, pour les chips de filtre.
+  final RxList<CaisseModel> caisses = <CaisseModel>[].obs;
   final RxBool inclureAnnulees = false.obs;
   final RxBool onlyAvecCredit = false.obs;
   final RxString search = ''.obs;
@@ -49,6 +60,7 @@ class ApprosController extends GetxController {
     final scope = UserController.to.scopeBoutiqueId;
     boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
     users.bindStream(_userRepo.watchScoped(scope: scope));
+    caisses.bindStream(CaisseContexte.watchCaisses(scope));
     fournisseurs.bindStream(_fournRepo.watchScoped(scope));
 
     if (scope != null) {
@@ -105,6 +117,11 @@ class ApprosController extends GetxController {
     return _all.where((a) {
       if (avant != null && a.date.isAfter(avant)) return false;
       if (!inclureAnnulees.value && a.statut == ApproStatut.annulee) {
+        return false;
+      }
+      final caisseFiltre = filterCaisseId.value;
+      if (caisseFiltre != null &&
+          !a.paiements.any((p) => p.caisseId == caisseFiltre)) {
         return false;
       }
       if (filterModePaiement.value != null &&

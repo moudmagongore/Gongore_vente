@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../core/widgets/subscription_badge_card.dart';
+import '../../../../core/widgets/support_contact_block.dart';
 import '../../../../data/models/abonnement_model.dart';
 import '../../../../theme/app_colors.dart';
 import '../controllers/mon_abonnement_controller.dart';
@@ -40,6 +41,16 @@ class MonAbonnementView extends GetView<MonAbonnementController> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             children: [
               _StatusCard(status: status, boutiqueNom: boutique.nom),
+              // Coordonnées de l'éditeur, uniquement quand il y a quelque
+              // chose à régulariser : abonnement en fin de vie, déjà
+              // expiré, ou jamais payé. Inutile de les afficher quand tout
+              // est en règle.
+              if (status.isCritical ||
+                  status.isExpired ||
+                  status.daysRemaining == null) ...[
+                const SizedBox(height: 12),
+                _ContactCard(color: status.color),
+              ],
               const SizedBox(height: 20),
               const _SectionTitle('Historique des paiements'),
               const SizedBox(height: 8),
@@ -140,6 +151,25 @@ class _StatusCard extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// Encart « qui contacter » sous la carte de statut.
+class _ContactCard extends StatelessWidget {
+  final Color color;
+  const _ContactCard({required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: SupportContactBlock(
+          accent: color,
+          intro: 'Pour renouveler ou réactiver votre abonnement :',
+        ),
       ),
     );
   }

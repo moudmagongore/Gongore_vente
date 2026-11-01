@@ -9,6 +9,7 @@ import '../../../../data/models/variante_model.dart';
 import '../../../../data/models/vente_model.dart';
 import '../../../../data/repositories/produit_repository.dart';
 import '../../../../routes/app_routes.dart';
+import '../../../../core/widgets/paiements_caisse_field.dart';
 import '../../../../theme/app_colors.dart';
 import '../controllers/vente_form_controller.dart';
 
@@ -82,11 +83,14 @@ class _ClientBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => _openClientPicker(context),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-        child: Row(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          onTap: () => _openClientPicker(context),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
@@ -151,11 +155,55 @@ class _ClientBar extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.keyboard_arrow_right_rounded,
-                color: AppColors.greyText(context, 700)),
-          ],
+                Icon(Icons.keyboard_arrow_right_rounded,
+                    color: AppColors.greyText(context, 700)),
+              ],
+            ),
+          ),
         ),
-      ),
+        // Identité du client de passage : n'a de sens que sans fiche
+        // client, un client fiché portant déjà nom et téléphone.
+        Obx(() {
+          if (!controller.isClientDivers) return const SizedBox.shrink();
+          final nom = controller.clientNomLibre.value;
+          final tel = controller.clientTelLibre.value;
+          final vide = nom.isEmpty && tel.isEmpty;
+          return InkWell(
+            onTap: () => _openClientDivers(context),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.person_add_alt_rounded,
+                    size: 18,
+                    color: AppColors.greyText(context, 600),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      vide
+                          ? 'Nom du client (facultatif)'
+                          : [nom, tel].where((e) => e.isNotEmpty).join(' · '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: vide ? FontWeight.w400 : FontWeight.w600,
+                        color: vide
+                            ? AppColors.greyText(context, 600)
+                            : null,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.keyboard_arrow_right_rounded,
+                      size: 20, color: AppColors.greyText(context, 600)),
+                ],
+              ),
+            ),
+          );
+        }),
+      ],
     );
   }
 
@@ -164,6 +212,167 @@ class _ClientBar extends StatelessWidget {
       _ClientPickerSheet(controller: controller),
       isScrollControlled: true,
       backgroundColor: Theme.of(context).cardTheme.color,
+    );
+  }
+
+  void _openClientDivers(BuildContext context) {
+    Get.bottomSheet(
+      _ClientDiversSheet(controller: controller),
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).cardTheme.color,
+    );
+  }
+}
+
+// ============================================================================
+// Bottom sheet : identité d'un client de passage (nom + téléphone)
+// ============================================================================
+
+class _ClientDiversSheet extends StatefulWidget {
+  final VenteFormController controller;
+  const _ClientDiversSheet({required this.controller});
+
+  @override
+  State<_ClientDiversSheet> createState() => _ClientDiversSheetState();
+}
+
+class _ClientDiversSheetState extends State<_ClientDiversSheet> {
+  late final TextEditingController _nomCtrl;
+  late final TextEditingController _telCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _nomCtrl =
+        TextEditingController(text: widget.controller.clientNomLibre.value);
+    _telCtrl =
+        TextEditingController(text: widget.controller.clientTelLibre.value);
+  }
+
+  @override
+  void dispose() {
+    _nomCtrl.dispose();
+    _telCtrl.dispose();
+    super.dispose();
+  }
+
+  void _valider() {
+    widget.controller.setClientLibre(_nomCtrl.text, tel: _telCtrl.text);
+    Get.back();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    final viewInsets = mq.viewInsets.bottom;
+    // Plafond sur la hauteur VISIBLE : le sheet ne déborde pas quand le
+    // clavier s'ouvre. Get.bottomSheet remonte déjà le sheet au-dessus du
+    // clavier, on ne compense donc que le home indicator / la barre Android.
+    final maxH = (mq.size.height - viewInsets) * kBottomSheetMaxHeightRatio;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxH),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardTheme.color,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(20, 8, 20, mq.viewPadding.bottom + 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade400,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color:
+                          AppColors.primary(context).withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.storefront_rounded,
+                      color: AppColors.primary(context),
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Client de passage',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Facultatif — n\'ouvre aucune fiche client',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: AppColors.greyText(context, 600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Get.back(),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _nomCtrl,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: 'Nom complet',
+                  prefixIcon: Icon(Icons.person_outline_rounded),
+                ),
+                textCapitalization: TextCapitalization.words,
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _telCtrl,
+                decoration: const InputDecoration(
+                  hintText: 'Téléphone',
+                  prefixIcon: Icon(Icons.phone_outlined),
+                ),
+                keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _valider(),
+              ),
+              const SizedBox(height: 18),
+              // Pleine largeur, fond primary et texte blanc viennent du
+              // `elevatedButtonTheme` — rien à surcharger ici.
+              ElevatedButton.icon(
+                onPressed: _valider,
+                icon: const Icon(Icons.check_rounded, size: 20),
+                label: const Text('Valider'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -178,18 +387,10 @@ class _ClientPickerSheet extends StatefulWidget {
 
 class _ClientPickerSheetState extends State<_ClientPickerSheet> {
   final _searchCtrl = TextEditingController();
-  final _libreCtrl = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _libreCtrl.text = widget.controller.clientNomLibre.value;
-  }
 
   @override
   void dispose() {
     _searchCtrl.dispose();
-    _libreCtrl.dispose();
     super.dispose();
   }
 
@@ -256,56 +457,61 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                   ],
                 ),
               ),
-              // Section client divers
+              // Retour au client de passage. La saisie de son identité
+              // (nom / téléphone) se fait depuis la barre client, dans son
+              // propre sheet : la dupliquer ici brouillerait le rôle de cet
+              // écran, qui est de choisir une FICHE client.
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Client de passage',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.3,
-                        color: AppColors.greyText(context, 600),
-                      ),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () {
+                    widget.controller.resetClient();
+                    Get.back();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary(context)
+                          .withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.borderOf(context)),
                     ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _libreCtrl,
-                      decoration: InputDecoration(
-                        hintText: 'Nom libre (ex. M. Camara au comptant)',
-                        prefixIcon: const Icon(Icons.person_outline_rounded),
-                        suffixIcon: TextButton(
-                          onPressed: () {
-                            widget.controller
-                                .setClientNomLibre(_libreCtrl.text);
-                            Get.back();
-                          },
-                          child: const Text('Valider'),
+                    child: Row(
+                      children: [
+                        Icon(Icons.storefront_rounded,
+                            size: 20, color: AppColors.primary(context)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                'Client de passage',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                'Vente sans fiche client',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppColors.greyText(context, 600),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        isDense: true,
-                      ),
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: (v) {
-                        widget.controller.setClientNomLibre(v);
-                        Get.back();
-                      },
+                        Obx(() => widget.controller.isClientDivers
+                            ? Icon(Icons.check_circle_rounded,
+                                size: 20, color: AppColors.primary(context))
+                            : const SizedBox.shrink()),
+                      ],
                     ),
-                    const SizedBox(height: 6),
-                    TextButton.icon(
-                      onPressed: () {
-                        widget.controller.resetClient();
-                        Get.back();
-                      },
-                      icon: const Icon(Icons.cancel_outlined, size: 16),
-                      label: const Text(
-                        'Aucun client (Client divers anonyme)',
-                        style: TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
               const Divider(height: 1),
@@ -1999,7 +2205,13 @@ class _PaiementInfoChip extends StatelessWidget {
             'Trop perçu ${Fmt.money(reste.abs(), currency: controller.devise)}';
       } else {
         color = AppColors.greyText(context, 700);
-        label = controller.modePaiement.value.label;
+        label = controller.caisseRequise
+            ? (controller.paiements.isEmpty
+                ? 'Caisse à choisir'
+                : controller.paiements
+                    .map((p) => p.caisseNom)
+                    .join(' + '))
+            : controller.modePaiement.value.label;
       }
       return InkWell(
         onTap: () => _PaiementSheet.open(context, controller),
@@ -2160,43 +2372,81 @@ class _PaiementSheet extends StatelessWidget {
               const SizedBox(height: 12),
               _NoteField(controller: controller),
               const SizedBox(height: 10),
-              Text(
-                'Mode de paiement',
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.3,
-                  color: AppColors.greyText(context, 600),
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 36,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Obx(() {
-                    final current = controller.modePaiement.value;
-                    return Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (var i = 0;
-                            i < ModePaiement.values.length;
-                            i++) ...[
-                          if (i > 0) const SizedBox(width: 8),
-                          _CatPill(
-                            label: ModePaiement.values[i].label,
-                            selected: current == ModePaiement.values[i],
-                            onTap: () => controller.modePaiement.value =
-                                ModePaiement.values[i],
-                          ),
-                        ],
-                      ],
-                    );
-                  }),
-                ),
-              ),
-              const SizedBox(height: 12),
+              // L'encaissement vient avant le choix de la caisse : c'est
+              // lui qui fixe le montant à répartir.
               _EncaissementSection(controller: controller),
+              const SizedBox(height: 12),
+              Obx(() {
+                // Lectures explicites : les caisses arrivent par stream et
+                // les getters du controller sortent parfois avant de les
+                // toucher — l'Obx se retrouverait sans observable.
+                controller.caisses.length;
+                controller.boutiqueEquipee.value;
+                final paye = controller.montantPaye.value;
+
+                if (controller.caisseManquante) {
+                  return const _AvertissementCaisseVente();
+                }
+                if (!controller.caisseRequise) {
+                  // Boutique sans caisse : ancien sélecteur de mode (RG-9).
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Mode de paiement',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.3,
+                          color: AppColors.greyText(context, 600),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: 36,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (var i = 0;
+                                  i < ModePaiement.values.length;
+                                  i++) ...[
+                                if (i > 0) const SizedBox(width: 8),
+                                _CatPill(
+                                  label: ModePaiement.values[i].label,
+                                  selected: controller.modePaiement.value ==
+                                      ModePaiement.values[i],
+                                  onTap: () =>
+                                      controller.modePaiement.value =
+                                          ModePaiement.values[i],
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                // Vente entièrement à crédit : aucune caisse touchée.
+                if (paye <= 0) {
+                  return Text(
+                    'Vente à crédit : aucune entrée en caisse.',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: AppColors.greyText(context, 600),
+                    ),
+                  );
+                }
+                return PaiementsCaisseField(
+                  caisses:
+                      controller.caisses.where((c) => c.active).toList(),
+                  montantAttendu: paye,
+                  initial: controller.paiements.toList(),
+                  onChanged: (p) => controller.paiements.assignAll(p),
+                );
+              }),
               const SizedBox(height: 14),
               ElevatedButton(
                 onPressed: () => Get.back(),
@@ -3087,6 +3337,38 @@ class _NoBoutique extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+
+/// RG-19 : la boutique a des caisses mais aucune n'est accessible. La vente
+/// à crédit reste possible, d'où la nuance du message.
+class _AvertissementCaisseVente extends StatelessWidget {
+  const _AvertissementCaisseVente();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.danger.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.block_rounded, color: AppColors.danger, size: 18),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Aucune caisse disponible, contactez votre administrateur. '
+              'Une vente entièrement à crédit reste possible.',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
       ),
     );
   }

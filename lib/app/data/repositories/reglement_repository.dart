@@ -1,12 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/services/firestore_service.dart';
+import '../../core/utils/caisse_calculator.dart';
 import '../../core/utils/stream_helpers.dart';
+import '../models/mouvement_caisse_model.dart';
 import '../models/reglement_model.dart';
 import '../models/vente_model.dart';
+import 'caisse_repository.dart';
 
 class ReglementRepository {
   final FirestoreService _fs = FirestoreService.to;
+  final CaisseRepository _caisses = CaisseRepository();
 
   CollectionReference<Map<String, dynamic>> get _col => _fs.reglements;
   CollectionReference<Map<String, dynamic>> get _clients => _fs.clients;
@@ -56,13 +60,22 @@ class ReglementRepository {
   ///
   /// Retourne le règlement persisté avec son `id` et la liste des imputations
   /// calculées en FIFO — utile pour générer un reçu PDF dans la foulée.
-  Future<ReglementModel> create(ReglementModel reg) async {
+  Future<ReglementModel> create(
+    ReglementModel reg, {
+    required String userNom,
+  }) async {
     if (reg.montant <= 0) {
       throw ArgumentError('Le montant doit être supérieur à 0');
     }
     if (reg.clientId.isEmpty) {
       throw ArgumentError('clientId requis pour un règlement');
     }
+    // RG-14 : le total des paiements est le montant imputé.
+    final probleme = verifierRepartition(
+      paiements: reg.paiements,
+      attendu: reg.montant,
+    );
+    if (probleme != null) throw CaisseException(probleme);
 
     // ===== Pré-fetch des ventes en crédit du client (hors transaction) =====
     // Le filtre `boutiqueId` est obligatoire pour aligner la query sur la
@@ -92,6 +105,24 @@ class ReglementRepository {
         venteSnaps.add(await tx.get(ref));
       }
 
+      // ===== Étape 1b : encaissement sur les caisses =====
+      // Avant la boucle FIFO, qui écrit : `appliquerPaiements` lit les
+      // caisses, et Firestore interdit toute lecture après une écriture
+      // dans la même transaction.
+      final ref = _col.doc();
+      final paiements = await _caisses.appliquerPaiements(
+        tx: tx,
+        paiements: reg.paiements,
+        sens: SensMouvement.entree,
+        boutiqueId: reg.boutiqueId,
+        type: TypeMouvementCaisse.encaissementClient,
+        userId: reg.userId,
+        userNom: userNom,
+        date: reg.date,
+        sourceType: 'reglements',
+        sourceId: ref.id,
+      );
+
       // ===== Étape 2 : allocation FIFO =====
       double remaining = reg.montant;
       final imputations = <Imputation>[];
@@ -120,9 +151,9 @@ class ReglementRepository {
       }
 
       // ===== Étape 3 : créer le règlement avec les imputations =====
-      final ref = _col.doc();
       tx.set(ref, {
         ...reg.toMap(),
+        'paiements': paiements.map((p) => p.toMap()).toList(),
         'imputations': imputations.map((i) => i.toMap()).toList(),
       });
 
@@ -143,6 +174,7 @@ class ReglementRepository {
         userId: reg.userId,
         montant: reg.montant,
         modePaiement: reg.modePaiement,
+        paiements: paiements,
         date: reg.date,
         note: reg.note,
         imputations: imputations,
@@ -153,7 +185,18 @@ class ReglementRepository {
   /// Supprime un règlement et **inverse les imputations** : restitue les
   /// montants imputés au `montantPaye` de chaque vente concernée et restaure
   /// le solde du client.
-  Future<void> deleteAndRestore(String reglementId) async {
+  /// Supprime un règlement et **inverse les imputations**.
+  ///
+  /// Si l'encaissement était passé par des caisses, l'argent en ressort :
+  /// chaque mouvement d'entrée est compensé par une sortie. Une caisse qui
+  /// n'autorise pas le négatif et dont les fonds ont été dépensés depuis
+  /// **fait échouer la suppression** (RG-16) — il faut alors un apport, ou
+  /// autoriser le négatif sur cette caisse.
+  Future<void> deleteAndRestore(
+    String reglementId, {
+    required String userId,
+    required String userNom,
+  }) async {
     await _fs.db.runTransaction((tx) async {
       final ref = _col.doc(reglementId);
       final snap = await tx.get(ref);
@@ -173,6 +216,30 @@ class ReglementRepository {
         // Réduit le montantPaye du montant qui avait été imputé
         final next = v.montantPaye - imp.montant;
         venteUpdates[vRef] = next < 0 ? 0 : next;
+      }
+
+      // L'argent ressort des caisses où il était entré. Avant les
+      // premières écritures : `appliquerPaiements` lit les caisses.
+      if (reg.passeParCaisse) {
+        final annules = <String, String>{};
+        for (final p in reg.paiements) {
+          final mid = p.mouvementId;
+          if (mid != null) annules[p.caisseId] = mid;
+        }
+        await _caisses.appliquerPaiements(
+          tx: tx,
+          paiements: reg.paiements,
+          sens: SensMouvement.sortie,
+          boutiqueId: reg.boutiqueId,
+          type: TypeMouvementCaisse.annulation,
+          userId: userId,
+          userNom: userNom,
+          date: DateTime.now(),
+          sourceType: 'reglements',
+          sourceId: reglementId,
+          mouvementsAnnules: annules,
+          exigerActive: false,
+        );
       }
 
       // Writes : ventes

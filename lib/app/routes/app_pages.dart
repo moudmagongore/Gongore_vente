@@ -22,6 +22,18 @@ import '../modules/admin/clients/bindings/clients_binding.dart';
 import '../modules/admin/clients/views/client_detail_view.dart';
 import '../modules/admin/clients/views/client_form_view.dart';
 import '../modules/admin/clients/views/clients_list_view.dart';
+import '../modules/admin/caisses/bindings/caisse_form_binding.dart';
+import '../modules/admin/caisses/bindings/caisses_binding.dart';
+import '../modules/admin/caisses/bindings/releve_caisse_binding.dart';
+import '../modules/admin/caisses/views/caisse_form_view.dart';
+import '../modules/admin/caisses/views/caisses_list_view.dart';
+import '../modules/admin/caisses/views/releve_caisse_view.dart';
+import '../modules/admin/depenses/bindings/depenses_binding.dart';
+import '../modules/admin/depenses/bindings/nature_depense_form_binding.dart';
+import '../modules/admin/depenses/bindings/natures_depense_binding.dart';
+import '../modules/admin/depenses/views/depenses_list_view.dart';
+import '../modules/admin/depenses/views/nature_depense_form_view.dart';
+import '../modules/admin/depenses/views/natures_depense_list_view.dart';
 import '../modules/admin/fournisseurs/bindings/fournisseur_detail_binding.dart';
 import '../modules/admin/fournisseurs/bindings/fournisseur_form_binding.dart';
 import '../modules/admin/fournisseurs/bindings/fournisseurs_binding.dart';
@@ -39,6 +51,8 @@ import '../modules/admin/stock/bindings/stock_binding.dart';
 import '../modules/admin/stock/views/historique_mouvements_view.dart';
 import '../modules/admin/stock/views/stock_list_view.dart';
 import '../modules/admin/home/views/admin_home_view.dart';
+import '../modules/admin/maintenance/bindings/maintenance_binding.dart';
+import '../modules/admin/maintenance/views/maintenance_view.dart';
 import '../modules/admin/produits/bindings/produit_form_binding.dart';
 import '../modules/admin/reglements/bindings/reglements_binding.dart';
 import '../modules/admin/reglements/views/reglements_list_view.dart';
@@ -262,12 +276,65 @@ class AppPages {
       middlewares: [AuthGuard()],
     ),
     GetPage(
+      name: AppRoutes.adminCaisses,
+      page: () => const CaissesListView(),
+      binding: CaissesBinding(),
+      // AuthGuard : le gestionnaire y accède en lecture seule (la vue et
+      // les règles Firestore limitent ce qu'il voit à ses caisses).
+      middlewares: [AuthGuard(), CaisseGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.caisseReleve,
+      page: () => const ReleveCaisseView(),
+      binding: ReleveCaisseBinding(),
+      // AuthGuard : le gestionnaire consulte le relevé de ses caisses
+      // accessibles (RG-30). Les règles Firestore font le tri.
+      middlewares: [AuthGuard(), CaisseGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.adminCaisseForm,
+      page: () => const CaisseFormView(),
+      binding: CaisseFormBinding(),
+      // Le paramétrage des caisses est réservé à l'admin (RG-1).
+      middlewares: [AdminGuard(), CaisseGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.adminDepenses,
+      page: () => const DepensesListView(),
+      binding: DepensesBinding(),
+      // AuthGuard : admin comme gestionnaire déclarent des dépenses.
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.adminNaturesDepense,
+      page: () => const NaturesDepenseListView(),
+      binding: NaturesDepenseBinding(),
+      // Le référentiel des natures est paramétré par l'admin uniquement.
+      middlewares: [AdminGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.adminNatureDepenseForm,
+      page: () => const NatureDepenseFormView(),
+      binding: NatureDepenseFormBinding(),
+      middlewares: [AdminGuard()],
+    ),
+    GetPage(
       name: AppRoutes.adminRapports,
       page: () => const RapportsView(),
       binding: RapportsBinding(),
       // Vendeur peut accéder : il voit le rapport scopé à ses propres ventes
       // (le controller verrouille `vendeurId` sur lui-même).
       middlewares: [AuthGuard()],
+    ),
+
+    // Purge des données d'une boutique : destructif et irréversible,
+    // donc verrouillé au super-admin par le guard de route EN PLUS des
+    // rules Firestore (`allow delete: if isSuperAdmin()`).
+    GetPage(
+      name: AppRoutes.adminMaintenance,
+      page: () => const MaintenanceView(),
+      binding: MaintenanceBinding(),
+      middlewares: [SuperAdminGuard()],
     ),
 
     // ========== Abonnements (super-admin uniquement) ==========

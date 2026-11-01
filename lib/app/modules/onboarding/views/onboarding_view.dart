@@ -19,10 +19,15 @@ class OnboardingView extends GetView<OnboardingController> {
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       // Fond sombre en permanence → icônes de la barre d'état en blanc.
+      // La barre de navigation Android est rendue transparente pour que le
+      // dégradé passe dessous et que l'écran aille jusqu'au bord bas.
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
         body: Stack(
@@ -33,6 +38,10 @@ class OnboardingView extends GetView<OnboardingController> {
               ),
             ),
             SafeArea(
+              // Le bas n'est pas protégé ici : le footer réintègre lui-même
+              // l'inset de la barre de navigation, ce qui laisse le dégradé
+              // s'étendre jusqu'au bord de l'écran.
+              bottom: false,
               child: Column(
                 children: [
                   const _TopBar(),

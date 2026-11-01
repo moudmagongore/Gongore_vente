@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/biometric_service.dart';
+import '../../../core/services/sound_service.dart';
 import '../../../core/services/subscription_guard.dart';
 import '../../../core/services/user_controller.dart';
 import '../../../core/utils/phone_normalizer.dart';
@@ -197,6 +200,11 @@ class LoginController extends GetxController {
           ? AppRoutes.adminHome
           : AppRoutes.vendeurHome;
       Get.offAllNamed(route);
+
+      // Son de bienvenue, joué en arrivant sur l'écran d'accueil. Non
+      // attendu : la navigation ne doit pas dépendre de la lecture audio
+      // (le service avale déjà ses propres erreurs).
+      unawaited(SoundService.playLoginSuccess());
 
       // Avertissement abonnement (≤ 7 jours ou période de grâce). Décalé
       // après la navigation pour s'afficher sur l'écran d'accueil.

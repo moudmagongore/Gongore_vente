@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../data/models/boutique_model.dart';
@@ -23,10 +24,23 @@ class AdminDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      // DrawerOpenGuard : ignore les taps tant que le drawer n'a pas fini de
-      // s'ouvrir. Sans ça, un tap qui arrive pendant le slide-in atterrit sur
-      // le contenu du drawer et déclenche un item au hasard (voir le widget).
-      child: DrawerOpenGuard(
+      // Surbrillance de tap à plat et pleine largeur pour TOUT le drawer.
+      // Le `listTileTheme` global arrondit les tuiles (_radiusSmall), ce qui
+      // décolle la couleur des bords. Posé à la racine plutôt que tuile par
+      // tuile : sinon le moindre ListTile ajouté sans `shape` explicite
+      // réintroduit l'arrondi (c'était le cas de « Déconnexion »).
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          listTileTheme: Theme.of(context).listTileTheme.copyWith(
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.zero,
+                ),
+              ),
+        ),
+        // DrawerOpenGuard : ignore les taps tant que le drawer n'a pas fini de
+        // s'ouvrir. Sans ça, un tap qui arrive pendant le slide-in atterrit sur
+        // le contenu du drawer et déclenche un item au hasard (voir le widget).
+        child: DrawerOpenGuard(
         child: Obx(() {
         // Obx au top : tout le drawer se redessine si l'utilisateur change
         // (ex. admin coche/décoche `alsoGestionnaire` sur son propre profil).
@@ -156,12 +170,54 @@ class AdminDrawer extends StatelessWidget {
                         ),
                       ],
                     ),
+                    // Module de caisse : ouvert boutique par boutique par
+                    // le super-admin.
+                    if (UserController.to.caissesModuleActif)
+                      _Item(
+                        icon: Icons.account_balance_wallet_outlined,
+                        label: 'Caisses',
+                        route: AppRoutes.adminCaisses,
+                        currentRoute: currentRoute,
+                      ),
+                    _ExpansionGroup(
+                      icon: Icons.savings_outlined,
+                      title: 'Dépenses',
+                      currentRoute: currentRoute,
+                      childrenRoutes: const [
+                        AppRoutes.adminDepenses,
+                        AppRoutes.adminNaturesDepense,
+                      ],
+                      children: [
+                        _Item(
+                          icon: Icons.receipt_long_rounded,
+                          label: 'Dépenses',
+                          route: AppRoutes.adminDepenses,
+                          currentRoute: currentRoute,
+                        ),
+                        _Item(
+                          icon: Icons.tune_rounded,
+                          label: 'Natures de dépense',
+                          route: AppRoutes.adminNaturesDepense,
+                          currentRoute: currentRoute,
+                        ),
+                      ],
+                    ),
                     _Item(
                       icon: Icons.bar_chart_rounded,
                       label: 'Rapports',
                       route: AppRoutes.adminRapports,
                       currentRoute: currentRoute,
                     ),
+                    // Purge des données : super-admin uniquement, et placé
+                    // en bas de la navigation métier — ce n'est pas un
+                    // écran de travail quotidien.
+                    if (isSuper)
+                      _Item(
+                        icon: Icons.cleaning_services_rounded,
+                        label: 'Purge des données',
+                        route: AppRoutes.adminMaintenance,
+                        currentRoute: currentRoute,
+                      ),
                     // Abonnements :
                     //   • super-admin → vue globale gestion paiements + tarifs
                     //     (route principale, on remplace la stack)
@@ -191,6 +247,7 @@ class AdminDrawer extends StatelessWidget {
                             ),
                           ),
                           onTap: () {
+                            HapticFeedback.selectionClick();
                             Navigator.of(ctx).pop();
                             Get.toNamed(AppRoutes.monAbonnement);
                           },
@@ -214,6 +271,7 @@ class AdminDrawer extends StatelessWidget {
                           ),
                         ),
                         onTap: () {
+                          HapticFeedback.selectionClick();
                           Navigator.of(ctx).pop();
                           final me = UserController.to.user;
                           if (me != null) {
@@ -240,6 +298,7 @@ class AdminDrawer extends StatelessWidget {
                           ),
                         ),
                         onTap: () {
+                          HapticFeedback.selectionClick();
                           Navigator.of(ctx).pop();
                           Get.toNamed(AppRoutes.parametres);
                         },
@@ -259,6 +318,7 @@ class AdminDrawer extends StatelessWidget {
                           ),
                         ),
                         onTap: () {
+                          HapticFeedback.selectionClick();
                           Navigator.of(ctx).pop();
                           UserManualPdfService.openAndPreview();
                         },
@@ -278,6 +338,7 @@ class AdminDrawer extends StatelessWidget {
                           ),
                         ),
                         onTap: () {
+                          HapticFeedback.selectionClick();
                           Navigator.of(ctx).pop();
                           Get.toNamed(AppRoutes.apropos);
                         },
@@ -294,7 +355,10 @@ class AdminDrawer extends StatelessWidget {
                   'Déconnexion',
                   style: TextStyle(color: Colors.red),
                 ),
-                onTap: () => confirmSignOut(ctx),
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  confirmSignOut(ctx);
+                },
               ),
             ),
             // Marge basse uniquement sur Android (iOS gère son home indicator).
@@ -306,6 +370,7 @@ class AdminDrawer extends StatelessWidget {
           ],
         );
         }),
+        ),
       ),
     );
   }
@@ -451,7 +516,10 @@ class _BoutiqueSwitcher extends StatelessWidget {
     return Obx(() {
       final activeId = UserController.to.currentBoutiqueId.value;
       return InkWell(
-        onTap: () => _openSwitchSheet(context),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          _openSwitchSheet(context);
+        },
         borderRadius: BorderRadius.circular(10),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -571,6 +639,7 @@ class _BoutiqueSwitcher extends StatelessWidget {
                                 )
                               : null,
                           onTap: () async {
+                            HapticFeedback.selectionClick();
                             if (isActive) {
                               Navigator.of(ctx).pop();
                               return;
@@ -683,6 +752,7 @@ class _Item extends StatelessWidget {
       selected: selected,
       selectedTileColor: AppColors.primary(context).withValues(alpha: 0.08),
       onTap: () {
+        HapticFeedback.selectionClick();
         Navigator.of(context).pop();
         if (selected) return;
         Get.offNamed(route);
@@ -711,11 +781,34 @@ class _ExpansionGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final containsCurrent = childrenRoutes.contains(currentRoute);
+    // ExpansionTile impose ses propres couleurs : `colorScheme.primary` une
+    // fois déplié, `textTheme.titleMedium` replié — ce qui ne colle pas aux
+    // `_Item` voisins, qui suivent `listTileTheme`. En dark, le parent d'une
+    // section ouverte virait donc au teal au lieu du blanc. On réaligne sur
+    // la règle d'un item simple : accent si la route active est dans le
+    // groupe, couleur de liste sinon.
+    final listTile = Theme.of(context).listTileTheme;
+    final active = AppColors.primary(context);
+    final labelColor =
+        containsCurrent ? active : listTile.titleTextStyle?.color;
+    final groupIconColor = containsCurrent ? active : listTile.iconColor;
     return Theme(
       // ExpansionTile met une bordure top/bottom qui jure avec le reste
       // du drawer : on la neutralise.
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-      child: ExpansionTile(
+      // ListTileTheme (le widget) et non ThemeData.listTileTheme : le
+      // ListTile interne d'ExpansionTile résout sa forme via
+      // `ListTileTheme.of(context)`, qui donne la priorité au widget le plus
+      // proche. Or ExpansionTile en insère un lui-même (ListTileTheme.merge)
+      // pour ses couleurs — régler la forme via le thème global se faisait
+      // donc écraser, et l'arrondi revenait sur le tap du parent.
+      child: ListTileTheme(
+        data: Theme.of(context).listTileTheme.copyWith(
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.zero,
+              ),
+            ),
+        child: ExpansionTile(
         // Pas d'arrondi sur la zone d'expansion (full-width flat).
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
         collapsedShape:
@@ -733,9 +826,21 @@ class _ExpansionGroup extends StatelessWidget {
                 containsCurrent ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
+        // Les 4 états (déplié / replié × texte / icône) sont fixés
+        // explicitement, sinon ExpansionTile reprend la main.
+        textColor: labelColor,
+        collapsedTextColor: labelColor,
+        iconColor: groupIconColor,
+        collapsedIconColor: groupIconColor,
         initiallyExpanded: containsCurrent,
-        childrenPadding: const EdgeInsets.only(left: 12),
-        children: children,
+        // Le déplié/replié d'une section est un clic comme un autre.
+        onExpansionChanged: (_) => HapticFeedback.selectionClick(),
+        // Aucun retrait à gauche : il décalerait aussi la surbrillance des
+        // sous-items, qui doit filer d'un bord à l'autre comme celle des
+        // items de premier niveau.
+        childrenPadding: EdgeInsets.zero,
+          children: children,
+        ),
       ),
     );
   }

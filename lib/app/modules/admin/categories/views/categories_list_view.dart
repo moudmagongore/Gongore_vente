@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/services/user_controller.dart';
+import '../../../../core/utils/format_helpers.dart';
 import '../../../../core/widgets/admin_drawer.dart';
 import '../../../../core/widgets/vendeur_drawer.dart';
 import '../../../../data/models/categorie_model.dart';
@@ -103,82 +104,308 @@ class _CategorieTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.find<CategoriesController>();
     return Card(
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
         onTap: canEdit
             ? () => Get.toNamed(
                   AppRoutes.adminCategorieForm,
                   arguments: categorie,
                 )
             : null,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
+        child: Obx(() {
+          final stock = controller.stockDe(categorie.id);
+          final color = _stockColor(context, stock);
+          return Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.category_rounded,
-                  color: AppColors.accent,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 8, 12),
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      categorie.nom,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      child: const Icon(
+                        Icons.category_rounded,
+                        color: AppColors.accent,
+                      ),
                     ),
-                    if (controller.isSuperAdmin) ...[
-                      const SizedBox(height: 6),
-                      Obx(() => _BoutiqueBadge(
-                            label: controller.boutiqueNom(categorie.boutiqueId),
-                          )),
-                    ],
-                    if (categorie.description?.isNotEmpty ?? false) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        categorie.description!,
-                        style: TextStyle(
-                          color: AppColors.greyText(context, 600),
-                          fontSize: 12,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            categorie.nom,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (controller.isSuperAdmin) ...[
+                            const SizedBox(height: 6),
+                            _BoutiqueBadge(
+                              label:
+                                  controller.boutiqueNom(categorie.boutiqueId),
+                            ),
+                          ],
+                          if (categorie.description?.isNotEmpty ?? false) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              categorie.description!,
+                              style: TextStyle(
+                                color: AppColors.greyText(context, 600),
+                                fontSize: 12,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          _StockChips(stock: stock),
+                        ],
                       ),
-                    ],
+                    ),
+                    const SizedBox(width: 8),
+                    _StockPill(stock: stock, color: color),
+                    if (canEdit)
+                      _TileMenu(categorie: categorie, controller: controller)
+                    else
+                      const SizedBox(width: 8),
                   ],
                 ),
               ),
-              if (canEdit) ...[
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined),
-                  onPressed: () => Get.toNamed(
-                    AppRoutes.adminCategorieForm,
-                    arguments: categorie,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  onPressed: () => controller.confirmDelete(categorie),
-                ),
-              ],
+              _StockHealthBar(stock: stock),
             ],
+          );
+        }),
+      ),
+    );
+  }
+
+  /// Couleur d'état : rouge si au moins une rupture, orange si stock bas,
+  /// vert si tout est au-dessus du seuil, gris si la catégorie est vide.
+  Color _stockColor(BuildContext context, CategorieStock stock) {
+    if (stock.isEmpty) return AppColors.greyText(context, 500);
+    if (stock.nbRupture > 0) return AppColors.danger;
+    if (stock.nbBas > 0) return AppColors.warning;
+    return AppColors.success;
+  }
+}
+
+/// Pastille de droite : quantité totale en stock de la catégorie.
+class _StockPill extends StatelessWidget {
+  final CategorieStock stock;
+  final Color color;
+  const _StockPill({required this.stock, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 62),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color.withValues(alpha: 0.16),
+            color.withValues(alpha: 0.06),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            Fmt.number(stock.quantite),
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: color,
+              letterSpacing: -0.6,
+              height: 1.1,
+            ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            'en stock',
+            style: TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w600,
+              color: color.withValues(alpha: 0.85),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Ligne de puces sous le nom : nombre de produits + alertes éventuelles.
+class _StockChips extends StatelessWidget {
+  final CategorieStock stock;
+  const _StockChips({required this.stock});
+
+  @override
+  Widget build(BuildContext context) {
+    if (stock.isEmpty) {
+      return _MiniChip(
+        icon: Icons.inventory_2_outlined,
+        label: 'Aucun produit',
+        color: AppColors.greyText(context, 600),
+      );
+    }
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        _MiniChip(
+          icon: Icons.inventory_2_outlined,
+          label: stock.nbProduits > 1
+              ? '${stock.nbProduits} produits'
+              : '1 produit',
+          color: AppColors.greyText(context, 700),
+        ),
+        if (stock.nbRupture > 0)
+          _MiniChip(
+            icon: Icons.remove_shopping_cart_outlined,
+            label: '${stock.nbRupture} en rupture',
+            color: AppColors.danger,
+          ),
+        if (stock.nbBas > 0)
+          _MiniChip(
+            icon: Icons.trending_down_rounded,
+            label: '${stock.nbBas} stock bas',
+            color: AppColors.warning,
+          ),
+      ],
+    );
+  }
+}
+
+class _MiniChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  const _MiniChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(7),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Liseré de santé du stock en pied de carte : proportion de produits
+/// normaux / bas / en rupture. Masqué si la catégorie n'a aucun produit.
+class _StockHealthBar extends StatelessWidget {
+  final CategorieStock stock;
+  const _StockHealthBar({required this.stock});
+
+  @override
+  Widget build(BuildContext context) {
+    if (stock.isEmpty) return const SizedBox.shrink();
+    return SizedBox(
+      height: 3,
+      child: Row(
+        children: [
+          if (stock.nbNormal > 0)
+            Expanded(
+              flex: stock.nbNormal,
+              child: const ColoredBox(color: AppColors.success),
+            ),
+          if (stock.nbBas > 0)
+            Expanded(
+              flex: stock.nbBas,
+              child: const ColoredBox(color: AppColors.warning),
+            ),
+          if (stock.nbRupture > 0)
+            Expanded(
+              flex: stock.nbRupture,
+              child: const ColoredBox(color: AppColors.danger),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Menu d'actions compact — remplace les deux IconButtons pour laisser la
+/// place à la pastille de stock.
+class _TileMenu extends StatelessWidget {
+  final CategorieModel categorie;
+  final CategoriesController controller;
+  const _TileMenu({required this.categorie, required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      icon: Icon(
+        Icons.more_vert_rounded,
+        color: AppColors.greyText(context, 600),
+      ),
+      tooltip: 'Actions',
+      onSelected: (v) {
+        if (v == 'edit') {
+          Get.toNamed(AppRoutes.adminCategorieForm, arguments: categorie);
+        } else if (v == 'delete') {
+          controller.confirmDelete(categorie);
+        }
+      },
+      itemBuilder: (_) => const [
+        PopupMenuItem(
+          value: 'edit',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.edit_outlined),
+            title: Text('Modifier'),
           ),
         ),
-      ),
+        PopupMenuItem(
+          value: 'delete',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.delete_outline, color: Colors.red),
+            title: Text('Supprimer', style: TextStyle(color: Colors.red)),
+          ),
+        ),
+      ],
     );
   }
 }

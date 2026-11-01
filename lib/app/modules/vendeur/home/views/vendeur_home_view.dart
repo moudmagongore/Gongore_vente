@@ -6,6 +6,7 @@ import '../../../../core/utils/format_helpers.dart';
 import '../../../../core/widgets/subscription_warning_banner.dart';
 import '../../../../core/widgets/vendeur_drawer.dart';
 import '../../../../routes/app_routes.dart';
+import '../../../../core/widgets/caisses_soldes_card.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../admin/reglements/widgets/encaissement_global_sheet.dart';
 import '../controllers/vendeur_home_controller.dart';
@@ -48,7 +49,12 @@ class VendeurHomeView extends GetView<VendeurHomeController> {
             _GreetingCard(controller: controller),
             const SizedBox(height: 16),
             _StatsBar(controller: controller),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            // Soldes des caisses accessibles. La carte ne rend rien si
+            // l'admin ne lui en a donné aucune (RG-31).
+            Obx(() => CaissesSoldesCard(
+                caisses: controller.caisses.toList())),
+            const SizedBox(height: 4),
             const _SectionTitle('Actions rapides'),
             const SizedBox(height: 12),
             GridView.count(
@@ -70,6 +76,12 @@ class VendeurHomeView extends GetView<VendeurHomeController> {
                   label: 'Nouveau règlement',
                   color: AppColors.secondary,
                   onTap: () => EncaissementGlobalSheet.open(context),
+                ),
+                const _ActionTile(
+                  icon: Icons.savings_outlined,
+                  label: 'Dépenses',
+                  color: AppColors.danger,
+                  route: AppRoutes.adminDepenses,
                 ),
               ],
             ),
@@ -519,7 +531,7 @@ class _RecentList extends StatelessWidget {
                       ),
                     ),
                     subtitle: Text(
-                      '${v.nbArticles} article(s) • ${v.modePaiement.label}',
+                      '${v.nbArticles} article(s) • ${v.libellePaiement}',
                       style: const TextStyle(fontSize: 11),
                     ),
                     trailing: Text(

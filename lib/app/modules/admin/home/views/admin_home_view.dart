@@ -8,8 +8,8 @@ import '../../../../core/utils/format_helpers.dart';
 import '../../../../core/widgets/admin_drawer.dart';
 import '../../../../core/widgets/subscription_badge_card.dart';
 import '../../../../core/widgets/subscription_warning_banner.dart';
-import '../../../../data/models/vente_model.dart';
 import '../../../../routes/app_routes.dart';
+import '../../../../core/widgets/caisses_soldes_card.dart';
 import '../../../../theme/app_colors.dart';
 import '../../dashboard/controllers/dashboard_controller.dart';
 
@@ -68,6 +68,11 @@ class AdminHomeView extends StatelessWidget {
               // super-admin et users sans boutiqueId).
               const SubscriptionBadgeCard(),
               const SizedBox(height: 16),
+              // Trésorerie : masquée d'elle-même si la boutique n'a pas
+              // encore de caisse (RG-9).
+              Obx(() => CaissesSoldesCard(caisses: c.caisses.toList())),
+              Obx(() => SizedBox(
+                  height: c.caisses.any((x) => x.active) ? 20 : 0)),
               const _SectionTitle('Aujourd\'hui'),
               const SizedBox(height: 10),
               _KpisJour(c: c),
@@ -75,6 +80,10 @@ class AdminHomeView extends StatelessWidget {
               const _SectionTitle('Ce mois-ci'),
               const SizedBox(height: 10),
               _KpisMois(c: c),
+              const SizedBox(height: 20),
+              const _SectionTitle('Dépenses du mois'),
+              const SizedBox(height: 10),
+              _DepensesCard(c: c),
               const SizedBox(height: 20),
               const _SectionTitle(
                   'Évolution du chiffre d\'affaires — 7 derniers jours'),
@@ -85,7 +94,7 @@ class AdminHomeView extends StatelessWidget {
               const SizedBox(height: 10),
               _ChartCard(child: _BarChartTopProduits(c: c)),
               const SizedBox(height: 20),
-              const _SectionTitle('Modes de paiement (mois)'),
+              const _SectionTitle('Encaissements par canal (mois)'),
               const SizedBox(height: 10),
               _ChartCard(child: _PiePaiements(c: c)),
               const SizedBox(height: 20),
@@ -385,6 +394,12 @@ class _KpisJour extends StatelessWidget {
               label: 'annulées',
               color: Colors.red,
             ),
+            (
+              icon: Icons.savings_outlined,
+              value: Fmt.number(c.depensesJour),
+              label: 'dépensés',
+              color: AppColors.danger,
+            ),
           ]),
         ],
       ),
@@ -435,10 +450,170 @@ class _KpisMois extends StatelessWidget {
               label: 'ventes',
               color: AppColors.primary(context),
             ),
+            (
+              icon: Icons.savings_outlined,
+              value: Fmt.number(c.depensesMois),
+              label: 'dépensés',
+              color: AppColors.danger,
+            ),
+            (
+              icon: Icons.account_balance_wallet_outlined,
+              value: Fmt.number(c.resultatNetMois),
+              label: 'résultat net',
+              color: c.resultatNetMois >= 0
+                  ? AppColors.success
+                  : AppColors.danger,
+            ),
           ]),
         ],
       ),
     );
+  }
+}
+
+/// Carte « Dépenses du mois » : total dépensé, résultat net après charges,
+/// et les 3 postes les plus lourds. Renvoie vers la liste des dépenses.
+class _DepensesCard extends StatelessWidget {
+  final DashboardController c;
+  const _DepensesCard({required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final top = c.topDepensesMois;
+      final total = c.depensesMois;
+      final net = c.resultatNetMois;
+      final netColor = net >= 0 ? AppColors.success : AppColors.danger;
+
+      return InkWell(
+        onTap: () => Get.toNamed(AppRoutes.adminDepenses),
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardTheme.color,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.borderOf(context), width: 1),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.danger.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.savings_outlined,
+                        color: AppColors.danger, size: 18),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          Fmt.number(total),
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.danger,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        Text(
+                          'GNF dépensés · ${c.nbDepensesMois} dépense(s)',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.greyText(context, 600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        Fmt.number(net),
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: netColor,
+                        ),
+                      ),
+                      Text(
+                        'résultat net',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: AppColors.greyText(context, 600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              if (top.isEmpty) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Aucune dépense déclarée ce mois-ci.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.greyText(context, 600),
+                  ),
+                ),
+              ] else ...[
+                const SizedBox(height: 14),
+                ...top.map((n) {
+                  final ratio = total == 0 ? 0.0 : n.total / total;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                n.nom,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 12.5),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              Fmt.number(n.total),
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 5),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(3),
+                          child: LinearProgressIndicator(
+                            value: ratio,
+                            minHeight: 5,
+                            backgroundColor:
+                                AppColors.danger.withValues(alpha: 0.10),
+                            valueColor: const AlwaysStoppedAnimation(
+                                AppColors.danger),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ],
+          ),
+        ),
+      );
+    });
   }
 }
 
@@ -648,16 +823,23 @@ class _PiePaiements extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final data = c.caParModePaiement;
+      final data = c.caParCanalPaiement;
       if (data.isEmpty) return _NoData(message: 'Aucune vente sur le mois');
 
       final total = data.values.fold<double>(0, (acc, v) => acc + v);
-      final colors = {
-        ModePaiement.especes: AppColors.success,
-        ModePaiement.orangeMoney: AppColors.warning,
-        ModePaiement.mobileMoney: AppColors.primary(context),
-        ModePaiement.paycard: AppColors.secondary,
-      };
+      // Les canaux sont désormais des libellés libres (noms de caisses) :
+      // la couleur est prise dans une palette par position, et non plus
+      // associée à un mode de paiement précis.
+      final palette = [
+        AppColors.success,
+        AppColors.warning,
+        AppColors.primary(context),
+        AppColors.secondary,
+        AppColors.danger,
+      ];
+      final cles = data.keys.toList();
+      Color couleur(String cle) =>
+          palette[cles.indexOf(cle) % palette.length];
 
       return Column(
       children: [
@@ -671,7 +853,7 @@ class _PiePaiements extends StatelessWidget {
                 final pct = (e.value / total) * 100;
                 return PieChartSectionData(
                   value: e.value,
-                  color: colors[e.key],
+                  color: couleur(e.key),
                   title: '${pct.toStringAsFixed(0)}%',
                   radius: 50,
                   titleStyle: const TextStyle(
@@ -696,13 +878,13 @@ class _PiePaiements extends StatelessWidget {
                         width: 12,
                         height: 12,
                         decoration: BoxDecoration(
-                          color: colors[e.key],
+                          color: couleur(e.key),
                           shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        e.key.label,
+                        e.key,
                         style: const TextStyle(fontSize: 11),
                       ),
                       const SizedBox(width: 4),

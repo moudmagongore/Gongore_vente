@@ -1,12 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/services/firestore_service.dart';
+import '../../core/utils/caisse_calculator.dart';
 import '../../core/utils/stream_helpers.dart';
 import '../models/approvisionnement_model.dart';
+import '../models/mouvement_caisse_model.dart';
 import '../models/reglement_fournisseur_model.dart';
+import 'caisse_repository.dart';
 
 class ReglementFournisseurRepository {
   final FirestoreService _fs = FirestoreService.to;
+  final CaisseRepository _caisses = CaisseRepository();
 
   CollectionReference<Map<String, dynamic>> get _col =>
       _fs.reglementsFournisseurs;
@@ -64,14 +68,21 @@ class ReglementFournisseurRepository {
   /// dettes, le surplus reste en avance fournisseur (solde négatif).
   /// Tout est atomique.
   Future<ReglementFournisseurModel> create(
-    ReglementFournisseurModel reg,
-  ) async {
+    ReglementFournisseurModel reg, {
+    required String userNom,
+  }) async {
     if (reg.montant <= 0) {
       throw ArgumentError('Le montant doit être supérieur à 0');
     }
     if (reg.fournisseurId.isEmpty) {
       throw ArgumentError('fournisseurId requis');
     }
+    // RG-14 : le total des paiements est le montant versé.
+    final probleme = verifierRepartition(
+      paiements: reg.paiements,
+      attendu: reg.montant,
+    );
+    if (probleme != null) throw CaisseException(probleme);
 
     // Pré-fetch hors transaction (Firestore interdit les queries dans
     // une tx). On ré-lit chaque doc dans la tx pour avoir l'état frais.
@@ -95,6 +106,23 @@ class ReglementFournisseurRepository {
       for (final ref in candidateRefs) {
         approSnaps.add(await tx.get(ref));
       }
+
+      // Sortie de caisse avant la boucle FIFO, qui écrit : Firestore
+      // interdit toute lecture après une écriture dans la même
+      // transaction, et `appliquerPaiements` lit les caisses.
+      final ref = _col.doc();
+      final paiements = await _caisses.appliquerPaiements(
+        tx: tx,
+        paiements: reg.paiements,
+        sens: SensMouvement.sortie,
+        boutiqueId: reg.boutiqueId,
+        type: TypeMouvementCaisse.reglementFournisseur,
+        userId: reg.userId,
+        userNom: userNom,
+        date: reg.date,
+        sourceType: 'reglementsFournisseurs',
+        sourceId: ref.id,
+      );
 
       // Allocation FIFO
       double remaining = reg.montant;
@@ -123,9 +151,9 @@ class ReglementFournisseurRepository {
       }
 
       // Crée le règlement avec les imputations
-      final ref = _col.doc();
       tx.set(ref, {
         ...reg.toMap(),
+        'paiements': paiements.map((p) => p.toMap()).toList(),
         'imputations': imputations.map((i) => i.toMap()).toList(),
       });
 
@@ -145,6 +173,7 @@ class ReglementFournisseurRepository {
         userId: reg.userId,
         montant: reg.montant,
         modePaiement: reg.modePaiement,
+        paiements: paiements,
         date: reg.date,
         note: reg.note,
         imputations: imputations,
@@ -155,7 +184,14 @@ class ReglementFournisseurRepository {
   /// Supprime un règlement et **inverse les imputations** : restitue
   /// les montants imputés au `montantPaye` de chaque appro concernée
   /// et restaure le solde fournisseur.
-  Future<void> deleteAndRestore(String reglementId) async {
+  ///
+  /// Si le versement était sorti de caisses, l'argent y rentre à nouveau :
+  /// chaque mouvement de sortie est compensé par une entrée.
+  Future<void> deleteAndRestore(
+    String reglementId, {
+    required String userId,
+    required String userNom,
+  }) async {
     await _fs.db.runTransaction((tx) async {
       final ref = _col.doc(reglementId);
       final snap = await tx.get(ref);
@@ -173,6 +209,30 @@ class ReglementFournisseurRepository {
         final a = ApprovisionnementModel.fromFirestore(aSnap);
         final next = a.montantPaye - imp.montant;
         approUpdates[aRef] = next < 0 ? 0 : next;
+      }
+
+      // L'argent revient dans les caisses d'où il était sorti. Avant les
+      // premières écritures.
+      if (reg.passeParCaisse) {
+        final annules = <String, String>{};
+        for (final p in reg.paiements) {
+          final mid = p.mouvementId;
+          if (mid != null) annules[p.caisseId] = mid;
+        }
+        await _caisses.appliquerPaiements(
+          tx: tx,
+          paiements: reg.paiements,
+          sens: SensMouvement.entree,
+          boutiqueId: reg.boutiqueId,
+          type: TypeMouvementCaisse.annulation,
+          userId: userId,
+          userNom: userNom,
+          date: DateTime.now(),
+          sourceType: 'reglementsFournisseurs',
+          sourceId: reglementId,
+          mouvementsAnnules: annules,
+          exigerActive: false,
+        );
       }
 
       approUpdates.forEach((aRef, newMontantPaye) {

@@ -17,6 +17,9 @@ class ReceiptService {
     required BoutiqueModel boutique,
     UserModel? vendeur,
     String? clientLabel,
+    /// Téléphone du client fiché. Laissé nul pour un client de passage :
+    /// on retombe alors sur le numéro libre saisi à la vente.
+    String? clientTelephone,
   }) async {
     final pdf = pw.Document(theme: await PdfThemeService.theme);
     final devise = boutique.devise;
@@ -63,9 +66,24 @@ class ReceiptService {
             // ====== Méta ======
             _kvRow('Date', Fmt.dateTime(vente.date)),
             _kvRow('Client', clientLabel ?? vente.clientLabelOuLibre),
+            if ((clientTelephone ?? vente.clientTelLibre)?.isNotEmpty ?? false)
+              _kvRow('Tél. client', clientTelephone ?? vente.clientTelLibre!),
             _kvRow('Gestionnaire', vendeur?.nom ?? '—'),
             _kvRow('N° vente', vente.numeroAffichage),
-            _kvRow('Paiement', vente.modePaiement.label),
+            // RG-18 : une seule caisse tient sur la ligne « Paiement » ;
+            // dès qu'il y en a plusieurs, le reçu détaille la répartition,
+            // sinon le client ne saurait pas ce qu'il a payé et comment.
+            if (vente.paiements.length <= 1)
+              _kvRow('Paiement', vente.libellePaiement)
+            else ...[
+              _kvRow('Paiement', 'Réparti'),
+              ...vente.paiements.map(
+                (p) => _kvRow(
+                  '  ${p.caisseNom}',
+                  Fmt.money(p.montant, currency: devise),
+                ),
+              ),
+            ],
             if (vente.statut == VenteStatut.annulee)
               _kvRow('Statut', 'ANNULÉE',
                   bold: true),
@@ -258,12 +276,14 @@ class ReceiptService {
     required BoutiqueModel boutique,
     UserModel? vendeur,
     String? clientLabel,
+    String? clientTelephone,
   }) async {
     final bytes = await build(
       vente: vente,
       boutique: boutique,
       vendeur: vendeur,
       clientLabel: clientLabel,
+      clientTelephone: clientTelephone,
     );
     await sharePdfBytes(
       bytes: bytes,

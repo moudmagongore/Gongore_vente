@@ -1,11 +1,15 @@
 import 'package:get/get.dart';
 
+import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/services/user_controller.dart';
+import '../../../../data/models/caisse_model.dart';
 import '../../../../data/models/boutique_model.dart';
+import '../../../../data/models/depense_model.dart';
 import '../../../../data/models/produit_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/models/vente_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
+import '../../../../data/repositories/depense_repository.dart';
 import '../../../../data/repositories/produit_repository.dart';
 import '../../../../data/repositories/user_repository.dart';
 import '../../../../data/repositories/vente_repository.dart';
@@ -35,13 +39,21 @@ class DashboardController extends GetxController {
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
   final UserRepository _userRepo = UserRepository();
   final ProduitRepository _produitRepo = ProduitRepository();
+  final DepenseRepository _depenseRepo = DepenseRepository();
 
   // ====== Données live ======
   /// Toutes les ventes du mois courant (limit 500 par sécurité)
   final RxList<VenteModel> _ventesMois = <VenteModel>[].obs;
+
+  /// Caisses visibles par l'utilisateur, pour la carte Trésorerie (RG-31).
+  final RxList<CaisseModel> caisses = <CaisseModel>[].obs;
   final RxList<BoutiqueModel> boutiques = <BoutiqueModel>[].obs;
   final RxList<UserModel> users = <UserModel>[].obs;
   final RxList<ProduitModel> produits = <ProduitModel>[].obs;
+
+  /// Dépenses du mois courant (même fenêtre que `_ventesMois`).
+  final RxList<DepenseModel> _depensesMois = <DepenseModel>[].obs;
+
   final RxBool isLoading = true.obs;
 
   bool get isSuperAdmin => UserController.to.isSuperAdmin;
@@ -53,6 +65,8 @@ class DashboardController extends GetxController {
     final startOfMonth = DateTime(now.year, now.month, 1);
     final scope = UserController.to.scopeBoutiqueId;
 
+    caisses.bindStream(CaisseContexte.watchCaisses(scope));
+
     _ventesMois.bindStream(_venteRepo.watchAll(
       after: startOfMonth,
       limit: 500,
@@ -61,6 +75,10 @@ class DashboardController extends GetxController {
     boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
     users.bindStream(_userRepo.watchScoped(scope: scope));
     produits.bindStream(_produitRepo.watchAll(boutiqueId: scope));
+    _depensesMois.bindStream(_depenseRepo.watchAll(
+      boutiqueId: scope,
+      after: startOfMonth,
+    ));
     debounce(_ventesMois, (_) => isLoading.value = false,
         time: const Duration(milliseconds: 250));
   }
@@ -105,6 +123,15 @@ class DashboardController extends GetxController {
     double benefice = 0;
     final prodMap = {for (final p in produits) p.id: p};
     for (final v in _ventesJour) {
+      // Marge figée à la validation : c'est la valeur de référence, elle
+      // ne bouge plus quand un appro change le CMUP (ONBOARDING.md §6).
+      if (v.aMargeFigee) {
+        benefice += v.margeTotale!;
+        continue;
+      }
+      // Repli pour les ventes antérieures à la reprise
+      // (`scripts/backfill_marges_ventes.js`) : ancien calcul au prix du
+      // jour. À retirer une fois la reprise appliquée partout.
       for (final a in v.articles) {
         final p = prodMap[a.produitId];
         if (p != null) {
@@ -120,6 +147,15 @@ class DashboardController extends GetxController {
     double benefice = 0;
     final prodMap = {for (final p in produits) p.id: p};
     for (final v in _validees) {
+      // Marge figée à la validation : c'est la valeur de référence, elle
+      // ne bouge plus quand un appro change le CMUP (ONBOARDING.md §6).
+      if (v.aMargeFigee) {
+        benefice += v.margeTotale!;
+        continue;
+      }
+      // Repli pour les ventes antérieures à la reprise
+      // (`scripts/backfill_marges_ventes.js`) : ancien calcul au prix du
+      // jour. À retirer une fois la reprise appliquée partout.
       for (final a in v.articles) {
         final p = prodMap[a.produitId];
         if (p != null) {
@@ -129,6 +165,37 @@ class DashboardController extends GetxController {
       benefice -= v.remise;
     }
     return benefice;
+  }
+
+  // ====== Dépenses ======
+  List<DepenseModel> get _depensesJour {
+    final today = DateTime.now();
+    return _depensesMois.where((d) => _sameDay(d.date, today)).toList();
+  }
+
+  double get depensesJour =>
+      _depensesJour.fold(0.0, (acc, d) => acc + d.montant);
+
+  double get depensesMois =>
+      _depensesMois.fold(0.0, (acc, d) => acc + d.montant);
+
+  int get nbDepensesJour => _depensesJour.length;
+  int get nbDepensesMois => _depensesMois.length;
+
+  /// Résultat net = bénéfice commercial estimé - dépenses déclarées.
+  double get resultatNetJour => beneficeJour - depensesJour;
+  double get resultatNetMois => beneficeMois - depensesMois;
+
+  /// Top natures de dépense du mois (les 3 postes les plus lourds).
+  List<({String nom, double total})> get topDepensesMois {
+    final byNature = <String, ({String nom, double total})>{};
+    for (final d in _depensesMois) {
+      final cur = byNature[d.natureId] ?? (nom: d.natureNom, total: 0.0);
+      byNature[d.natureId] = (nom: cur.nom, total: cur.total + d.montant);
+    }
+    final list = byNature.values.toList()
+      ..sort((a, b) => b.total.compareTo(a.total));
+    return list.take(3).toList();
   }
 
   // ====== Série 7 derniers jours ======
@@ -182,10 +249,28 @@ class DashboardController extends GetxController {
       topProduits.isEmpty ? 1 : topProduits.first.quantite;
 
   // ====== Répartition par mode de paiement ======
-  Map<ModePaiement, double> get caParModePaiement {
-    final out = <ModePaiement, double>{};
+  /// Ventilation du CA par canal d'encaissement.
+  ///
+  /// La clé est un **libellé** et non l'enum `ModePaiement` : une même
+  /// période contient des ventes encaissées sur des caisses (« Tiroir
+  /// espèces ») et des ventes antérieures qui ne portent qu'un mode
+  /// (« Espèces »). Les deux doivent apparaître côte à côte le temps que
+  /// l'historique se renouvelle.
+  ///
+  /// Une vente encaissée sur plusieurs caisses compte une fois par caisse,
+  /// au prorata du montant encaissé sur chacune : sans ça, un paiement
+  /// mixte faussserait le total de la ventilation.
+  Map<String, double> get caParCanalPaiement {
+    final out = <String, double>{};
     for (final v in _validees) {
-      out[v.modePaiement] = (out[v.modePaiement] ?? 0) + v.total;
+      if (v.passeParCaisse) {
+        for (final p in v.paiements) {
+          out[p.caisseNom] = (out[p.caisseNom] ?? 0) + p.montant;
+        }
+        continue;
+      }
+      final cle = v.modePaiement?.label ?? '—';
+      out[cle] = (out[cle] ?? 0) + v.total;
     }
     return out;
   }

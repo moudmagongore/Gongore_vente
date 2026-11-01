@@ -2,14 +2,18 @@ import 'package:get/get.dart';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/services/receipt_service.dart';
 import '../../../../core/services/user_controller.dart';
+import '../../../../data/models/caisse_model.dart';
 import '../../../../data/models/boutique_model.dart';
+import '../../../../data/models/categorie_model.dart';
 import '../../../../data/models/client_model.dart';
 import '../../../../data/models/produit_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/models/vente_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
+import '../../../../data/repositories/categorie_repository.dart';
 import '../../../../data/repositories/client_repository.dart';
 import '../../../../data/repositories/produit_repository.dart';
 import '../../../../data/repositories/user_repository.dart';
@@ -23,19 +27,33 @@ class VentesController extends GetxController {
   final UserRepository _userRepo = UserRepository();
   final ClientRepository _clientRepo = ClientRepository();
   final ProduitRepository _produitRepo = ProduitRepository();
+  final CategorieRepository _catRepo = CategorieRepository();
 
   final RxList<VenteModel> _all = <VenteModel>[].obs;
   final RxList<BoutiqueModel> boutiques = <BoutiqueModel>[].obs;
   final RxList<UserModel> vendeurs = <UserModel>[].obs;
   final RxList<ClientModel> clients = <ClientModel>[].obs;
   final RxList<ProduitModel> produits = <ProduitModel>[].obs;
+  final RxList<CategorieModel> categories = <CategorieModel>[].obs;
 
   final RxBool isLoading = true.obs;
   final RxnString filterBoutiqueId = RxnString();
   final RxnString filterVendeurId = RxnString();
   final RxnString filterClientId = RxnString();
   final RxnString filterProduitId = RxnString();
+
+  /// Retient les ventes comportant au moins un article de cette catégorie.
+  final RxnString filterCategorieId = RxnString();
+  /// Ancien filtre « mode de paiement » : ne concerne plus que les ventes
+  /// antérieures aux caisses. L'écran ne le propose que si la boutique
+  /// n'en a pas.
   final Rxn<ModePaiement> filterModePaiement = Rxn<ModePaiement>();
+
+  /// Filtre par caisse, qui le remplace dès qu'une caisse existe.
+  final RxnString filterCaisseId = RxnString();
+
+  /// Caisses accessibles, pour les chips de filtre.
+  final RxList<CaisseModel> caisses = <CaisseModel>[].obs;
   // Par défaut, on affiche les ventes annulées dans la liste (avec badge
   // "ANNULÉE" et prix barré). Un filtre permet de les masquer si besoin.
   final RxBool inclureAnnulees = true.obs;
@@ -61,19 +79,41 @@ class VentesController extends GetxController {
     super.onInit();
     final scope = UserController.to.scopeBoutiqueId;
     boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
+    caisses.bindStream(CaisseContexte.watchCaisses(scope));
     vendeurs.bindStream(_userRepo.watchScoped(scope: scope));
     clients.bindStream(_clientRepo.watchScoped(scope));
     produits.bindStream(_produitRepo.watchAll(boutiqueId: scope));
+    categories.bindStream(_catRepo.watchAll(boutiqueId: scope));
+
+    // Un produit hors de la catégorie choisie ne renverrait aucune vente,
+    // sans que l'utilisateur comprenne pourquoi : on relâche le filtre
+    // produit dès qu'il devient incompatible.
+    ever(filterCategorieId, (_) {
+      final pid = filterProduitId.value;
+      if (pid == null) return;
+      final cat = filterCategorieId.value;
+      if (cat == null) return;
+      final p = produits.firstWhereOrNull((x) => x.id == pid);
+      if (p == null || p.categorieId != cat) filterProduitId.value = null;
+    });
 
     if (isVendeur) {
-      // Vendeur (ou admin+alsoGestionnaire) : ne voit que ses propres
-      // ventes, filtrées par la boutique ACTIVE (et non la principale).
-      // Important pour un admin multi-boutique qui switche : les ventes
-      // affichées correspondent à la boutique sélectionnée dans le drawer,
-      // pas à sa boutique principale.
-      final user = UserController.to.user;
-      filterVendeurId.value = user?.id;
+      // Boutique ACTIVE (et non la principale) : important pour un admin
+      // multi-boutique qui switche — les ventes affichées correspondent à
+      // la boutique sélectionnée dans le drawer.
       filterBoutiqueId.value = UserController.to.scopeBoutiqueId;
+
+      // Pré-filtrage sur soi-même réservé au gestionnaire « pur ». Le
+      // sélecteur « Gestionnaire » lui est caché (réservé à isAnyAdmin) :
+      // sans ce filtre il verrait les ventes de ses collègues sans pouvoir
+      // revenir en arrière.
+      //
+      // Un admin qui cumule le rôle gestionnaire, lui, VOIT ce sélecteur :
+      // le pré-remplir lui affichait un filtre qu'il n'avait pas posé. Il
+      // arrive donc sur « Tous », et filtre à la demande.
+      if (!isAnyAdmin) {
+        filterVendeurId.value = UserController.to.user?.id;
+      }
     } else if (isAdmin) {
       // Admin de boutique : ne voit que les ventes de sa boutique active
       filterBoutiqueId.value = UserController.to.scopeBoutiqueId;
@@ -132,9 +172,21 @@ class VentesController extends GetxController {
       final f = customFin.value!;
       avant = DateTime(f.year, f.month, f.day, 23, 59, 59, 999);
     }
+    // Index produit → catégorie, construit une fois par passe de filtrage
+    // (et seulement si le filtre est actif) plutôt qu'à chaque article.
+    final Map<String, String?>? categorieParProduit =
+        filterCategorieId.value == null
+            ? null
+            : {for (final p in produits) p.id: p.categorieId};
+
     return _all.where((v) {
       if (avant != null && v.date.isAfter(avant)) return false;
       if (!inclureAnnulees.value && v.statut == VenteStatut.annulee) {
+        return false;
+      }
+      final caisseFiltre = filterCaisseId.value;
+      if (caisseFiltre != null &&
+          !v.paiements.any((p) => p.caisseId == caisseFiltre)) {
         return false;
       }
       if (filterModePaiement.value != null &&
@@ -153,6 +205,16 @@ class VentesController extends GetxController {
         // Vente concernée si au moins une ligne pointe sur ce produit.
         final pid = filterProduitId.value!;
         if (!v.articles.any((a) => a.produitId == pid)) return false;
+      }
+      if (categorieParProduit != null) {
+        // La catégorie n'est pas portée par la ligne de vente : on remonte
+        // au produit. Un article dont le produit a été supprimé depuis
+        // n'appartient plus à aucune catégorie, il ne peut donc pas matcher.
+        final cid = filterCategorieId.value;
+        if (!v.articles
+            .any((a) => categorieParProduit[a.produitId] == cid)) {
+          return false;
+        }
       }
       if (onlyAvecCredit.value) {
         if (v.statut != VenteStatut.validee) return false;
@@ -179,6 +241,20 @@ class VentesController extends GetxController {
   String produitNom(String? id) {
     if (id == null || id.isEmpty) return '';
     return produits.firstWhereOrNull((p) => p.id == id)?.nom ?? '';
+  }
+
+  /// Helper view : nom de la catégorie pour les libellés de filtre.
+  String categorieNom(String? id) {
+    if (id == null || id.isEmpty) return '';
+    return categories.firstWhereOrNull((c) => c.id == id)?.nom ?? '';
+  }
+
+  /// Produits proposables au filtre : restreints à la catégorie choisie,
+  /// pour que les deux sélecteurs restent cohérents entre eux.
+  List<ProduitModel> get produitsFiltrables {
+    final cat = filterCategorieId.value;
+    if (cat == null) return produits;
+    return produits.where((p) => p.categorieId == cat).toList();
   }
 
   /// Sentinel utilisé en valeur de [filterClientId] pour cibler les ventes
@@ -216,9 +292,62 @@ class VentesController extends GetxController {
       boutiques.firstWhereOrNull((b) => b.id == boutiqueId)?.devise ?? 'GNF';
 
   // ======== Stats ========
-  double get caTotal => filtered
-      .where((v) => v.statut == VenteStatut.validee)
-      .fold(0.0, (acc, v) => acc + v.total);
+
+  /// Chiffre d'affaires et quantités des ventes **validées** affichées,
+  /// ramenés au périmètre des filtres catégorie / produit.
+  ///
+  /// Sans filtre, on additionne simplement le total de chaque vente. Avec
+  /// un filtre, additionner `v.total` compterait la vente entière alors
+  /// que seule une partie est concernée : on ne somme donc que les lignes
+  /// retenues.
+  ///
+  /// La remise globale n'est rattachée à aucune ligne ; elle est imputée
+  /// au prorata du poids des articles retenus, de sorte que la somme de
+  /// toutes les catégories redonne exactement le CA réel de la vente
+  /// (`total = sousTotal - remise`).
+  ({double ca, int articles}) get _totauxFiltres {
+    final cat = filterCategorieId.value;
+    final pid = filterProduitId.value;
+    final cible = cat != null || pid != null;
+    final Map<String, String?>? categorieParProduit = cat == null
+        ? null
+        : {for (final p in produits) p.id: p.categorieId};
+
+    var ca = 0.0;
+    var articles = 0;
+
+    for (final v in filtered) {
+      if (v.statut != VenteStatut.validee) continue;
+
+      if (!cible) {
+        ca += v.total;
+        articles += v.articles.fold(0, (acc, a) => acc + a.quantite);
+        continue;
+      }
+
+      var part = 0.0;
+      for (final a in v.articles) {
+        if (pid != null && a.produitId != pid) continue;
+        if (categorieParProduit != null &&
+            categorieParProduit[a.produitId] != cat) {
+          continue;
+        }
+        part += a.sousTotal;
+        articles += a.quantite;
+      }
+      if (part == 0) continue;
+
+      final base = v.sousTotal;
+      final ratio = base > 0 ? part / base : 0.0;
+      ca += part - (v.remise * ratio);
+    }
+    return (ca: ca, articles: articles);
+  }
+
+  double get caTotal => _totauxFiltres.ca;
+
+  /// Quantité d'articles vendus, sur le même périmètre que [caTotal].
+  int get nbArticlesVendus => _totauxFiltres.articles;
 
   int get nbVentesValidees =>
       filtered.where((v) => v.statut == VenteStatut.validee).length;
@@ -247,6 +376,9 @@ class VentesController extends GetxController {
         boutique: boutique,
         vendeur: vendeur,
         clientLabel: clientLabel,
+        // Client fiché : son numéro vient de sa fiche. Pour un client de
+        // passage on laisse nul, le reçu reprend le numéro libre saisi.
+        clientTelephone: clientDeVente(vente)?.telephone,
       );
     } catch (e) {
       _snackError('Impression impossible : $e');

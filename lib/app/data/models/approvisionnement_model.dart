@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'paiement_caisse.dart';
 import 'vente_model.dart' show ModePaiement;
 
 enum ApproStatut {
@@ -109,7 +110,26 @@ class ApprovisionnementModel {
   /// Avance fournisseur consommée pour cette appro (puise sur solde négatif).
   final double avanceUtilisee;
 
-  final ModePaiement modePaiement;
+  /// Ancien canal de paiement. `null` dès que l'arrivage est payé depuis
+  /// des caisses : c'est alors [paiements] qui dit d'où l'argent sort.
+  final ModePaiement? modePaiement;
+
+  /// Répartition du montant payé à l'arrivage sur les caisses (RG-13).
+  /// Vide pour les arrivages antérieurs au module, les boutiques sans
+  /// caisse (RG-9) et les arrivages entièrement à crédit.
+  ///
+  /// La somme des montants égale [montantPaye] — pas [total] : la part non
+  /// payée augmente la dette fournisseur, elle ne sort d'aucune caisse.
+  final List<PaiementCaisse> paiements;
+
+  bool get passeParCaisse => paiements.isNotEmpty;
+
+  /// Libellé du canal de paiement pour l'affichage et les reçus : les
+  /// caisses s'il y en a, sinon l'ancien mode, sinon un tiret.
+  String get libellePaiement => passeParCaisse
+      ? paiements.map((p) => p.caisseNom).join(' + ')
+      : (modePaiement?.label ?? '—');
+
   final ApproStatut statut;
   final DateTime date;
   final String? note;
@@ -124,7 +144,8 @@ class ApprovisionnementModel {
     required this.sousTotal,
     required this.total,
     required this.montantPaye,
-    required this.modePaiement,
+    this.modePaiement,
+    this.paiements = const [],
     required this.date,
     this.numero,
     this.articleProduitIds = const [],
@@ -158,7 +179,10 @@ class ApprovisionnementModel {
       total: total,
       montantPaye: (map['montantPaye'] as num?)?.toDouble() ?? 0,
       avanceUtilisee: (map['avanceUtilisee'] as num?)?.toDouble() ?? 0,
-      modePaiement: ModePaiement.fromString(map['modePaiement'] as String?),
+      modePaiement: map['modePaiement'] == null
+          ? null
+          : ModePaiement.fromString(map['modePaiement'] as String?),
+      paiements: PaiementCaisse.listFromMap(map['paiements']),
       statut: ApproStatut.fromString(map['statut'] as String?),
       date: (map['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
       note: map['note'] as String?,
@@ -184,7 +208,8 @@ class ApprovisionnementModel {
         'total': total,
         'montantPaye': montantPaye,
         'avanceUtilisee': avanceUtilisee,
-        'modePaiement': modePaiement.name,
+        if (modePaiement != null) 'modePaiement': modePaiement!.name,
+        'paiements': paiements.map((p) => p.toMap()).toList(),
         'statut': statut.name,
         'date': Timestamp.fromDate(date),
         'note': note,

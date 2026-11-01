@@ -1,5 +1,8 @@
-# Firebase requires iOS 13+
-platform :ios, '13.0'
+# Xcode 27 ne supporte plus les simulateurs sous iOS 15 : en dessous, chaque
+# pod heritant d'une cible plus ancienne (10.0, 11.0, 12.0) remonte un
+# avertissement « Target Integrity ». iOS 15 couvre tous les appareils depuis
+# l'iPhone 6s, l'impact utilisateur est donc negligeable.
+platform :ios, '15.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -39,5 +42,12 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+
+    # `flutter_additional_ios_build_settings` n'aligne pas toutes les
+    # dependances : certaines conservent la cible declaree dans leur podspec
+    # (jusqu'a 10.0). On force donc la valeur sur chaque configuration.
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+    end
   end
 end

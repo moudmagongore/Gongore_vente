@@ -1,20 +1,41 @@
 import 'package:get/get.dart';
 
 import '../../../../core/services/user_controller.dart';
+import '../../../../data/models/mouvement_caisse_model.dart';
 import '../../../../data/models/approvisionnement_model.dart';
 import '../../../../data/models/boutique_model.dart';
+import '../../../../data/models/depense_model.dart';
 import '../../../../data/models/fournisseur_model.dart';
 import '../../../../data/models/produit_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/models/vente_model.dart';
+import '../../../../data/repositories/caisse_repository.dart';
 import '../../../../data/repositories/approvisionnement_repository.dart';
 import '../../../../data/repositories/boutique_repository.dart';
+import '../../../../data/repositories/depense_repository.dart';
 import '../../../../data/repositories/fournisseur_repository.dart';
 import '../../../../data/repositories/produit_repository.dart';
 import '../../../../data/repositories/user_repository.dart';
 import '../../../../data/repositories/vente_repository.dart';
 
 enum PeriodePreset { jour, semaine, mois, trimestre, personnalise }
+
+/// Entrées, sorties et variation d'une caisse sur la période (RG-32).
+class SyntheseCaisse {
+  final String caisseId;
+  final String nom;
+  final double entrees;
+  final double sorties;
+
+  const SyntheseCaisse({
+    required this.caisseId,
+    required this.nom,
+    required this.entrees,
+    required this.sorties,
+  });
+
+  double get variation => entrees - sorties;
+}
 
 class RapportsController extends GetxController {
   final VenteRepository _venteRepo = VenteRepository();
@@ -24,6 +45,7 @@ class RapportsController extends GetxController {
   final ApprovisionnementRepository _approRepo =
       ApprovisionnementRepository();
   final FournisseurRepository _fournRepo = FournisseurRepository();
+  final DepenseRepository _depenseRepo = DepenseRepository();
 
   // ====== Filtres ======
   final Rx<PeriodePreset> preset = PeriodePreset.mois.obs;
@@ -40,12 +62,25 @@ class RapportsController extends GetxController {
   final RxList<UserModel> users = <UserModel>[].obs;
   final RxList<ProduitModel> produits = <ProduitModel>[].obs;
   final RxList<FournisseurModel> fournisseurs = <FournisseurModel>[].obs;
+  final RxList<DepenseModel> depenses = <DepenseModel>[].obs;
+
+  /// Synthèse de trésorerie par caisse sur la période (RG-32).
+  ///
+  /// Chargée par une requête ponctuelle et non par un stream : elle
+  /// balaie toutes les caisses de la boutique, ce qui n'est permis qu'à
+  /// l'admin — la règle de lecture d'un gestionnaire exige un `get()` par
+  /// caisse et ferait sauter le quota sur une requête multi-caisses.
+  final RxList<SyntheseCaisse> syntheseCaisses = <SyntheseCaisse>[].obs;
 
   final RxBool isLoading = true.obs;
 
   bool get isSuperAdmin => UserController.to.isSuperAdmin;
   bool get isAnyAdmin => UserController.to.isAnyAdmin;
   bool get isVendeur => UserController.to.isVendeur;
+
+  /// Marges, bénéfices et marge brute : réservés à l'admin (RG-8).
+  /// Le gestionnaire garde tous les chiffres de vente et d'achat.
+  bool get canSeeMarges => UserController.to.canSeeMarges;
 
   @override
   void onInit() {
@@ -134,8 +169,67 @@ class RapportsController extends GetxController {
       before: dateFin.value.add(const Duration(seconds: 1)),
       limit: 1000,
     ));
+    depenses.bindStream(_depenseRepo.watchAll(
+      boutiqueId: boutiqueId.value,
+      // Comme pour les appros : pas de filtre par utilisateur. Une dépense
+      // engage la boutique entière, pas le gestionnaire qui l'a saisie.
+      after: dateDebut.value,
+      before: dateFin.value.add(const Duration(seconds: 1)),
+      limit: 1000,
+    ));
+    _chargerSyntheseCaisses();
     debounce(ventes, (_) => isLoading.value = false,
         time: const Duration(milliseconds: 250));
+  }
+
+  /// Agrège les mouvements de caisse de la période par caisse.
+  ///
+  /// Les mouvements d'annulation ne sont pas écartés : ils sont de vraies
+  /// entrées et sorties, et les retirer ferait mentir la variation.
+  Future<void> _chargerSyntheseCaisses() async {
+    final bid = boutiqueId.value;
+    // Module fermé à la boutique : la section disparaît du rapport, même
+    // s'il reste des mouvements en base.
+    if (bid == null ||
+        bid.isEmpty ||
+        !UserController.to.isAnyAdmin ||
+        !UserController.to.caissesModuleActif) {
+      syntheseCaisses.clear();
+      return;
+    }
+    try {
+      final mouvements = await CaisseRepository().mouvementsDeLaBoutique(
+        boutiqueId: bid,
+        after: dateDebut.value,
+        before: dateFin.value.add(const Duration(seconds: 1)),
+      );
+      final parCaisse = <String, ({String nom, double entrees, double sorties})>{};
+      for (final m in mouvements) {
+        final cur = parCaisse[m.caisseId] ??
+            (nom: m.caisseNom, entrees: 0.0, sorties: 0.0);
+        parCaisse[m.caisseId] = (
+          nom: cur.nom,
+          entrees: cur.entrees +
+              (m.sens == SensMouvement.entree ? m.montant : 0),
+          sorties: cur.sorties +
+              (m.sens == SensMouvement.sortie ? m.montant : 0),
+        );
+      }
+      final list = parCaisse.entries
+          .map((e) => SyntheseCaisse(
+                caisseId: e.key,
+                nom: e.value.nom,
+                entrees: e.value.entrees,
+                sorties: e.value.sorties,
+              ))
+          .toList()
+        ..sort((a, b) => b.variation.abs().compareTo(a.variation.abs()));
+      syntheseCaisses.assignAll(list);
+    } catch (_) {
+      // Une synthèse de trésorerie indisponible ne doit pas priver
+      // l'utilisateur du reste du rapport.
+      syntheseCaisses.clear();
+    }
   }
 
   // ====== Helpers ======
@@ -216,11 +310,58 @@ class RapportsController extends GetxController {
     return list;
   }
 
+  // ====== Dépenses ======
+  int get nbDepenses => depenses.length;
+
+  double get totalDepenses =>
+      depenses.fold(0.0, (acc, d) => acc + d.montant);
+
+  /// Résultat net estimé = bénéfice sur ventes - dépenses de la période.
+  /// C'est le seul indicateur qui tienne compte des charges de la boutique
+  /// (loyer, salaires, transport...), le bénéfice seul n'étant qu'une marge
+  /// commerciale.
+  double get resultatNet => beneficeTotal - totalDepenses;
+
+  /// Répartition des dépenses par nature, de la plus lourde à la plus
+  /// légère. Le regroupement se fait sur `natureId` mais affiche le libellé
+  /// dénormalisé, pour que les natures supprimées restent lisibles.
+  List<({String natureId, String nom, int nb, double total})>
+      get depensesParNature {
+    final byNature = <String, ({String nom, int nb, double total})>{};
+    for (final d in depenses) {
+      final cur = byNature[d.natureId] ?? (nom: d.natureNom, nb: 0, total: 0.0);
+      byNature[d.natureId] = (
+        nom: cur.nom,
+        nb: cur.nb + 1,
+        total: cur.total + d.montant,
+      );
+    }
+    final list = byNature.entries
+        .map((e) => (
+              natureId: e.key,
+              nom: e.value.nom,
+              nb: e.value.nb,
+              total: e.value.total,
+            ))
+        .toList()
+      ..sort((a, b) => b.total.compareTo(a.total));
+    return list;
+  }
+
   // ====== Bénéfice ======
   double get beneficeTotal {
     double benefice = 0;
     final prodMap = {for (final p in produits) p.id: p};
     for (final v in _validees) {
+      // Marge figée à la validation : c'est la valeur de référence, elle
+      // ne bouge plus quand un appro change le CMUP (ONBOARDING.md §6).
+      if (v.aMargeFigee) {
+        benefice += v.margeTotale!;
+        continue;
+      }
+      // Repli pour les ventes antérieures à la reprise
+      // (`scripts/backfill_marges_ventes.js`) : ancien calcul au prix du
+      // jour. À retirer une fois la reprise appliquée partout.
       for (final a in v.articles) {
         final p = prodMap[a.produitId];
         if (p != null) {
@@ -258,10 +399,28 @@ class RapportsController extends GetxController {
   }
 
   // ====== Par mode paiement ======
-  Map<ModePaiement, double> get caParModePaiement {
-    final out = <ModePaiement, double>{};
+  /// Ventilation du CA par canal d'encaissement.
+  ///
+  /// La clé est un **libellé** et non l'enum `ModePaiement` : une même
+  /// période contient des ventes encaissées sur des caisses (« Tiroir
+  /// espèces ») et des ventes antérieures qui ne portent qu'un mode
+  /// (« Espèces »). Les deux doivent apparaître côte à côte le temps que
+  /// l'historique se renouvelle.
+  ///
+  /// Une vente encaissée sur plusieurs caisses compte une fois par caisse,
+  /// au prorata du montant encaissé sur chacune : sans ça, un paiement
+  /// mixte faussserait le total de la ventilation.
+  Map<String, double> get caParCanalPaiement {
+    final out = <String, double>{};
     for (final v in _validees) {
-      out[v.modePaiement] = (out[v.modePaiement] ?? 0) + v.total;
+      if (v.passeParCaisse) {
+        for (final p in v.paiements) {
+          out[p.caisseNom] = (out[p.caisseNom] ?? 0) + p.montant;
+        }
+        continue;
+      }
+      final cle = v.modePaiement?.label ?? '—';
+      out[cle] = (out[cle] ?? 0) + v.total;
     }
     return out;
   }

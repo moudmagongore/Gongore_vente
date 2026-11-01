@@ -80,7 +80,7 @@ class ReglementReceiptService {
             if (client.telephone?.isNotEmpty ?? false)
               _kvRow('Téléphone', client.telephone!),
             _kvRow('Gestionnaire', vendeur?.nom ?? '—'),
-            _kvRow('Mode', reglement.modePaiement.label),
+            _kvRow('Mode', reglement.libellePaiement),
 
             pw.SizedBox(height: 6),
             pw.Container(height: 1, color: PdfColors.black),

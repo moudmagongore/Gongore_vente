@@ -8,6 +8,7 @@ import '../../../../data/models/produit_model.dart';
 import '../../../../data/models/variante_model.dart';
 import '../../../../data/models/vente_model.dart' show ModePaiement;
 import '../../../../data/repositories/produit_repository.dart';
+import '../../../../core/widgets/paiements_caisse_field.dart';
 import '../../../../theme/app_colors.dart';
 import '../controllers/appro_form_controller.dart';
 
@@ -1453,7 +1454,11 @@ class _PaiementInfoChip extends StatelessWidget {
             'Trop versé ${Fmt.money(reste.abs(), currency: c.devise)}';
       } else {
         color = AppColors.greyText(context, 700);
-        label = c.modePaiement.value.label;
+        label = c.caisseRequise
+            ? (c.paiements.isEmpty
+                ? 'Caisse à choisir'
+                : c.paiements.map((p) => p.caisseNom).join(' + '))
+            : c.modePaiement.value.label;
       }
       return InkWell(
         onTap: () => _PaiementSheet.open(context, c),
@@ -1618,28 +1623,66 @@ class _PaiementSheet extends StatelessWidget {
                 onChanged: (v) => c.note.value = v,
               ),
               const SizedBox(height: 12),
-              Text(
-                'Mode de paiement',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.greyText(context, 700),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Obx(
-                () => Wrap(
-                  spacing: 6,
-                  children: ModePaiement.values
-                      .map((m) => ChoiceChip(
-                            label: Text(m.label,
-                                style: const TextStyle(fontSize: 11)),
-                            selected: c.modePaiement.value == m,
-                            onSelected: (_) => c.modePaiement.value = m,
-                          ))
-                      .toList(),
-                ),
-              ),
+              Obx(() {
+                // Lectures explicites : les caisses arrivent par stream et
+                // les getters du controller sortent parfois avant de les
+                // toucher — l'Obx se retrouverait sans observable.
+                c.caisses.length;
+                c.boutiqueEquipee.value;
+                c.montantPaye.value;
+
+                if (c.caisseManquante) {
+                  return const _AvertissementCaisse();
+                }
+                if (!c.caisseRequise) {
+                  // Boutique sans caisse : on garde l'ancien sélecteur de
+                  // mode, pour ne rien perdre tant qu'elle n'est pas
+                  // équipée (RG-9).
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Mode de paiement',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.greyText(context, 700),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        children: ModePaiement.values
+                            .map((m) => ChoiceChip(
+                                  label: Text(m.label,
+                                      style: const TextStyle(fontSize: 11)),
+                                  selected: c.modePaiement.value == m,
+                                  onSelected: (_) =>
+                                      c.modePaiement.value = m,
+                                ))
+                            .toList(),
+                      ),
+                    ],
+                  );
+                }
+                // Un arrivage entièrement à crédit ne touche aucune caisse.
+                if (c.montantPaye.value <= 0) {
+                  return Text(
+                    'Arrivage à crédit : aucune sortie de caisse.',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: AppColors.greyText(context, 600),
+                    ),
+                  );
+                }
+                return PaiementsCaisseField(
+                  caisses: c.caisses.where((x) => x.active).toList(),
+                  montantAttendu: c.montantPaye.value,
+                  estSortie: true,
+                  initial: c.paiements.toList(),
+                  onChanged: (p) => c.paiements.assignAll(p),
+                );
+              }),
               // Section encaissement masquée tant qu'aucune ligne (total = 0,
               // bandeau avance sans effet à ce stade).
               Obx(() => c.lignes.isEmpty
@@ -1875,6 +1918,36 @@ class _RowKv extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+
+/// RG-19 : la boutique a des caisses mais aucune n'est accessible.
+class _AvertissementCaisse extends StatelessWidget {
+  const _AvertissementCaisse();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.danger.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.block_rounded, color: AppColors.danger, size: 18),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Aucune caisse disponible, contactez votre administrateur.',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,7 +1,9 @@
 import 'package:get/get.dart';
 
+import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/boutique_model.dart';
+import '../../../../data/models/caisse_model.dart';
 import '../../../../data/models/vente_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/vente_repository.dart';
@@ -11,6 +13,11 @@ class VendeurHomeController extends GetxController {
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
 
   final RxList<VenteModel> ventesAujourdhui = <VenteModel>[].obs;
+
+  /// Caisses accessibles au gestionnaire, pour la carte Trésorerie
+  /// (RG-31). Le stream filtre déjà sur son uid : il ne voit jamais une
+  /// caisse à laquelle l'admin ne lui a pas donné accès.
+  final RxList<CaisseModel> caisses = <CaisseModel>[].obs;
   final Rxn<BoutiqueModel> boutique = Rxn<BoutiqueModel>();
   final RxBool isLoading = true.obs;
 
@@ -32,6 +39,7 @@ class VendeurHomeController extends GetxController {
     // boutique via le drawer. Les ventes du jour affichées doivent
     // correspondre à la boutique sélectionnée.
     final scope = UserController.to.scopeBoutiqueId;
+    caisses.bindStream(CaisseContexte.watchCaisses(scope));
     if (scope != null && scope.isNotEmpty) {
       boutique.value = await _boutiqueRepo.getById(scope);
     }

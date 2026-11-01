@@ -534,7 +534,7 @@ class _ReglementTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  reglement.modePaiement.label,
+                  reglement.libellePaiement,
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 13,

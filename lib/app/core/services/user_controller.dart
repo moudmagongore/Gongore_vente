@@ -9,6 +9,7 @@ import '../../data/models/boutique_model.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/abonnement_params_repository.dart';
 import '../../routes/app_routes.dart';
+import '../utils/network_timeouts.dart';
 import 'auth_service.dart';
 import 'firestore_service.dart';
 import 'subscription_guard.dart';
@@ -33,6 +34,11 @@ class UserController extends GetxController {
   /// `scopeBoutiqueId` ; pour qu'un switch de boutique propage partout, on
   /// fait `Get.offAllNamed(adminHome)` après le switch (voir drawer).
   final RxnString currentBoutiqueId = RxnString();
+
+  /// Boutique ACTIVE telle qu'elle est en base, alimentée par le stream du
+  /// document déjà en place (aucune lecture supplémentaire). `null` pour un
+  /// super-admin, qui n'est rattaché à aucune boutique.
+  final Rxn<BoutiqueModel> boutiqueActive = Rxn<BoutiqueModel>();
 
   StreamSubscription<User?>? _authSub;
 
@@ -73,6 +79,36 @@ class UserController extends GetxController {
   /// règlements, encaissements, créer clients/fournisseurs, appros, etc.) :
   /// super-admin ou gestionnaire (vendeur OU admin avec alsoGestionnaire).
   bool get canPerformSales => isSuperAdmin || isVendeur;
+
+  /// Vrai si l'utilisateur a le droit de voir les marges, bénéfices et
+  /// coûts d'achat (rapports, tableau de bord, exports PDF).
+  ///
+  /// Basé sur [isAnyAdmin] et NON sur `!isVendeur` : un admin qui coche
+  /// « Aussi gestionnaire » reste admin et doit continuer à les voir
+  /// (cf. ONBOARDING.md §4, cumul admin + gestionnaire).
+  ///
+  /// Limite connue : ce masquage est purement applicatif. Les documents de
+  /// vente restent lisibles par le gestionnaire au niveau base de données,
+  /// donc les champs de marge y sont techniquement accessibles.
+  bool get canSeeMarges => isAnyAdmin;
+
+  /// Le module de caisse est-il ouvert à l'utilisateur courant ?
+  ///
+  /// Point de vérité unique : le drawer, les gardes de route et le chargement
+  /// des caisses s'y réfèrent. Décidé par le super-admin boutique par
+  /// boutique (`BoutiqueModel.caissesActivees`).
+  ///
+  /// Le super-admin l'a toujours : il administre toutes les boutiques, y
+  /// compris celles à qui il vient d'ouvrir le module.
+  bool get caissesModuleActif {
+    if (isSuperAdmin) return true;
+    return boutiqueActive.value?.caissesActivees ?? false;
+  }
+
+  /// Vrai si l'utilisateur peut DÉCLARER une dépense : super-admin, admin
+  /// de boutique ou gestionnaire. Le PARAMÉTRAGE des natures de dépense
+  /// reste, lui, réservé à l'admin (voir [canManageCatalog]).
+  bool get canDeclareDepense => isSuperAdmin || isAdmin || isVendeur;
 
   /// Boutique principale de l'utilisateur (admin/vendeur). null pour super-admin.
   /// Note : pour un admin multi-boutique, ne pas utiliser pour scoper les
@@ -229,11 +265,21 @@ class UserController extends GetxController {
     _boutiqueDocSub?.cancel();
     _boutiqueDocSub = null;
     _watchedBoutiqueId = boutiqueId;
+    boutiqueActive.value = null;
     // Nouvelle boutique null/vide (signOut) → on s'arrête là
     if (boutiqueId == null || boutiqueId.isEmpty) return;
     _boutiqueDocSub =
         FirestoreService.to.boutiques.doc(boutiqueId).snapshots().listen(
       (snap) async {
+        // Le modèle est publié même depuis le cache : sans cela, au
+        // démarrage hors ligne, `caissesModuleActif` resterait faux et le
+        // module disparaîtrait le temps que le serveur réponde.
+        if (snap.exists) {
+          boutiqueActive.value = BoutiqueModel.fromFirestore(snap);
+        }
+        // Les contrôles qui suivent (suppression, désactivation,
+        // abonnement) exigent en revanche une donnée serveur : un cache
+        // périmé ne doit pas déconnecter l'utilisateur.
         if (snap.metadata.isFromCache) return;
         if (!snap.exists) {
           await _forceSignOut(
@@ -350,17 +396,29 @@ class UserController extends GetxController {
   /// Charge le document Firestore correspondant à l'UID Firebase.
   /// Renvoie true si l'utilisateur est valide et actif.
   ///
-  /// Force un read serveur (`Source.server`) pour éviter de lire un cache
+  /// Tente un read serveur (`Source.server`) pour éviter de lire un cache
   /// périmé après une réactivation côté super-admin (sinon l'utilisateur
   /// reste bloqué « désactivé » alors que le serveur dit le contraire).
   /// Vérifie aussi que la boutique est active (sauf super-admin).
+  ///
+  /// `Source.server` interdit tout repli sur le cache : sans borne, sur un
+  /// réseau lent le Future ne se résout jamais et le splash reste figé.
+  /// On borne donc l'attente, puis on retombe sur le cache local — la
+  /// fraîcheur est rattrapée par [_bindUserDocStream], qui force un
+  /// signOut dès que le serveur signale un compte désactivé.
   Future<bool> _loadUserDoc(String uid) async {
     isLoading.value = true;
     errorMessage.value = null;
     try {
-      final snap = await FirestoreService.to.users
-          .doc(uid)
-          .get(const GetOptions(source: Source.server));
+      final docRef = FirestoreService.to.users.doc(uid);
+      DocumentSnapshot<Map<String, dynamic>> snap;
+      try {
+        snap = await docRef
+            .get(const GetOptions(source: Source.server))
+            .timeout(kStartupReadTimeout);
+      } on TimeoutException {
+        snap = await docRef.get(const GetOptions(source: Source.cache));
+      }
       if (!snap.exists) {
         // Auth OK mais pas de document Firestore → cas anormal,
         // on déconnecte pour forcer un état propre.
@@ -411,13 +469,25 @@ class UserController extends GetxController {
       if (loaded.role == UserRole.vendeur &&
           loadedBoutiqueId != null &&
           loadedBoutiqueId.isNotEmpty) {
-        final adminsSnap = await FirestoreService.to.users
-            .where('boutiqueId', isEqualTo: loadedBoutiqueId)
-            .where('role', isEqualTo: UserRole.admin.name)
-            .get(const GetOptions(source: Source.server));
-        final hasActiveAdmin = adminsSnap.docs.any((d) {
-          return (d.data()['active'] as bool? ?? true) == true;
-        });
+        // Même borne que ci-dessus. En cas de timeout on considère le
+        // contrôle comme non concluant et on laisse passer : refuser la
+        // connexion sur une simple lenteur réseau serait pire. La
+        // vérification est refaite en continu par
+        // [_bindBoutiqueAdminsStream].
+        QuerySnapshot<Map<String, dynamic>>? adminsSnap;
+        try {
+          adminsSnap = await FirestoreService.to.users
+              .where('boutiqueId', isEqualTo: loadedBoutiqueId)
+              .where('role', isEqualTo: UserRole.admin.name)
+              .get(const GetOptions(source: Source.server))
+              .timeout(kStartupReadTimeout);
+        } catch (_) {
+          adminsSnap = null; // contrôle non concluant
+        }
+        final hasActiveAdmin = adminsSnap == null ||
+            adminsSnap.docs.any((d) {
+              return (d.data()['active'] as bool? ?? true) == true;
+            });
         if (!hasActiveAdmin) {
           errorMessage.value =
               'L\'administrateur de votre boutique a été désactivé. '

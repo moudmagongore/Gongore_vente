@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'paiement_caisse.dart';
+
 enum ModePaiement {
   especes,
   orangeMoney,
@@ -74,6 +76,25 @@ class VenteArticle {
   final double prixUnitaire;
   final double remise;
 
+  /// Prix d'achat unitaire (CMUP) du produit **au moment exact de la
+  /// vente**, lu dans la transaction. Figé une fois pour toutes : sans lui,
+  /// le moindre approvisionnement ultérieur ferait bouger la marge des
+  /// ventes déjà passées (cf. ONBOARDING.md §6, « marge figée »).
+  ///
+  /// `null` pour les ventes antérieures à la reprise
+  /// (`scripts/backfill_marges_ventes.js`).
+  final double? prixAchatUnitaire;
+
+  /// Part de la remise globale de la vente imputée à cette ligne, au
+  /// prorata de son montant net. La remise globale n'étant portée par
+  /// aucune ligne, il faut la répartir pour obtenir une marge par ligne.
+  final double? remiseGlobaleAllouee;
+
+  /// Marge de la ligne, figée à la validation :
+  /// `sousTotal - remiseGlobaleAllouee - (prixAchatUnitaire × quantite)`.
+  /// Négative en cas de vente à perte — enregistrée telle quelle.
+  final double? marge;
+
   const VenteArticle({
     required this.produitId,
     required this.nom,
@@ -82,7 +103,34 @@ class VenteArticle {
     this.varianteId,
     this.varianteLibelle,
     this.remise = 0,
+    this.prixAchatUnitaire,
+    this.remiseGlobaleAllouee,
+    this.marge,
   });
+
+  /// Vrai quand la ligne porte ses valeurs de marge figées. Les lectures
+  /// doivent prévoir un repli tant que la reprise n'a pas tourné.
+  bool get aMargeFigee => marge != null && prixAchatUnitaire != null;
+
+  VenteArticle copyWith({
+    double? prixAchatUnitaire,
+    double? remiseGlobaleAllouee,
+    double? marge,
+  }) {
+    return VenteArticle(
+      produitId: produitId,
+      nom: nom,
+      varianteId: varianteId,
+      varianteLibelle: varianteLibelle,
+      quantite: quantite,
+      prixUnitaire: prixUnitaire,
+      remise: remise,
+      prixAchatUnitaire: prixAchatUnitaire ?? this.prixAchatUnitaire,
+      remiseGlobaleAllouee:
+          remiseGlobaleAllouee ?? this.remiseGlobaleAllouee,
+      marge: marge ?? this.marge,
+    );
+  }
 
   double get sousTotal => (prixUnitaire * quantite) - remise;
 
@@ -100,6 +148,10 @@ class VenteArticle {
       quantite: (map['quantite'] as num?)?.toInt() ?? 0,
       prixUnitaire: (map['prixUnitaire'] as num?)?.toDouble() ?? 0,
       remise: (map['remise'] as num?)?.toDouble() ?? 0,
+      prixAchatUnitaire: (map['prixAchatUnitaire'] as num?)?.toDouble(),
+      remiseGlobaleAllouee:
+          (map['remiseGlobaleAllouee'] as num?)?.toDouble(),
+      marge: (map['marge'] as num?)?.toDouble(),
     );
   }
 
@@ -111,6 +163,12 @@ class VenteArticle {
         'quantite': quantite,
         'prixUnitaire': prixUnitaire,
         'remise': remise,
+        // Omis tant que la marge n'est pas figée, pour ne pas écrire des
+        // `null` sur les ventes reprises par lot.
+        if (prixAchatUnitaire != null) 'prixAchatUnitaire': prixAchatUnitaire,
+        if (remiseGlobaleAllouee != null)
+          'remiseGlobaleAllouee': remiseGlobaleAllouee,
+        if (marge != null) 'marge': marge,
       };
 }
 
@@ -134,6 +192,11 @@ class VenteModel {
   /// Ignoré si [clientId] est renseigné.
   final String? clientNomLibre;
 
+  /// Téléphone libre du client de passage. Facultatif, et ignoré si
+  /// [clientId] est renseigné (le numéro vient alors de la fiche client).
+  /// Sert uniquement à identifier l'acheteur sur le reçu.
+  final String? clientTelLibre;
+
   final List<VenteArticle> articles;
   final double sousTotal;
   final double remise;
@@ -149,11 +212,38 @@ class VenteModel {
   /// du `total`. Le reste constitue un nouveau crédit. Default 0.
   final double avanceUtilisee;
 
-  final ModePaiement modePaiement;
+  /// Ancien canal de paiement. `null` dès que la vente est encaissée sur
+  /// des caisses : c'est alors [paiements] qui dit où l'argent est entré.
+  final ModePaiement? modePaiement;
+
+  /// Répartition de [montantPaye] sur les caisses (RG-12). Vide pour les
+  /// ventes antérieures au module, les boutiques sans caisse (RG-9) et
+  /// les ventes entièrement à crédit.
+  ///
+  /// La somme égale [montantPaye], **pas** [total] : la part non payée
+  /// part en crédit client, et [avanceUtilisee] n'entre dans aucune caisse
+  /// — cet argent y est entré plus tôt, lors du règlement qui a créé
+  /// l'avance.
+  final List<PaiementCaisse> paiements;
+
+  bool get passeParCaisse => paiements.isNotEmpty;
+
+  /// Libellé du canal de paiement pour l'affichage et les reçus.
+  String get libellePaiement => passeParCaisse
+      ? paiements.map((p) => p.caisseNom).join(' + ')
+      : (modePaiement?.label ?? '—');
   final VenteStatut statut;
   final DateTime date;
   final String? note;
   final String? motifAnnulation;
+
+  /// Coût d'achat total de la vente, figé à la validation :
+  /// somme de `prixAchatUnitaire × quantite` sur les lignes.
+  final double? coutAchatTotal;
+
+  /// Marge totale figée : somme des marges de ligne. `null` tant que la
+  /// reprise n'a pas tourné sur cette vente.
+  final double? margeTotale;
 
   const VenteModel({
     required this.id,
@@ -163,17 +253,24 @@ class VenteModel {
     required this.sousTotal,
     required this.total,
     required this.montantPaye,
-    required this.modePaiement,
+    this.modePaiement,
+    this.paiements = const [],
     required this.date,
     this.numero,
     this.clientId,
     this.clientNomLibre,
+    this.clientTelLibre,
     this.remise = 0,
     this.avanceUtilisee = 0,
     this.statut = VenteStatut.validee,
     this.note,
     this.motifAnnulation,
+    this.coutAchatTotal,
+    this.margeTotale,
   });
+
+  /// Vrai quand la vente porte ses valeurs de marge figées.
+  bool get aMargeFigee => margeTotale != null;
 
   factory VenteModel.fromMap(Map<String, dynamic> map, String id) {
     final raw = (map['articles'] as List?) ?? const [];
@@ -185,6 +282,7 @@ class VenteModel {
       vendeurId: (map['vendeurId'] ?? '') as String,
       clientId: map['clientId'] as String?,
       clientNomLibre: map['clientNomLibre'] as String?,
+      clientTelLibre: map['clientTelLibre'] as String?,
       articles: raw
           .map((e) => VenteArticle.fromMap(Map<String, dynamic>.from(e as Map)))
           .toList(),
@@ -194,11 +292,16 @@ class VenteModel {
       // Rétro-compat : ancien doc → considéré comme intégralement payé.
       montantPaye: (map['montantPaye'] as num?)?.toDouble() ?? total,
       avanceUtilisee: (map['avanceUtilisee'] as num?)?.toDouble() ?? 0,
-      modePaiement: ModePaiement.fromString(map['modePaiement'] as String?),
+      modePaiement: map['modePaiement'] == null
+          ? null
+          : ModePaiement.fromString(map['modePaiement'] as String?),
+      paiements: PaiementCaisse.listFromMap(map['paiements']),
       statut: VenteStatut.fromString(map['statut'] as String?),
       date: (map['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
       note: map['note'] as String?,
       motifAnnulation: map['motifAnnulation'] as String?,
+      coutAchatTotal: (map['coutAchatTotal'] as num?)?.toDouble(),
+      margeTotale: (map['margeTotale'] as num?)?.toDouble(),
     );
   }
 
@@ -214,6 +317,7 @@ class VenteModel {
         'vendeurId': vendeurId,
         'clientId': clientId,
         'clientNomLibre': clientNomLibre,
+        'clientTelLibre': clientTelLibre,
         'articles': articles.map((a) => a.toMap()).toList(),
         // Tableau dénormalisé des produitId présents dans `articles`,
         // pour permettre une query Firestore efficace
@@ -225,11 +329,16 @@ class VenteModel {
         'total': total,
         'montantPaye': montantPaye,
         'avanceUtilisee': avanceUtilisee,
-        'modePaiement': modePaiement.name,
+        if (modePaiement != null) 'modePaiement': modePaiement!.name,
+        'paiements': paiements.map((p) => p.toMap()).toList(),
         'statut': statut.name,
         'date': Timestamp.fromDate(date),
         'note': note,
         'motifAnnulation': motifAnnulation,
+        // Omis tant que la marge n'est pas figée (ventes anterieures a la
+        // reprise), pour ne pas ecrire des `null` en base.
+        if (coutAchatTotal != null) 'coutAchatTotal': coutAchatTotal,
+        if (margeTotale != null) 'margeTotale': margeTotale,
       };
 
   /// Numéro affichable : utilise `numero` si présent, sinon les 8 premiers

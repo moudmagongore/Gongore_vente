@@ -4,7 +4,6 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../core/utils/format_helpers.dart';
-import '../../data/models/vente_model.dart';
 import '../constants/app_constants.dart';
 import '../utils/pdf_share_helper.dart';
 import 'pdf_theme_service.dart';
@@ -19,7 +18,10 @@ class ReportData {
   final double caTotal;
   final double benefice;
   final int nbArticles;
-  final Map<ModePaiement, double> caParPaiement;
+  /// Ventilation du CA par canal d'encaissement, indexée par **libellé** :
+  /// noms de caisses pour les ventes récentes, anciens modes de paiement
+  /// pour l'historique. Les deux cohabitent dans une même période.
+  final Map<String, double> caParPaiement;
   final List<({String nom, int qte, double ca})> topProduits;
 
   // ====== Achats ======
@@ -30,7 +32,21 @@ class ReportData {
   final double detteFournisseurGlobale;
   final List<({String nom, int nbAppros, double total})> topFournisseurs;
 
+  // ====== Dépenses ======
+  final int nbDepenses;
+  final double totalDepenses;
+
+  /// Bénéfice sur ventes diminué des dépenses de la période.
+  final double resultatNet;
+
+  final List<({String nom, int nb, double total})> depensesParNature;
+
   final String devise;
+
+  /// Pilote l'affichage des marges, bénéfices et marge brute (RG-8).
+  /// `false` pour un gestionnaire : les blocs concernés ne sont pas
+  /// rendus du tout — ni vides, ni grisés.
+  final bool afficherMarges;
 
   ReportData({
     required this.debut,
@@ -50,7 +66,12 @@ class ReportData {
     this.detteFournisseurPeriode = 0,
     this.detteFournisseurGlobale = 0,
     this.topFournisseurs = const [],
+    this.nbDepenses = 0,
+    this.totalDepenses = 0,
+    this.resultatNet = 0,
+    this.depensesParNature = const [],
     this.devise = 'GNF',
+    this.afficherMarges = true,
   });
 }
 
@@ -143,11 +164,12 @@ class ReportPdfService {
                 Fmt.money(data.caTotal, currency: data.devise),
                 PdfColors.blue700,
               ),
-              _kpiBox(
-                'Bénéfice estimé',
-                Fmt.money(data.benefice, currency: data.devise),
-                PdfColors.green700,
-              ),
+              if (data.afficherMarges)
+                _kpiBox(
+                  'Bénéfice estimé',
+                  Fmt.money(data.benefice, currency: data.devise),
+                  PdfColors.green700,
+                ),
               _kpiBox('Ventes validées', '${data.nbVentes}', PdfColors.indigo),
               _kpiBox(
                 'Articles vendus',
@@ -188,13 +210,13 @@ class ReportPdfService {
               },
               headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
               data: [
-                ['Mode', 'Montant', '% du chiffre d\'affaires'],
+                ['Canal', 'Montant', '% du chiffre d\'affaires'],
                 ...data.caParPaiement.entries.map((e) {
                   final pct = data.caTotal == 0
                       ? 0
                       : (e.value / data.caTotal) * 100;
                   return [
-                    e.key.label,
+                    e.key,
                     Fmt.money(e.value, currency: data.devise),
                     '${pct.toStringAsFixed(1)} %',
                   ];
@@ -260,13 +282,14 @@ class ReportPdfService {
                 '${data.nbAppros}',
                 PdfColors.indigo,
               ),
-              _kpiBox(
-                'Marge brute (CA - achats)',
-                Fmt.money(data.margePeriode, currency: data.devise),
-                data.margePeriode >= 0
-                    ? PdfColors.green700
-                    : PdfColors.red700,
-              ),
+              if (data.afficherMarges)
+                _kpiBox(
+                  'Marge brute (CA - achats)',
+                  Fmt.money(data.margePeriode, currency: data.devise),
+                  data.margePeriode >= 0
+                      ? PdfColors.green700
+                      : PdfColors.red700,
+                ),
               _kpiBox(
                 'Dette appros période',
                 Fmt.money(data.detteFournisseurPeriode,
@@ -281,6 +304,79 @@ class ReportPdfService {
               ),
             ],
           ),
+          pw.SizedBox(height: 24),
+
+          // ====== Dépenses ======
+          pw.Text(
+            'Dépenses',
+            style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 10),
+          pw.Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _kpiBox(
+                'Total dépensé',
+                Fmt.money(data.totalDepenses, currency: data.devise),
+                PdfColors.red700,
+              ),
+              _kpiBox(
+                'Nombre de dépenses',
+                '${data.nbDepenses}',
+                PdfColors.indigo,
+              ),
+              if (data.afficherMarges)
+                _kpiBox(
+                  'Résultat net estimé',
+                  Fmt.money(data.resultatNet, currency: data.devise),
+                  data.resultatNet >= 0
+                      ? PdfColors.green700
+                      : PdfColors.red700,
+                ),
+            ],
+          ),
+          pw.SizedBox(height: 10),
+          if (data.depensesParNature.isEmpty)
+            pw.Text('Aucune dépense sur cette période',
+                style: pw.TextStyle(color: PdfColors.grey))
+          else
+            pw.TableHelper.fromTextArray(
+              headerStyle: pw.TextStyle(
+                fontWeight: pw.FontWeight.bold,
+                fontSize: 10,
+              ),
+              cellStyle: const pw.TextStyle(fontSize: 9),
+              cellAlignment: pw.Alignment.centerLeft,
+              cellAlignments: {
+                0: pw.Alignment.centerRight,
+                2: pw.Alignment.centerRight,
+                3: pw.Alignment.centerRight,
+                4: pw.Alignment.centerRight,
+              },
+              headerDecoration:
+                  const pw.BoxDecoration(color: PdfColors.grey200),
+              data: [
+                ['#', 'Nature', 'Nombre', 'Montant', '% du total'],
+                ...data.depensesParNature
+                    .take(20)
+                    .toList()
+                    .asMap()
+                    .entries
+                    .map((e) {
+                  final pct = data.totalDepenses == 0
+                      ? 0
+                      : (e.value.total / data.totalDepenses) * 100;
+                  return [
+                    '${e.key + 1}',
+                    e.value.nom,
+                    '${e.value.nb}',
+                    Fmt.money(e.value.total, currency: data.devise),
+                    '${pct.toStringAsFixed(1)} %',
+                  ];
+                }),
+              ],
+            ),
           pw.SizedBox(height: 24),
 
           // ====== Top fournisseurs ======

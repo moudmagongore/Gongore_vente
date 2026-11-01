@@ -79,7 +79,7 @@ class ReglementFournisseurReceiptService {
             if (fournisseur.telephone?.isNotEmpty ?? false)
               _kv('Téléphone', fournisseur.telephone!),
             _kv('Versé par', user?.nom ?? '—'),
-            _kv('Mode', reglement.modePaiement.label),
+            _kv('Mode', reglement.libellePaiement),
 
             pw.SizedBox(height: 6),
             pw.Container(height: 1, color: PdfColors.black),
