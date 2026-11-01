@@ -321,10 +321,28 @@ class RapportsController extends GetxController {
   }
 
   // ====== Par mode paiement ======
-  Map<ModePaiement, double> get caParModePaiement {
-    final out = <ModePaiement, double>{};
+  /// Ventilation du CA par canal d'encaissement.
+  ///
+  /// La clé est un **libellé** et non l'enum `ModePaiement` : une même
+  /// période contient des ventes encaissées sur des caisses (« Tiroir
+  /// espèces ») et des ventes antérieures qui ne portent qu'un mode
+  /// (« Espèces »). Les deux doivent apparaître côte à côte le temps que
+  /// l'historique se renouvelle.
+  ///
+  /// Une vente encaissée sur plusieurs caisses compte une fois par caisse,
+  /// au prorata du montant encaissé sur chacune : sans ça, un paiement
+  /// mixte faussserait le total de la ventilation.
+  Map<String, double> get caParCanalPaiement {
+    final out = <String, double>{};
     for (final v in _validees) {
-      out[v.modePaiement] = (out[v.modePaiement] ?? 0) + v.total;
+      if (v.passeParCaisse) {
+        for (final p in v.paiements) {
+          out[p.caisseNom] = (out[p.caisseNom] ?? 0) + p.montant;
+        }
+        continue;
+      }
+      final cle = v.modePaiement?.label ?? '—';
+      out[cle] = (out[cle] ?? 0) + v.total;
     }
     return out;
   }

@@ -300,6 +300,11 @@ service cloud.firestore {
       // et `margeTotale` : aucun rôle hors super-admin ne peut les toucher
       // après création, puisque seules les clés listées sont modifiables.
       //
+      // CAISSES — `paiements` n'est pas dans les `hasOnly()` ci-dessous :
+      // la répartition écrite à la validation ne peut plus être modifiée.
+      // L'annulation n'y touche pas non plus, elle écrit des mouvements de
+      // compensation dans `mouvementsCaisse`.
+      //
       // Deux limites connues, assumées pour ce lot :
       //   1. les règles ne savent pas vérifier la JUSTESSE des marges à la
       //      création (elles ne parcourent pas une liste d'articles) ;

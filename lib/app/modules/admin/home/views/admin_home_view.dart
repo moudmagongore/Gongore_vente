@@ -8,7 +8,6 @@ import '../../../../core/utils/format_helpers.dart';
 import '../../../../core/widgets/admin_drawer.dart';
 import '../../../../core/widgets/subscription_badge_card.dart';
 import '../../../../core/widgets/subscription_warning_banner.dart';
-import '../../../../data/models/vente_model.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../../theme/app_colors.dart';
 import '../../dashboard/controllers/dashboard_controller.dart';
@@ -818,16 +817,23 @@ class _PiePaiements extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final data = c.caParModePaiement;
+      final data = c.caParCanalPaiement;
       if (data.isEmpty) return _NoData(message: 'Aucune vente sur le mois');
 
       final total = data.values.fold<double>(0, (acc, v) => acc + v);
-      final colors = {
-        ModePaiement.especes: AppColors.success,
-        ModePaiement.orangeMoney: AppColors.warning,
-        ModePaiement.mobileMoney: AppColors.primary(context),
-        ModePaiement.paycard: AppColors.secondary,
-      };
+      // Les canaux sont désormais des libellés libres (noms de caisses) :
+      // la couleur est prise dans une palette par position, et non plus
+      // associée à un mode de paiement précis.
+      final palette = [
+        AppColors.success,
+        AppColors.warning,
+        AppColors.primary(context),
+        AppColors.secondary,
+        AppColors.danger,
+      ];
+      final cles = data.keys.toList();
+      Color couleur(String cle) =>
+          palette[cles.indexOf(cle) % palette.length];
 
       return Column(
       children: [
@@ -841,7 +847,7 @@ class _PiePaiements extends StatelessWidget {
                 final pct = (e.value / total) * 100;
                 return PieChartSectionData(
                   value: e.value,
-                  color: colors[e.key],
+                  color: couleur(e.key),
                   title: '${pct.toStringAsFixed(0)}%',
                   radius: 50,
                   titleStyle: const TextStyle(
@@ -866,13 +872,13 @@ class _PiePaiements extends StatelessWidget {
                         width: 12,
                         height: 12,
                         decoration: BoxDecoration(
-                          color: colors[e.key],
+                          color: couleur(e.key),
                           shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        e.key.label,
+                        e.key,
                         style: const TextStyle(fontSize: 11),
                       ),
                       const SizedBox(width: 4),

@@ -525,7 +525,7 @@ class _RecentList extends StatelessWidget {
                       ),
                     ),
                     subtitle: Text(
-                      '${v.nbArticles} article(s) • ${v.modePaiement.label}',
+                      '${v.nbArticles} article(s) • ${v.libellePaiement}',
                       style: const TextStyle(fontSize: 11),
                     ),
                     trailing: Text(

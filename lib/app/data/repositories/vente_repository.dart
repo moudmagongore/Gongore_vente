@@ -1,9 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/services/firestore_service.dart';
+import '../../core/utils/caisse_calculator.dart';
 import '../../core/utils/marge_calculator.dart';
 import '../../core/utils/stream_helpers.dart';
+import '../models/mouvement_caisse_model.dart';
 import '../models/vente_model.dart';
+import 'caisse_repository.dart';
 
 /// Levée par [VenteRepository.create] quand le stock est insuffisant pour
 /// une ou plusieurs lignes. Le `message` contient un libellé prêt à
@@ -17,6 +20,7 @@ class StockInsuffisantException implements Exception {
 
 class VenteRepository {
   final FirestoreService _fs = FirestoreService.to;
+  final CaisseRepository _caisses = CaisseRepository();
 
   CollectionReference<Map<String, dynamic>> get _ventes => _fs.ventes;
   CollectionReference<Map<String, dynamic>> get _clients => _fs.clients;
@@ -75,10 +79,21 @@ class VenteRepository {
   /// 5. Si client lié : ajuste son solde + flagge `hasOperations: true`
   ///
   /// Tout est atomique.
-  Future<String> create(VenteModel vente) async {
+  Future<String> create(
+    VenteModel vente, {
+    required String userNom,
+  }) async {
     if (vente.articles.isEmpty) {
       throw ArgumentError('Vente sans article impossible');
     }
+    // RG-12 : ce qui entre en caisse est le montant ENCAISSÉ. Ni le total
+    // (la différence part en crédit client), ni l'avance utilisée — cet
+    // argent est entré en caisse plus tôt, au règlement qui l'a créée.
+    final probleme = verifierRepartition(
+      paiements: vente.paiements,
+      attendu: vente.montantPaye,
+    );
+    if (probleme != null) throw CaisseException(probleme);
 
     return _fs.db.runTransaction<String>((tx) async {
       // ===== Étape 1 : tous les reads d'abord =====
@@ -176,6 +191,25 @@ class VenteRepository {
         }
       });
 
+      // ===== Étape 1c : encaissement sur les caisses =====
+      // Avant le premier write : `appliquerPaiements` lit les caisses, et
+      // Firestore interdit toute lecture après une écriture dans la même
+      // transaction.
+      final venteRef = _ventes.doc();
+      final paiements = await _caisses.appliquerPaiements(
+        tx: tx,
+        paiements: vente.paiements,
+        sens: SensMouvement.entree,
+        boutiqueId: vente.boutiqueId,
+        type: TypeMouvementCaisse.vente,
+        userId: vente.vendeurId,
+        userNom: userNom,
+        date: vente.date,
+        sourceType: 'ventes',
+        sourceId: venteRef.id,
+        numero: venteNumero,
+      );
+
       // ===== Étape 2 : tous les writes =====
 
       // 2a. Décrémente le stock des produits existants (skip silencieusement
@@ -225,10 +259,10 @@ class VenteRepository {
         prixAchatParProduit: prixAchatParProduit,
       );
 
-      final venteRef = _ventes.doc();
       tx.set(venteRef, {
         ...vente.toMap(),
         'numero': venteNumero,
+        'paiements': paiements.map((p) => p.toMap()).toList(),
         // Écrase les articles par leur version enrichie des marges.
         'articles': marges.articles.map((a) => a.toMap()).toList(),
         'coutAchatTotal': marges.coutAchatTotal,
@@ -274,6 +308,7 @@ class VenteRepository {
   Future<void> cancel({
     required String venteId,
     required String userId,
+    required String userNom,
     required String motif,
   }) async {
     await _fs.db.runTransaction((tx) async {
@@ -318,6 +353,36 @@ class VenteRepository {
       }
 
       // ===== Writes =====
+
+      // L'argent encaissé ressort des caisses. Avant les premières
+      // écritures : `appliquerPaiements` lit les caisses.
+      //
+      // Attention : si cet argent a été dépensé depuis et que la caisse
+      // n'autorise pas le négatif, l'annulation échoue (RG-16). C'est
+      // voulu — mais c'est nouveau par rapport à l'ancien comportement,
+      // où une annulation réussissait toujours.
+      if (vente.passeParCaisse) {
+        final annules = <String, String>{};
+        for (final p in vente.paiements) {
+          final mid = p.mouvementId;
+          if (mid != null) annules[p.caisseId] = mid;
+        }
+        await _caisses.appliquerPaiements(
+          tx: tx,
+          paiements: vente.paiements,
+          sens: SensMouvement.sortie,
+          boutiqueId: vente.boutiqueId,
+          type: TypeMouvementCaisse.annulation,
+          userId: userId,
+          userNom: userNom,
+          date: DateTime.now(),
+          sourceType: 'ventes',
+          sourceId: venteId,
+          numero: vente.numero,
+          mouvementsAnnules: annules,
+          exigerActive: false,
+        );
+      }
 
       // Restitue le stock total + le stock par variante.
       qteParProduit.forEach((pid, qte) {

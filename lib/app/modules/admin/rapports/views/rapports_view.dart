@@ -5,7 +5,6 @@ import '../../../../core/services/report_pdf_service.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../core/widgets/admin_drawer.dart';
 import '../../../../core/widgets/vendeur_drawer.dart';
-import '../../../../data/models/vente_model.dart';
 import '../../../../routes/app_routes.dart';
 import '../../../../theme/app_colors.dart';
 import '../controllers/rapports_controller.dart';
@@ -138,7 +137,7 @@ class RapportsView extends GetView<RapportsController> {
           caTotal: c.caTotal,
           benefice: c.beneficeTotal,
           nbArticles: c.nbArticlesVendus,
-          caParPaiement: c.caParModePaiement,
+          caParPaiement: c.caParCanalPaiement,
           topProduits: c.topProduits
               .map((t) => (nom: t.nom, qte: t.qte, ca: t.ca))
               .toList(),
@@ -535,14 +534,18 @@ class _PaiementsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final data = c.caParModePaiement;
+      final data = c.caParCanalPaiement;
       if (data.isEmpty) {
         return const _EmptyCard(message: 'Aucune vente sur cette période');
       }
+      // On parcourt les canaux réellement présents, du plus gros au plus
+      // petit : la liste n'est plus celle, figée, des modes de paiement.
+      final entrees = data.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
       return Card(
         child: Column(
-          children: ModePaiement.values.map((m) {
-            final montant = data[m] ?? 0;
+          children: entrees.map((e) {
+            final montant = e.value;
             final pct = c.caTotal == 0 ? 0 : (montant / c.caTotal) * 100;
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -551,7 +554,7 @@ class _PaiementsSection extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: Text(m.label,
+                        child: Text(e.key,
                             style: const TextStyle(
                                 fontSize: 13, fontWeight: FontWeight.w600)),
                       ),

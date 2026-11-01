@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/services/receipt_service.dart';
 import '../../../../core/services/user_controller.dart';
+import '../../../../data/models/caisse_model.dart';
 import '../../../../data/models/boutique_model.dart';
 import '../../../../data/models/categorie_model.dart';
 import '../../../../data/models/client_model.dart';
 import '../../../../data/models/produit_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/models/vente_model.dart';
+import '../../../../data/repositories/caisse_repository.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/categorie_repository.dart';
 import '../../../../data/repositories/client_repository.dart';
@@ -42,7 +44,16 @@ class VentesController extends GetxController {
 
   /// Retient les ventes comportant au moins un article de cette catégorie.
   final RxnString filterCategorieId = RxnString();
+  /// Ancien filtre « mode de paiement » : ne concerne plus que les ventes
+  /// antérieures aux caisses. L'écran ne le propose que si la boutique
+  /// n'en a pas.
   final Rxn<ModePaiement> filterModePaiement = Rxn<ModePaiement>();
+
+  /// Filtre par caisse, qui le remplace dès qu'une caisse existe.
+  final RxnString filterCaisseId = RxnString();
+
+  /// Caisses accessibles, pour les chips de filtre.
+  final RxList<CaisseModel> caisses = <CaisseModel>[].obs;
   // Par défaut, on affiche les ventes annulées dans la liste (avec badge
   // "ANNULÉE" et prix barré). Un filtre permet de les masquer si besoin.
   final RxBool inclureAnnulees = true.obs;
@@ -68,6 +79,12 @@ class VentesController extends GetxController {
     super.onInit();
     final scope = UserController.to.scopeBoutiqueId;
     boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
+    caisses.bindStream(CaisseRepository().watchScoped(
+      scope: scope,
+      gestionnaireId: UserController.to.isAnyAdmin
+          ? null
+          : UserController.to.user?.id,
+    ));
     vendeurs.bindStream(_userRepo.watchScoped(scope: scope));
     clients.bindStream(_clientRepo.watchScoped(scope));
     produits.bindStream(_produitRepo.watchAll(boutiqueId: scope));
@@ -170,6 +187,11 @@ class VentesController extends GetxController {
     return _all.where((v) {
       if (avant != null && v.date.isAfter(avant)) return false;
       if (!inclureAnnulees.value && v.statut == VenteStatut.annulee) {
+        return false;
+      }
+      final caisseFiltre = filterCaisseId.value;
+      if (caisseFiltre != null &&
+          !v.paiements.any((p) => p.caisseId == caisseFiltre)) {
         return false;
       }
       if (filterModePaiement.value != null &&

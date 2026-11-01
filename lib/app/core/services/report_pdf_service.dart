@@ -4,7 +4,6 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../core/utils/format_helpers.dart';
-import '../../data/models/vente_model.dart';
 import '../constants/app_constants.dart';
 import '../utils/pdf_share_helper.dart';
 import 'pdf_theme_service.dart';
@@ -19,7 +18,10 @@ class ReportData {
   final double caTotal;
   final double benefice;
   final int nbArticles;
-  final Map<ModePaiement, double> caParPaiement;
+  /// Ventilation du CA par canal d'encaissement, indexée par **libellé** :
+  /// noms de caisses pour les ventes récentes, anciens modes de paiement
+  /// pour l'historique. Les deux cohabitent dans une même période.
+  final Map<String, double> caParPaiement;
   final List<({String nom, int qte, double ca})> topProduits;
 
   // ====== Achats ======
@@ -208,13 +210,13 @@ class ReportPdfService {
               },
               headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
               data: [
-                ['Mode', 'Montant', '% du chiffre d\'affaires'],
+                ['Canal', 'Montant', '% du chiffre d\'affaires'],
                 ...data.caParPaiement.entries.map((e) {
                   final pct = data.caTotal == 0
                       ? 0
                       : (e.value / data.caTotal) * 100;
                   return [
-                    e.key.label,
+                    e.key,
                     Fmt.money(e.value, currency: data.devise),
                     '${pct.toStringAsFixed(1)} %',
                   ];

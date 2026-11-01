@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'paiement_caisse.dart';
+
 enum ModePaiement {
   especes,
   orangeMoney,
@@ -210,7 +212,26 @@ class VenteModel {
   /// du `total`. Le reste constitue un nouveau crédit. Default 0.
   final double avanceUtilisee;
 
-  final ModePaiement modePaiement;
+  /// Ancien canal de paiement. `null` dès que la vente est encaissée sur
+  /// des caisses : c'est alors [paiements] qui dit où l'argent est entré.
+  final ModePaiement? modePaiement;
+
+  /// Répartition de [montantPaye] sur les caisses (RG-12). Vide pour les
+  /// ventes antérieures au module, les boutiques sans caisse (RG-9) et
+  /// les ventes entièrement à crédit.
+  ///
+  /// La somme égale [montantPaye], **pas** [total] : la part non payée
+  /// part en crédit client, et [avanceUtilisee] n'entre dans aucune caisse
+  /// — cet argent y est entré plus tôt, lors du règlement qui a créé
+  /// l'avance.
+  final List<PaiementCaisse> paiements;
+
+  bool get passeParCaisse => paiements.isNotEmpty;
+
+  /// Libellé du canal de paiement pour l'affichage et les reçus.
+  String get libellePaiement => passeParCaisse
+      ? paiements.map((p) => p.caisseNom).join(' + ')
+      : (modePaiement?.label ?? '—');
   final VenteStatut statut;
   final DateTime date;
   final String? note;
@@ -232,7 +253,8 @@ class VenteModel {
     required this.sousTotal,
     required this.total,
     required this.montantPaye,
-    required this.modePaiement,
+    this.modePaiement,
+    this.paiements = const [],
     required this.date,
     this.numero,
     this.clientId,
@@ -270,7 +292,10 @@ class VenteModel {
       // Rétro-compat : ancien doc → considéré comme intégralement payé.
       montantPaye: (map['montantPaye'] as num?)?.toDouble() ?? total,
       avanceUtilisee: (map['avanceUtilisee'] as num?)?.toDouble() ?? 0,
-      modePaiement: ModePaiement.fromString(map['modePaiement'] as String?),
+      modePaiement: map['modePaiement'] == null
+          ? null
+          : ModePaiement.fromString(map['modePaiement'] as String?),
+      paiements: PaiementCaisse.listFromMap(map['paiements']),
       statut: VenteStatut.fromString(map['statut'] as String?),
       date: (map['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
       note: map['note'] as String?,
@@ -304,7 +329,8 @@ class VenteModel {
         'total': total,
         'montantPaye': montantPaye,
         'avanceUtilisee': avanceUtilisee,
-        'modePaiement': modePaiement.name,
+        if (modePaiement != null) 'modePaiement': modePaiement!.name,
+        'paiements': paiements.map((p) => p.toMap()).toList(),
         'statut': statut.name,
         'date': Timestamp.fromDate(date),
         'note': note,

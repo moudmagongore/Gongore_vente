@@ -81,7 +81,8 @@ class VenteDetailController extends GetxController {
     );
     if (motif == null) return;
 
-    final userId = UserController.to.user?.id;
+    final user = UserController.to.user;
+    final userId = user?.id;
     if (userId == null) return;
 
     isCanceling.value = true;
@@ -89,11 +90,14 @@ class VenteDetailController extends GetxController {
       await _venteRepo.cancel(
         venteId: venteId!,
         userId: userId,
+        userNom: user?.nom ?? '',
         motif: motif,
       );
       Get.snackbar(
         'Vente annulée',
-        'L\'effet sur le solde client a été inversé.',
+        vente.value?.passeParCaisse ?? false
+            ? 'Solde client et caisse réajustés.'
+            : 'L\'effet sur le solde client a été inversé.',
         snackPosition: SnackPosition.TOP,
       );
     } catch (e) {

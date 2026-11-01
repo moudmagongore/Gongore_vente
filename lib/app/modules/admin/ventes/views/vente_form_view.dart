@@ -9,6 +9,7 @@ import '../../../../data/models/variante_model.dart';
 import '../../../../data/models/vente_model.dart';
 import '../../../../data/repositories/produit_repository.dart';
 import '../../../../routes/app_routes.dart';
+import '../../../../core/widgets/paiements_caisse_field.dart';
 import '../../../../theme/app_colors.dart';
 import '../controllers/vente_form_controller.dart';
 
@@ -2204,7 +2205,13 @@ class _PaiementInfoChip extends StatelessWidget {
             'Trop perçu ${Fmt.money(reste.abs(), currency: controller.devise)}';
       } else {
         color = AppColors.greyText(context, 700);
-        label = controller.modePaiement.value.label;
+        label = controller.caisseRequise
+            ? (controller.paiements.isEmpty
+                ? 'Caisse à choisir'
+                : controller.paiements
+                    .map((p) => p.caisseNom)
+                    .join(' + '))
+            : controller.modePaiement.value.label;
       }
       return InkWell(
         onTap: () => _PaiementSheet.open(context, controller),
@@ -2365,43 +2372,81 @@ class _PaiementSheet extends StatelessWidget {
               const SizedBox(height: 12),
               _NoteField(controller: controller),
               const SizedBox(height: 10),
-              Text(
-                'Mode de paiement',
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.3,
-                  color: AppColors.greyText(context, 600),
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 36,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Obx(() {
-                    final current = controller.modePaiement.value;
-                    return Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (var i = 0;
-                            i < ModePaiement.values.length;
-                            i++) ...[
-                          if (i > 0) const SizedBox(width: 8),
-                          _CatPill(
-                            label: ModePaiement.values[i].label,
-                            selected: current == ModePaiement.values[i],
-                            onTap: () => controller.modePaiement.value =
-                                ModePaiement.values[i],
-                          ),
-                        ],
-                      ],
-                    );
-                  }),
-                ),
-              ),
-              const SizedBox(height: 12),
+              // L'encaissement vient avant le choix de la caisse : c'est
+              // lui qui fixe le montant à répartir.
               _EncaissementSection(controller: controller),
+              const SizedBox(height: 12),
+              Obx(() {
+                // Lectures explicites : les caisses arrivent par stream et
+                // les getters du controller sortent parfois avant de les
+                // toucher — l'Obx se retrouverait sans observable.
+                controller.caisses.length;
+                controller.boutiqueEquipee.value;
+                final paye = controller.montantPaye.value;
+
+                if (controller.caisseManquante) {
+                  return const _AvertissementCaisseVente();
+                }
+                if (!controller.caisseRequise) {
+                  // Boutique sans caisse : ancien sélecteur de mode (RG-9).
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Mode de paiement',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.3,
+                          color: AppColors.greyText(context, 600),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: 36,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (var i = 0;
+                                  i < ModePaiement.values.length;
+                                  i++) ...[
+                                if (i > 0) const SizedBox(width: 8),
+                                _CatPill(
+                                  label: ModePaiement.values[i].label,
+                                  selected: controller.modePaiement.value ==
+                                      ModePaiement.values[i],
+                                  onTap: () =>
+                                      controller.modePaiement.value =
+                                          ModePaiement.values[i],
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                // Vente entièrement à crédit : aucune caisse touchée.
+                if (paye <= 0) {
+                  return Text(
+                    'Vente à crédit : aucune entrée en caisse.',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: AppColors.greyText(context, 600),
+                    ),
+                  );
+                }
+                return PaiementsCaisseField(
+                  caisses:
+                      controller.caisses.where((c) => c.active).toList(),
+                  montantAttendu: paye,
+                  initial: controller.paiements.toList(),
+                  onChanged: (p) => controller.paiements.assignAll(p),
+                );
+              }),
               const SizedBox(height: 14),
               ElevatedButton(
                 onPressed: () => Get.back(),
@@ -3292,6 +3337,38 @@ class _NoBoutique extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+
+/// RG-19 : la boutique a des caisses mais aucune n'est accessible. La vente
+/// à crédit reste possible, d'où la nuance du message.
+class _AvertissementCaisseVente extends StatelessWidget {
+  const _AvertissementCaisseVente();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.danger.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.block_rounded, color: AppColors.danger, size: 18),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Aucune caisse disponible, contactez votre administrateur. '
+              'Une vente entièrement à crédit reste possible.',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
       ),
     );
   }

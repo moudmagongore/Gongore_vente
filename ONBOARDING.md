@@ -323,13 +323,18 @@ ni GetX, testé par `test/caisse_calculator_test.dart`) : regroupement des
 lignes par caisse, contrôle du solde négatif, calcul du `soldeApres`. Le
 repository lit les caisses dans la transaction, appelle ce calcul, puis écrit.
 
-**Opérations branchées à ce jour : dépenses, règlements client et fournisseur,
-arrivages.** Seules les ventes écrivent encore sans toucher aux caisses.
+**Toutes les opérations sont branchées** : dépenses, règlements client et
+fournisseur, arrivages, ventes.
 
-Sur un arrivage, ce qui sort des caisses est **`montantPaye`, jamais `total`** :
-la part non payée devient une dette fournisseur. Un arrivage entièrement à
-crédit ne touche donc aucune caisse. Même piège que sur la vente avec
-`avanceUtilisee` — voir ci-dessous.
+**Ce qui transite par les caisses est `montantPaye`, jamais `total`.** C'est le
+piège central du module :
+
+- sur une **vente**, la part non payée part en crédit client ; une vente
+  entièrement à crédit ne touche aucune caisse ;
+- sur un **arrivage**, elle devient une dette fournisseur ;
+- `avanceUtilisee` **n'entre dans aucune caisse** : cet argent y est entré plus
+  tôt, lors du règlement qui a créé l'avance. Calculer la répartition sur
+  `total - resteAPayer` le compterait deux fois.
 
 La saisie de la répartition est le widget partagé
 `core/widgets/paiements_caisse_field.dart` (lignes caisse + montant, reste à
@@ -357,11 +362,16 @@ Deux conséquences à connaître :
   en a, et retombe sur les modes sinon. Sans ça, un filtre « Espèces » aurait
   silencieusement masqué tous les règlements récents.
 
-`VenteModel` garde pour l'instant un `modePaiement` non nullable : il sera
-traité avec son étape. Sur les règlements et les arrivages, le sélecteur de
-mode **reste affiché tant que la boutique n'a aucune caisse** : c'est RG-9 —
-sans caisse, l'opération se comporte exactement comme avant, et l'information
-ne doit pas être perdue.
+Le sélecteur de mode **reste affiché tant que la boutique n'a aucune caisse** :
+c'est RG-9 — sans caisse, l'opération se comporte exactement comme avant, et
+l'information ne doit pas être perdue.
+
+La **ventilation du CA** des rapports et du tableau de bord
+(`caParCanalPaiement`) est désormais indexée par **libellé** et non par l'enum :
+une même période contient des ventes encaissées sur des caisses (« Tiroir
+espèces ») et des ventes antérieures qui ne portent qu'un mode (« Espèces »).
+Une vente encaissée sur plusieurs caisses compte une fois par caisse, au
+prorata — sinon un paiement mixte faussserait le total.
 
 Côté dépense, deux conséquences du gel des mouvements :
 
@@ -624,9 +634,9 @@ gcloud firestore export gs://gongorevente.firebasestorage.app/backup-$(date +%F)
 - **iOS** : adoption d'UIScene et cible iOS 15 pour Xcode 27
 - **Lot 2 étape 2.1** : création et paramétrage des caisses, accès par
   gestionnaire, helper de mouvements testé. Recetté
-- **Lot 2 étape 2.2** : dépenses, règlements client et fournisseur, arrivages
-  branchés sur les caisses ; mode de paiement remplacé par la caisse sur ces
-  opérations — **non encore recetté**. Reste les ventes.
+- **Lot 2 étape 2.2 complète** : les cinq opérations sont branchées sur les
+  caisses, le mode de paiement est remplacé par la caisse partout, et le reçu
+  de vente détaille la répartition — **non encore recetté**
 
 ### Dette connue
 

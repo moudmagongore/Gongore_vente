@@ -295,29 +295,70 @@ class VentesListView extends GetView<VentesController> {
                 );
               }),
               const SizedBox(height: 12),
-              const Text('Mode de paiement', style: TextStyle(fontSize: 12)),
-              const SizedBox(height: 6),
-              Obx(
-                () => Wrap(
-                  spacing: 8,
-                  children: [
-                    ChoiceChip(
-                      label: const Text('Tous'),
-                      selected: controller.filterModePaiement.value == null,
-                      onSelected: (_) =>
-                          controller.filterModePaiement.value = null,
-                    ),
-                    ...ModePaiement.values.map(
-                      (m) => ChoiceChip(
-                        label: Text(m.label),
-                        selected: controller.filterModePaiement.value == m,
-                        onSelected: (_) =>
-                            controller.filterModePaiement.value = m,
+              Obx(() {
+                // Les caisses remplacent le mode de paiement : même axe, et
+                // le mode n'est plus renseigné sur les ventes récentes.
+                final caisses =
+                    controller.caisses.where((c) => c.active).toList();
+                if (caisses.isEmpty) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Mode de paiement',
+                          style: TextStyle(fontSize: 12)),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          ChoiceChip(
+                            label: const Text('Tous'),
+                            selected:
+                                controller.filterModePaiement.value == null,
+                            onSelected: (_) =>
+                                controller.filterModePaiement.value = null,
+                          ),
+                          ...ModePaiement.values.map(
+                            (m) => ChoiceChip(
+                              label: Text(m.label),
+                              selected:
+                                  controller.filterModePaiement.value == m,
+                              onSelected: (_) =>
+                                  controller.filterModePaiement.value = m,
+                            ),
+                          ),
+                        ],
                       ),
+                    ],
+                  );
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Caisse', style: TextStyle(fontSize: 12)),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('Toutes'),
+                          selected: controller.filterCaisseId.value == null,
+                          onSelected: (_) =>
+                              controller.filterCaisseId.value = null,
+                        ),
+                        ...caisses.map(
+                          (c) => ChoiceChip(
+                            label: Text(c.nom),
+                            selected:
+                                controller.filterCaisseId.value == c.id,
+                            onSelected: (_) =>
+                                controller.filterCaisseId.value = c.id,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
-                ),
-              ),
+                );
+              }),
               const SizedBox(height: 12),
               Obx(
                 () => CheckboxListTile(
@@ -749,7 +790,7 @@ class _VenteTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${Fmt.dateTime(vente.date)} · ${vente.nbArticles} art. · ${vente.modePaiement.label}',
+                      '${Fmt.dateTime(vente.date)} · ${vente.nbArticles} art. · ${vente.libellePaiement}',
                       style: TextStyle(
                           fontSize: 11, color: AppColors.greyText(context, 600)),
                       maxLines: 1,

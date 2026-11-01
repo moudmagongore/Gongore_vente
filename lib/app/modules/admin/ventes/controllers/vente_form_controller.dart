@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/services/user_controller.dart';
+import '../../../../core/utils/caisse_calculator.dart';
+import '../../../../data/models/paiement_caisse.dart';
+import '../../../../data/models/caisse_model.dart';
 import '../../../../data/models/boutique_model.dart';
 import '../../../../data/models/categorie_model.dart';
 import '../../../../data/models/client_model.dart';
 import '../../../../data/models/produit_model.dart';
 import '../../../../data/models/vente_model.dart';
+import '../../../../data/repositories/caisse_repository.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/categorie_repository.dart';
 import '../../../../data/repositories/client_repository.dart';
@@ -69,6 +73,7 @@ class LigneVente {
 class VenteFormController extends GetxController {
   final ProduitRepository _produitRepo = ProduitRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
+  final CaisseRepository _caisseRepo = CaisseRepository();
   final CategorieRepository _catRepo = CategorieRepository();
   final ClientRepository _clientRepo = ClientRepository();
   final VenteRepository _venteRepo = VenteRepository();
@@ -95,7 +100,26 @@ class VenteFormController extends GetxController {
 
   // ===== Paiement / total / méta =====
   final RxDouble remiseGlobale = 0.0.obs;
+  /// Conservé pour les boutiques sans caisse : dès qu'une caisse existe,
+  /// c'est [paiements] qui dit où l'argent entre, et ce mode n'est plus
+  /// ni demandé ni enregistré (RG-9).
   final Rx<ModePaiement> modePaiement = ModePaiement.especes.obs;
+
+  /// Caisses actives accessibles à l'utilisateur dans la boutique active.
+  final RxList<CaisseModel> caisses = <CaisseModel>[].obs;
+
+  /// La boutique a au moins une caisse active, accessible ou non (RG-19).
+  final RxBool boutiqueEquipee = false.obs;
+
+  /// Répartition de [montantPaye] sur les caisses.
+  final RxList<PaiementCaisse> paiements = <PaiementCaisse>[].obs;
+
+  /// Une caisse est disponible : son choix devient obligatoire (RG-11).
+  bool get caisseRequise => caisses.any((c) => c.active);
+
+  /// La boutique a des caisses mais aucune pour cet utilisateur (RG-19).
+  /// Une vente entièrement à crédit reste possible dans ce cas.
+  bool get caisseManquante => boutiqueEquipee.value && !caisseRequise;
   final RxString note = ''.obs;
 
   /// Montant effectivement encaissé. Par défaut suit `total`. Si l'utilisateur
@@ -163,6 +187,19 @@ class VenteFormController extends GetxController {
       );
       debounce(produits, (_) => isLoadingProduits.value = false,
           time: const Duration(milliseconds: 200));
+
+      // Les caisses suivent la boutique active : un admin multi-boutique
+      // ne doit pas encaisser sur la caisse d'une autre boutique.
+      final uc = UserController.to;
+      caisses.bindStream(_caisseRepo.watchScoped(
+        scope: id,
+        gestionnaireId: uc.isAnyAdmin ? null : uc.user?.id,
+      ));
+      // Seul moyen, pour un gestionnaire, de savoir que la boutique a des
+      // caisses auxquelles il n'a pas accès (RG-19).
+      _boutiqueRepo.getById(id).then((b) {
+        boutiqueEquipee.value = b?.hasCaissesActives ?? false;
+      });
     });
 
     final user = UserController.to.user;
@@ -204,6 +241,7 @@ class VenteFormController extends GetxController {
     clientTelLibre.value = '';
     remiseGlobale.value = 0;
     modePaiement.value = ModePaiement.especes;
+    paiements.clear();
     note.value = '';
     montantPaye.value = 0;
     avanceUtilisee.value = 0;
@@ -478,6 +516,25 @@ class VenteFormController extends GetxController {
       return;
     }
 
+    if (caisseManquante && montantPaye.value > 0) {
+      _snackError(
+        'Aucune caisse disponible, contactez votre administrateur. '
+        'Une vente entièrement à crédit reste possible.',
+      );
+      return;
+    }
+    if (caisseRequise && montantPaye.value > 0) {
+      final probleme = verifierRepartition(
+        paiements: paiements,
+        attendu: montantPaye.value,
+      );
+      if (paiements.isEmpty || probleme != null) {
+        _snackError(probleme ??
+            'Indiquez sur quelle caisse l\'argent est encaissé.');
+        return;
+      }
+    }
+
     isSaving.value = true;
     try {
       final vente = VenteModel(
@@ -497,12 +554,18 @@ class VenteFormController extends GetxController {
         total: total,
         montantPaye: montantPaye.value,
         avanceUtilisee: avanceUtilisee.value,
-        modePaiement: modePaiement.value,
+        // Le mode de paiement ne survit que pour les boutiques sans
+        // caisse : ailleurs, `paiements` fait foi.
+        modePaiement: caisseRequise ? null : modePaiement.value,
+        paiements: caisseRequise ? paiements.toList() : const [],
         date: DateTime.now(),
         note: note.value.isEmpty ? null : note.value,
       );
 
-      final venteId = await _venteRepo.create(vente);
+      final venteId = await _venteRepo.create(
+        vente,
+        userNom: UserController.to.user?.nom ?? '',
+      );
 
       // Reset
       _resetVente();
