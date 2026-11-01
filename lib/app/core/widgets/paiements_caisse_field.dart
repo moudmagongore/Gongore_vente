@@ -78,7 +78,9 @@ class _PaiementsCaisseFieldState extends State<PaiementsCaisseField> {
       }
     } else if (widget.caisses.isNotEmpty) {
       _lignes.add(_Ligne(caisseId: widget.caisses.first.id));
-      _appliquerMontantAuto();
+      // Écriture directe : `initState` précède le premier build, rien
+      // n'est en cours de construction.
+      _lignes.first.ctrl.text = _texteMontantAuto();
     }
   }
 
@@ -89,25 +91,38 @@ class _PaiementsCaisseFieldState extends State<PaiementsCaisseField> {
     // Première caisse arrivée après coup (stream) : on crée la ligne.
     if (_lignes.isEmpty && widget.caisses.isNotEmpty) {
       _lignes.add(_Ligne(caisseId: widget.caisses.first.id));
+      _planifierMontantAuto();
     }
     if (widget.montantAttendu != old.montantAttendu) {
-      _appliquerMontantAuto();
+      _planifierMontantAuto();
     }
   }
 
+  String _texteMontantAuto() => widget.montantAttendu > 0
+      ? widget.montantAttendu.toStringAsFixed(0)
+      : '';
+
   /// Recopie le montant de l'opération sur l'unique ligne, tant que
   /// l'utilisateur ne l'a pas reprise en main.
-  void _appliquerMontantAuto() {
-    if (!_montantAuto || _lignes.length != 1) return;
-    final texte = widget.montantAttendu > 0
-        ? widget.montantAttendu.toStringAsFixed(0)
-        : '';
-    if (_lignes.first.ctrl.text != texte) {
+  ///
+  /// **Toujours après la frame.** Écrire dans un `TextEditingController`
+  /// notifie ses auditeurs, dont le `FormField` qui l'entoure : appelé
+  /// pendant le build — ce qui est le cas depuis `didUpdateWidget`, lui-même
+  /// déclenché par un `Obx` qui se reconstruit — cela demande au `Form` de
+  /// se reconstruire alors qu'il l'est déjà, et Flutter lève
+  /// « setState() or markNeedsBuild() called during build ».
+  ///
+  /// Les conditions sont revérifiées dans le callback : une frame s'est
+  /// écoulée, l'utilisateur a pu saisir un montant ou ajouter une ligne
+  /// entre-temps.
+  void _planifierMontantAuto() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_montantAuto || _lignes.length != 1) return;
+      final texte = _texteMontantAuto();
+      if (_lignes.first.ctrl.text == texte) return;
       _lignes.first.ctrl.text = texte;
-    }
-    // Pas de setState ici : appelé depuis didUpdateWidget, le rebuild est
-    // déjà en cours. On notifie seulement le parent.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _notifier());
+      _notifier();
+    });
   }
 
   @override
@@ -185,9 +200,8 @@ class _PaiementsCaisseFieldState extends State<PaiementsCaisseField> {
       }
       _lignes.removeRange(1, _lignes.length);
       _montantAuto = true;
-      _lignes.first.ctrl.text = widget.montantAttendu > 0
-          ? widget.montantAttendu.toStringAsFixed(0)
-          : '';
+      // Déclenché par un tap : pas de build en cours, écriture directe.
+      _lignes.first.ctrl.text = _texteMontantAuto();
     });
     _notifier();
   }

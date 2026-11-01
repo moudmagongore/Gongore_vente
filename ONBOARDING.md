@@ -573,6 +573,27 @@ Le disposer dès que `Get.dialog` rend la main le détruit pendant l'animation
 de fermeture (« used after being disposed »). Il doit vivre dans le `State`
 d'un `StatefulWidget` dédié — voir `ConfirmPurgeDialog`.
 
+### Écrire dans un `TextEditingController` pendant le build
+
+Rencontré pour de vrai sur `paiements_caisse_field.dart` :
+
+```
+setState() or markNeedsBuild() called during build.
+This Form widget cannot be marked as needing to build...
+The widget which was currently being built when the offending call was
+made was: Obx
+```
+
+Affecter `ctrl.text` notifie les auditeurs du contrôleur, dont le `FormField`
+qui l'entoure, qui demande au `Form` de se reconstruire. Depuis `initState` ou
+depuis un `onTap`, aucun problème. Depuis **`didUpdateWidget`** — déclenché
+par un `Obx` parent qui se reconstruit — le `Form` est déjà en cours de
+construction, et Flutter refuse.
+
+Le remède est un `addPostFrameCallback` **autour de l'écriture**, pas
+seulement autour de la notification au parent, avec les conditions
+revérifiées dedans : une frame s'est écoulée, l'état a pu changer.
+
 ### Lectures réseau au démarrage
 
 Un `get()` Firestore n'a **aucun timeout**, et `Source.server` interdit le
