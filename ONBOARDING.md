@@ -746,6 +746,8 @@ gcloud firestore export gs://gongorevente.firebasestorage.app/backup-$(date +%F)
   transferts, apports, retraits et corrections, relevé de caisse avec export
   PDF, trésorerie au tableau de bord et synthèse par caisse dans les rapports.
   **Recetté** (novembre 2026)
+- **Module de caisse ouvert boutique par boutique** par le super-admin
+  (`caissesActivees`), fermé par défaut. Recetté
 
 ### Dette connue
 
