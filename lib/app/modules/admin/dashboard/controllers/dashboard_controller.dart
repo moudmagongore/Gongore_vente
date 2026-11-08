@@ -56,31 +56,69 @@ class DashboardController extends GetxController {
 
   final RxBool isLoading = true.obs;
 
+  /// Filtre boutique du tableau de bord. `null` = périmètre habituel de
+  /// l'utilisateur (toutes les boutiques pour un super-admin, la boutique
+  /// active pour un admin).
+  ///
+  /// Proposé au **super-admin** seulement : un admin change de boutique par
+  /// le sélecteur du drawer, qui déplace tout l'écran de travail et pas
+  /// seulement le tableau de bord.
+  final RxnString filterBoutiqueId = RxnString();
+
   bool get isSuperAdmin => UserController.to.isSuperAdmin;
+
+  /// Boutique sur laquelle lire les données : le filtre s'il est posé,
+  /// sinon le périmètre de l'utilisateur.
+  String? get _scopeEffectif =>
+      filterBoutiqueId.value ?? UserController.to.scopeBoutiqueId;
+
+  bool get aUnFiltre => filterBoutiqueId.value != null;
+
+  String get libelleFiltre {
+    final id = filterBoutiqueId.value;
+    if (id == null) return 'Toutes les boutiques';
+    return boutiqueNom(id);
+  }
 
   @override
   void onInit() {
     super.onInit();
+
+    // La liste des boutiques n'est PAS filtrée : c'est elle qui alimente le
+    // sélecteur, elle doit donc rester complète.
+    boutiques.bindStream(
+      _boutiqueRepo.watchScoped(scope: UserController.to.scopeBoutiqueId),
+    );
+
+    // Enregistré une seule fois : `_bind()` est rejoué à chaque changement
+    // de filtre, et y remettre un `debounce` empilerait les workers.
+    debounce(_ventesMois, (_) => isLoading.value = false,
+        time: const Duration(milliseconds: 250));
+
+    _bind();
+    ever(filterBoutiqueId, (_) => _bind());
+  }
+
+  /// (Re)branche toutes les données sur la boutique retenue.
+  void _bind() {
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
-    final scope = UserController.to.scopeBoutiqueId;
+    final scope = _scopeEffectif;
+
+    isLoading.value = true;
 
     caisses.bindStream(CaisseContexte.watchCaisses(scope));
-
     _ventesMois.bindStream(_venteRepo.watchAll(
       after: startOfMonth,
       limit: 500,
       boutiqueId: scope,
     ));
-    boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
     users.bindStream(_userRepo.watchScoped(scope: scope));
     produits.bindStream(_produitRepo.watchAll(boutiqueId: scope));
     _depensesMois.bindStream(_depenseRepo.watchAll(
       boutiqueId: scope,
       after: startOfMonth,
     ));
-    debounce(_ventesMois, (_) => isLoading.value = false,
-        time: const Duration(milliseconds: 250));
   }
 
   // ====== Helpers ======

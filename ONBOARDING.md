@@ -458,6 +458,24 @@ Deux pièges de cette mécanique :
   pas de requête. Il est donc applicatif (la liste chargée par le
   formulaire), et c'est une limite assumée.
 
+### Montant payé : aucune valeur par défaut
+
+Sur une vente comme sur un arrivage, le champ « montant payé » est **vide à
+l'ouverture** et sa saisie est **obligatoire** (`montantPayeSaisi`, vérifié
+avant l'enregistrement). Il était auparavant pré-rempli avec le total, ce qui
+faisait enregistrer des opérations comme intégralement réglées alors que
+l'argent n'avait pas été reçu : une validation trop rapide suffisait.
+
+Trois conséquences :
+
+- **0 est une saisie valide** : c'est ainsi qu'on enregistre une opération
+  entièrement à crédit. Vider le champ, en revanche, ne compte pas — l'écran
+  redevient invalide ;
+- le bouton **« Tout payer »** reste le raccourci du cas courant, et réactive
+  le suivi automatique du total ;
+- un panier neuf affiche donc « Reste à payer » jusqu'à la saisie. C'est
+  voulu : rien n'est encaissé tant que personne ne l'a dit.
+
 ### Stock
 
 `quantiteStock` est maintenu **atomiquement par transaction** (vente, appro,
@@ -589,6 +607,29 @@ snackbar, pas le sheet. Fermer **d'abord**, notifier ensuite — ou utiliser
 Le disposer dès que `Get.dialog` rend la main le détruit pendant l'animation
 de fermeture (« used after being disposed »). Il doit vivre dans le `State`
 d'un `StatefulWidget` dédié — voir `ConfirmPurgeDialog`.
+
+### Un widget qui disparaît ne nettoie pas l'état du contrôleur
+
+Bug constaté en vente : saisir un montant payé puis l'effacer laissait une
+répartition de caisse périmée — le début du montant effacé — et
+l'enregistrement était refusé, la répartition ne correspondant plus au montant.
+
+En cause : le bloc de répartition n'est affiché que si le montant payé est
+positif. En retombant à zéro, il **quitte l'arbre sans prévenir personne**, et
+`controller.paiements` garde sa dernière valeur. Deux remèdes, tous deux en
+place :
+
+- le contrôleur vide `paiements` dès que le montant tombe à zéro
+  (`setMontantPaye`), et la construction du modèle n'attache une répartition
+  que si le montant est positif ;
+- les formulaires **ne passent plus `initial`** à `PaiementsCaisseField` : ce
+  champ alimente `paiements`, le lui repasser le figeait en mode manuel à
+  chaque recréation du widget — ce qui arrive justement quand le montant
+  franchit zéro.
+
+La règle générale : un état partagé entre un widget conditionnel et son
+contrôleur doit être remis à plat par **le contrôleur**, sur l'événement qui
+fait disparaître le widget. `dispose()` est trop tard et pas toujours appelé.
 
 ### Écrire dans un `TextEditingController` pendant le build
 

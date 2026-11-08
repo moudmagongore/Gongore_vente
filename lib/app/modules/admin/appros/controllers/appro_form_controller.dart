@@ -104,10 +104,24 @@ class ApproFormController extends GetxController {
   /// La boutique a des caisses mais aucune pour cet utilisateur (RG-19).
   bool get caisseManquante => boutiqueEquipee.value && !caisseRequise;
 
-  /// Montant versé au fournisseur au comptant. Par défaut suit le total.
-  /// Si édité manuellement, l'auto-sync se désactive.
+  /// Montant effectivement versé.
+  ///
+  /// **Aucune valeur par défaut** : le champ est vide à l'ouverture et
+  /// l'utilisateur doit le renseigner. Pré-remplir avec le total faisait
+  /// enregistrer des opérations comme intégralement payées alors que
+  /// l'argent n'avait pas été versé — une validation trop rapide suffisait.
   final RxDouble montantPaye = 0.0.obs;
-  final RxBool _montantPayeAuto = true.obs;
+
+  /// Le champ a-t-il été renseigné ? Vrai dès que l'utilisateur y saisit
+  /// quelque chose, ou qu'il demande « Tout payer ». Un zéro explicite
+  /// compte comme une saisie : c'est ainsi qu'on enregistre une opération
+  /// entièrement à crédit.
+  final RxBool montantPayeSaisi = false.obs;
+
+  /// Suivi automatique du total. Démarre à `false` — il ne s'active que si
+  /// l'utilisateur demande explicitement « Tout payer », auquel cas le
+  /// montant suit le total jusqu'à la prochaine saisie manuelle.
+  final RxBool _montantPayeAuto = false.obs;
 
   /// Avance fournisseur consommée (puise sur solde négatif fournisseur).
   final RxDouble avanceUtilisee = 0.0.obs;
@@ -202,8 +216,9 @@ class ApproFormController extends GetxController {
     paiements.clear();
     note.value = '';
     montantPaye.value = 0;
+    montantPayeSaisi.value = false;
     avanceUtilisee.value = 0;
-    _montantPayeAuto.value = true;
+    _montantPayeAuto.value = false;
   }
 
   void _autoSyncMontantPaye() {
@@ -216,14 +231,25 @@ class ApproFormController extends GetxController {
     }
   }
 
-  void setMontantPaye(double value) {
+  /// [renseigne] vaut `false` quand l'utilisateur vide le champ : le
+  /// montant retombe à 0 mais l'opération redevient invalide, sinon un
+  /// champ effacé passerait pour une opération entièrement à crédit.
+  void setMontantPaye(double value, {bool renseigne = true}) {
     _montantPayeAuto.value = false;
     montantPaye.value = value < 0 ? 0 : value;
+    montantPayeSaisi.value = renseigne;
+    // Montant ramené à zéro : le bloc de répartition disparaît de l'écran
+    // et ne prévient donc personne. Sans ce nettoyage, `paiements` garde
+    // sa dernière valeur — le début du montant qu'on vient d'effacer — et
+    // l'enregistrement est refusé parce que la répartition ne correspond
+    // plus à rien.
+    if (montantPaye.value <= 0) paiements.clear();
   }
 
   void resetMontantPayeAuto() {
     _montantPayeAuto.value = true;
     montantPaye.value = total;
+    montantPayeSaisi.value = true;
   }
 
   /// Reste à payer après cet appro (positif = nouvelle dette,
@@ -248,6 +274,7 @@ class ApproFormController extends GetxController {
     avanceUtilisee.value = maxApp;
     _montantPayeAuto.value = false;
     montantPaye.value = total - maxApp;
+    montantPayeSaisi.value = true;
   }
 
   void setAvanceUtilisee(double value) {
@@ -264,6 +291,7 @@ class ApproFormController extends GetxController {
     avanceUtilisee.value = 0;
     _montantPayeAuto.value = true;
     montantPaye.value = total;
+    montantPayeSaisi.value = true;
   }
 
   // ===== Fournisseur =====
@@ -390,6 +418,15 @@ class ApproFormController extends GetxController {
       _snackError('Session expirée');
       return;
     }
+    // Montant versé obligatoire : plus de pré-remplissage, donc plus
+    // d'arrivage enregistré « payé » par simple validation rapide.
+    if (!montantPayeSaisi.value) {
+      _snackError(
+        "Saisissez le montant versé au fournisseur. Mettez 0 si "
+        "l'arrivage est entièrement à crédit.",
+      );
+      return;
+    }
     if (caisseManquante && montantPaye.value > 0) {
       _snackError('Aucune caisse disponible, contactez votre administrateur.');
       return;
@@ -424,7 +461,11 @@ class ApproFormController extends GetxController {
         // Le mode de paiement ne survit que pour les boutiques sans
         // caisse : ailleurs, `paiements` fait foi.
         modePaiement: caisseRequise ? null : modePaiement.value,
-        paiements: caisseRequise ? paiements.toList() : const [],
+        // Double verrou : une opération sans encaissement ne porte aucune
+        // répartition, quoi qu'ait laissé l'écran derrière lui.
+        paiements: caisseRequise && montantPaye.value > 0
+            ? paiements.toList()
+            : const [],
         date: DateTime.now(),
         note: note.value.isEmpty ? null : note.value,
       );

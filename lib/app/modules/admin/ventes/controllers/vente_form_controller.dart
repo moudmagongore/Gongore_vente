@@ -121,11 +121,24 @@ class VenteFormController extends GetxController {
   bool get caisseManquante => boutiqueEquipee.value && !caisseRequise;
   final RxString note = ''.obs;
 
-  /// Montant effectivement encaissé. Par défaut suit `total`. Si l'utilisateur
-  /// l'édite manuellement (ex. paiement partiel), `_montantPayeAuto` passe
-  /// à `false` et le champ ne se réajuste plus automatiquement.
+  /// Montant effectivement encaissé.
+  ///
+  /// **Aucune valeur par défaut** : le champ est vide à l'ouverture et
+  /// l'utilisateur doit le renseigner. Pré-remplir avec le total faisait
+  /// enregistrer des opérations comme intégralement payées alors que
+  /// l'argent n'avait pas été encaissé — une validation trop rapide suffisait.
   final RxDouble montantPaye = 0.0.obs;
-  final RxBool _montantPayeAuto = true.obs;
+
+  /// Le champ a-t-il été renseigné ? Vrai dès que l'utilisateur y saisit
+  /// quelque chose, ou qu'il demande « Tout payer ». Un zéro explicite
+  /// compte comme une saisie : c'est ainsi qu'on enregistre une opération
+  /// entièrement à crédit.
+  final RxBool montantPayeSaisi = false.obs;
+
+  /// Suivi automatique du total. Démarre à `false` — il ne s'active que si
+  /// l'utilisateur demande explicitement « Tout payer », auquel cas le
+  /// montant suit le total jusqu'à la prochaine saisie manuelle.
+  final RxBool _montantPayeAuto = false.obs;
 
   /// Avance du client puisée pour couvrir cette vente. 0 par défaut.
   /// Editable par l'utilisateur (clic sur « Utiliser l'avance » ou saisie
@@ -239,8 +252,9 @@ class VenteFormController extends GetxController {
     paiements.clear();
     note.value = '';
     montantPaye.value = 0;
+    montantPayeSaisi.value = false;
     avanceUtilisee.value = 0;
-    _montantPayeAuto.value = true;
+    _montantPayeAuto.value = false;
   }
 
   /// À appeler à chaque changement susceptible d'altérer le total.
@@ -260,15 +274,26 @@ class VenteFormController extends GetxController {
 
   /// Définit manuellement le montant payé (paiement partiel ou trop-perçu).
   /// Désactive la synchro auto avec le total.
-  void setMontantPaye(double value) {
+  /// [renseigne] vaut `false` quand l'utilisateur vide le champ : le
+  /// montant retombe à 0 mais l'opération redevient invalide, sinon un
+  /// champ effacé passerait pour une opération entièrement à crédit.
+  void setMontantPaye(double value, {bool renseigne = true}) {
     _montantPayeAuto.value = false;
     montantPaye.value = value < 0 ? 0 : value;
+    montantPayeSaisi.value = renseigne;
+    // Montant ramené à zéro : le bloc de répartition disparaît de l'écran
+    // et ne prévient donc personne. Sans ce nettoyage, `paiements` garde
+    // sa dernière valeur — le début du montant qu'on vient d'effacer — et
+    // l'enregistrement est refusé parce que la répartition ne correspond
+    // plus à rien.
+    if (montantPaye.value <= 0) paiements.clear();
   }
 
   /// Repasse en mode "intégralement payé" (montant payé = total).
   void resetMontantPayeAuto() {
     _montantPayeAuto.value = true;
     montantPaye.value = total;
+    montantPayeSaisi.value = true;
   }
 
   /// Reste à payer après cette vente (positif = crédit, négatif = trop-perçu).
@@ -296,6 +321,7 @@ class VenteFormController extends GetxController {
     avanceUtilisee.value = maxApp;
     _montantPayeAuto.value = false;
     montantPaye.value = total - maxApp;
+    montantPayeSaisi.value = true;
   }
 
   /// Saisie manuelle d'avance utilisée (clamp 0..avanceMaxApplicable).
@@ -316,6 +342,7 @@ class VenteFormController extends GetxController {
     avanceUtilisee.value = 0;
     _montantPayeAuto.value = true;
     montantPaye.value = total;
+    montantPayeSaisi.value = true;
   }
 
   // ===== Client =====
@@ -502,6 +529,16 @@ class VenteFormController extends GetxController {
       return;
     }
 
+    // Montant payé obligatoire : plus de pré-remplissage, donc plus de
+    // vente enregistrée « réglée » par simple validation rapide.
+    if (!montantPayeSaisi.value) {
+      _snackError(
+        'Saisissez le montant encaissé. Mettez 0 si la vente est '
+        'entièrement à crédit.',
+      );
+      return;
+    }
+
     // Bloque le crédit sur un client non identifié — pas de solde à mettre à jour.
     if (resteAPayer > 0 && clientId.value == null) {
       _snackError(
@@ -552,7 +589,11 @@ class VenteFormController extends GetxController {
         // Le mode de paiement ne survit que pour les boutiques sans
         // caisse : ailleurs, `paiements` fait foi.
         modePaiement: caisseRequise ? null : modePaiement.value,
-        paiements: caisseRequise ? paiements.toList() : const [],
+        // Double verrou : une opération sans encaissement ne porte aucune
+        // répartition, quoi qu'ait laissé l'écran derrière lui.
+        paiements: caisseRequise && montantPaye.value > 0
+            ? paiements.toList()
+            : const [],
         date: DateTime.now(),
         note: note.value.isEmpty ? null : note.value,
       );

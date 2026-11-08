@@ -2443,7 +2443,11 @@ class _PaiementSheet extends StatelessWidget {
                   caisses:
                       controller.caisses.where((c) => c.active).toList(),
                   montantAttendu: paye,
-                  initial: controller.paiements.toList(),
+                  // Pas d'`initial` : ce champ ALIMENTE
+                  // `controller.paiements`. Le lui repasser le figerait
+                  // en mode manuel à chaque recréation du widget — ce qui
+                  // arrive dès que le montant payé franchit zéro — et la
+                  // ligne resterait bloquée sur une valeur périmée.
                   onChanged: (p) => controller.paiements.assignAll(p),
                 );
               }),
@@ -2855,7 +2859,13 @@ class _EncaissementSectionState extends State<_EncaissementSection> {
     });
   }
 
-  String _format(double v) => v == 0 ? '' : v.toStringAsFixed(0);
+  /// Un zéro n'est affiché que s'il a été saisi volontairement : à
+  /// l'ouverture le champ doit rester vide, mais remplacer « 500 » par
+  /// « 0 » ne doit pas effacer le zéro que l'utilisateur vient de taper.
+  String _format(double v) =>
+      v == 0 && !widget.controller.montantPayeSaisi.value
+          ? ''
+          : v.toStringAsFixed(0);
 
   @override
   void dispose() {
@@ -2945,12 +2955,20 @@ class _EncaissementSectionState extends State<_EncaissementSection> {
               ],
               decoration: InputDecoration(
                 isDense: true,
-                hintText: '0',
+                hintText: 'Montant reçu',
                 suffixText: c.devise,
+                // Rappel permanent tant que rien n'est saisi : le message
+                // au moment de valider arrive trop tard.
+                helperText: c.montantPayeSaisi.value ? null : 'Obligatoire — 0 si la vente est entièrement à crédit',
+                helperMaxLines: 2,
+                helperStyle: const TextStyle(
+                    fontSize: 10.5, fontWeight: FontWeight.w600),
               ),
               onChanged: (v) {
                 final n = double.tryParse(v.replaceAll(',', '.')) ?? 0;
-                c.setMontantPaye(n);
+                // Un champ vidé n'est pas une saisie : l'opération
+                // redevient invalide plutôt que de passer pour un crédit.
+                c.setMontantPaye(n, renseigne: v.trim().isNotEmpty);
               },
             ),
             const SizedBox(height: 10),
