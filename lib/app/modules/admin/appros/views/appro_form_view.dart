@@ -1679,7 +1679,11 @@ class _PaiementSheet extends StatelessWidget {
                   caisses: c.caisses.where((x) => x.active).toList(),
                   montantAttendu: c.montantPaye.value,
                   estSortie: true,
-                  initial: c.paiements.toList(),
+                  // Pas d'`initial` : ce champ ALIMENTE
+                  // `controller.paiements`. Le lui repasser le figerait
+                  // en mode manuel à chaque recréation du widget — ce qui
+                  // arrive dès que le montant payé franchit zéro — et la
+                  // ligne resterait bloquée sur une valeur périmée.
                   onChanged: (p) => c.paiements.assignAll(p),
                 );
               }),

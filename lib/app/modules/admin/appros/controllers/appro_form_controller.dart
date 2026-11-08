@@ -238,6 +238,12 @@ class ApproFormController extends GetxController {
     _montantPayeAuto.value = false;
     montantPaye.value = value < 0 ? 0 : value;
     montantPayeSaisi.value = renseigne;
+    // Montant ramené à zéro : le bloc de répartition disparaît de l'écran
+    // et ne prévient donc personne. Sans ce nettoyage, `paiements` garde
+    // sa dernière valeur — le début du montant qu'on vient d'effacer — et
+    // l'enregistrement est refusé parce que la répartition ne correspond
+    // plus à rien.
+    if (montantPaye.value <= 0) paiements.clear();
   }
 
   void resetMontantPayeAuto() {
@@ -455,7 +461,11 @@ class ApproFormController extends GetxController {
         // Le mode de paiement ne survit que pour les boutiques sans
         // caisse : ailleurs, `paiements` fait foi.
         modePaiement: caisseRequise ? null : modePaiement.value,
-        paiements: caisseRequise ? paiements.toList() : const [],
+        // Double verrou : une opération sans encaissement ne porte aucune
+        // répartition, quoi qu'ait laissé l'écran derrière lui.
+        paiements: caisseRequise && montantPaye.value > 0
+            ? paiements.toList()
+            : const [],
         date: DateTime.now(),
         note: note.value.isEmpty ? null : note.value,
       );

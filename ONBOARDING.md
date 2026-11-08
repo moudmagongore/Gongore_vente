@@ -608,6 +608,29 @@ Le disposer dès que `Get.dialog` rend la main le détruit pendant l'animation
 de fermeture (« used after being disposed »). Il doit vivre dans le `State`
 d'un `StatefulWidget` dédié — voir `ConfirmPurgeDialog`.
 
+### Un widget qui disparaît ne nettoie pas l'état du contrôleur
+
+Bug constaté en vente : saisir un montant payé puis l'effacer laissait une
+répartition de caisse périmée — le début du montant effacé — et
+l'enregistrement était refusé, la répartition ne correspondant plus au montant.
+
+En cause : le bloc de répartition n'est affiché que si le montant payé est
+positif. En retombant à zéro, il **quitte l'arbre sans prévenir personne**, et
+`controller.paiements` garde sa dernière valeur. Deux remèdes, tous deux en
+place :
+
+- le contrôleur vide `paiements` dès que le montant tombe à zéro
+  (`setMontantPaye`), et la construction du modèle n'attache une répartition
+  que si le montant est positif ;
+- les formulaires **ne passent plus `initial`** à `PaiementsCaisseField` : ce
+  champ alimente `paiements`, le lui repasser le figeait en mode manuel à
+  chaque recréation du widget — ce qui arrive justement quand le montant
+  franchit zéro.
+
+La règle générale : un état partagé entre un widget conditionnel et son
+contrôleur doit être remis à plat par **le contrôleur**, sur l'événement qui
+fait disparaître le widget. `dispose()` est trop tard et pas toujours appelé.
+
 ### Écrire dans un `TextEditingController` pendant le build
 
 Rencontré pour de vrai sur `paiements_caisse_field.dart` :
