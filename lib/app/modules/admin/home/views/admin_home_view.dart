@@ -68,6 +68,13 @@ class AdminHomeView extends StatelessWidget {
               // super-admin et users sans boutiqueId).
               const SubscriptionBadgeCard(),
               const SizedBox(height: 16),
+              // Filtre boutique : super-admin uniquement. Un admin change
+              // de boutique par le sélecteur du drawer, qui déplace tout
+              // son écran de travail.
+              if (c.isSuperAdmin) ...[
+                _FiltreBoutique(c: c),
+                const SizedBox(height: 16),
+              ],
               // Trésorerie : masquée d'elle-même si la boutique n'a pas
               // encore de caisse (RG-9).
               Obx(() => CaissesSoldesCard(caisses: c.caisses.toList())),
@@ -1111,6 +1118,142 @@ class _Quick extends StatelessWidget {
                   fontSize: 10, fontWeight: FontWeight.w600),
               textAlign: TextAlign.center,
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+/// Sélecteur de boutique du tableau de bord (super-admin).
+///
+/// Toutes les cartes de l'écran suivent ce filtre : chiffre d'affaires,
+/// dépenses, trésorerie, top produits et gestionnaires.
+class _FiltreBoutique extends StatelessWidget {
+  final DashboardController c;
+  const _FiltreBoutique({required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      // Lecture explicite : la liste arrive par stream et le libellé est
+      // résolu depuis elle.
+      c.boutiques.length;
+      if (c.boutiques.isEmpty) return const SizedBox.shrink();
+      final actif = c.aUnFiltre;
+
+      return InkWell(
+        onTap: () => _ouvrir(context),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: actif
+                ? AppColors.primary(context).withValues(alpha: 0.08)
+                : Theme.of(context).cardTheme.color,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: actif
+                  ? AppColors.primary(context).withValues(alpha: 0.4)
+                  : AppColors.borderOf(context),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(actif ? Icons.store_rounded : Icons.all_inclusive_rounded,
+                  size: 18, color: AppColors.primary(context)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Périmètre',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: AppColors.greyText(context, 600),
+                      ),
+                    ),
+                    Text(
+                      c.libelleFiltre,
+                      style: const TextStyle(
+                          fontSize: 13.5, fontWeight: FontWeight.w700),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              if (actif)
+                IconButton(
+                  tooltip: 'Revenir à toutes les boutiques',
+                  onPressed: () => c.filterBoutiqueId.value = null,
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  visualDensity: VisualDensity.compact,
+                )
+              else
+                Icon(Icons.expand_more_rounded,
+                    color: AppColors.greyText(context, 600)),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  void _ouvrir(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          children: [
+            ListTile(
+              leading: Icon(
+                Icons.all_inclusive_rounded,
+                color: c.aUnFiltre ? null : AppColors.primary(ctx),
+              ),
+              title: Text(
+                'Toutes les boutiques',
+                style: TextStyle(
+                  fontWeight:
+                      c.aUnFiltre ? FontWeight.w500 : FontWeight.w700,
+                  color: c.aUnFiltre ? null : AppColors.primary(ctx),
+                ),
+              ),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                c.filterBoutiqueId.value = null;
+              },
+            ),
+            const Divider(height: 1),
+            ...c.boutiques.map((b) {
+              final choisie = b.id == c.filterBoutiqueId.value;
+              return ListTile(
+                leading: Icon(Icons.store_rounded,
+                    color: choisie ? AppColors.primary(ctx) : null),
+                title: Text(
+                  b.nom,
+                  style: TextStyle(
+                    fontWeight: choisie ? FontWeight.w700 : FontWeight.w500,
+                    color: choisie ? AppColors.primary(ctx) : null,
+                  ),
+                ),
+                subtitle: b.active
+                    ? null
+                    : const Text('Inactive', style: TextStyle(fontSize: 11)),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  c.filterBoutiqueId.value = b.id;
+                },
+              );
+            }),
+            const SizedBox(height: 8),
           ],
         ),
       ),
