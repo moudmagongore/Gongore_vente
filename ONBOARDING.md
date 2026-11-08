@@ -4,8 +4,9 @@ Document destiné à un développeur qui reprend le projet. Il couvre le métier
 l'architecture, les règles non devinables à la lecture du code, et les pièges
 déjà rencontrés.
 
-**État au 18/10/2026** — version `1.6.6+16`, ~48 000 lignes de Dart réparties
-sur 207 fichiers. Branche de travail : `dev`. Branche principale : `main`.
+**État au 08/11/2026** — version `2.0.0+17`, ~56 000 lignes de Dart réparties
+sur 228 fichiers. Branche de travail : `dev`. Branche principale : `main`
+(mise à jour par fusion de `dev`, au moment des livraisons).
 
 ---
 
@@ -786,14 +787,22 @@ gcloud firestore export gs://gongorevente.firebasestorage.app/backup-$(date +%F)
   l'historique au prix d'achat actuel depuis l'écran de purge. **Recetté et
   reprise appliquée** (octobre 2026)
 - **iOS** : adoption d'UIScene et cible iOS 15 pour Xcode 27
-- **Lot 2 étape 2.1** : création et paramétrage des caisses, accès par
-  gestionnaire, helper de mouvements testé. Recetté
 - **Lot 2 complet** : caisses paramétrables, cinq opérations branchées,
   transferts, apports, retraits et corrections, relevé de caisse avec export
   PDF, trésorerie au tableau de bord et synthèse par caisse dans les rapports.
   **Recetté** (novembre 2026)
 - **Module de caisse ouvert boutique par boutique** par le super-admin
   (`caissesActivees`), fermé par défaut. Recetté
+- **Montant payé obligatoire** sur les ventes et les arrivages : plus de
+  pré-remplissage avec le total, et la saisie est vérifiée avant
+  l'enregistrement (cf. § 6). Recetté
+- **Répartition de caisse périmée** corrigée : effacer le montant payé
+  laissait une imputation obsolète qui faisait échouer l'enregistrement
+  (cf. § 8). Recetté
+- **Filtre boutique au tableau de bord** pour le super-admin : toutes les
+  cartes de l'écran suivent la boutique retenue. Un admin multi-boutique ne
+  l'a pas — le sélecteur du drawer déplace déjà tout son périmètre de
+  travail. Recetté
 
 ### Dette connue
 
@@ -845,6 +854,8 @@ fonctionnel), faut-il alerter sous le prix d'achat, et qui en a le droit
 4. Suivre un parcours complet de bout en bout — créer un produit, faire un
    appro, vendre, encaisser — en observant les transactions dans la console
    Firestore.
-5. Prendre un module simple comme modèle avant d'en écrire un nouveau :
-   `modules/admin/depenses/` est le plus récent et le plus représentatif des
-   conventions actuelles.
+5. Prendre un module existant comme modèle avant d'en écrire un nouveau :
+   `modules/admin/depenses/` pour un module simple (liste, formulaire, bottom
+   sheet), `modules/admin/caisses/` pour un module qui écrit en transaction et
+   dont l'accès se règle par utilisateur — c'est le plus récent et le plus
+   représentatif des conventions actuelles.
