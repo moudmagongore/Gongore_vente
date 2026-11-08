@@ -458,6 +458,24 @@ Deux pièges de cette mécanique :
   pas de requête. Il est donc applicatif (la liste chargée par le
   formulaire), et c'est une limite assumée.
 
+### Montant payé : aucune valeur par défaut
+
+Sur une vente comme sur un arrivage, le champ « montant payé » est **vide à
+l'ouverture** et sa saisie est **obligatoire** (`montantPayeSaisi`, vérifié
+avant l'enregistrement). Il était auparavant pré-rempli avec le total, ce qui
+faisait enregistrer des opérations comme intégralement réglées alors que
+l'argent n'avait pas été reçu : une validation trop rapide suffisait.
+
+Trois conséquences :
+
+- **0 est une saisie valide** : c'est ainsi qu'on enregistre une opération
+  entièrement à crédit. Vider le champ, en revanche, ne compte pas — l'écran
+  redevient invalide ;
+- le bouton **« Tout payer »** reste le raccourci du cas courant, et réactive
+  le suivi automatique du total ;
+- un panier neuf affiche donc « Reste à payer » jusqu'à la saisie. C'est
+  voulu : rien n'est encaissé tant que personne ne l'a dit.
+
 ### Stock
 
 `quantiteStock` est maintenu **atomiquement par transaction** (vente, appro,
