@@ -83,6 +83,17 @@ class VendeurHomeView extends GetView<VendeurHomeController> {
                   color: AppColors.danger,
                   route: AppRoutes.adminDepenses,
                 ),
+                // Quatrième tuile : la grille est sur deux colonnes, trois
+                // actions y laissaient une case vide. « Mes ventes » est
+                // l'écran le plus consulté après une vente — reçu,
+                // vérification, annulation — et reste accessible quels que
+                // soient les modules activés, donc le trou ne revient pas.
+                const _ActionTile(
+                  icon: Icons.receipt_long_rounded,
+                  label: 'Mes ventes',
+                  color: AppColors.primaryFixed,
+                  route: AppRoutes.adminVentes,
+                ),
               ],
             ),
             const SizedBox(height: 24),
