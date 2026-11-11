@@ -1812,9 +1812,25 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
     super.dispose();
   }
 
+  /// Stock réellement disponible : celui de la variante si la vente en
+  /// cible une, sinon le stock total à jour du produit.
+  int get _dispo {
+    final v = widget.variante;
+    if (v != null) return v.stock;
+    return widget.controller.stockDispoUi(widget.produit.id) ??
+        widget.produit.quantiteStock;
+  }
+
   void _setQuantite(int n) {
+    // La saisie directe est plafonnée au stock, comme l'est le bouton +.
+    // Sans ce plafond, taper 50 sur un stock de 3 passerait l'étape de
+    // saisie et n'échouerait qu'à la validation de la vente.
+    //
+    // Plancher à 1 : un stock nul donnerait une borne haute inférieure à
+    // la borne basse, et `clamp` lèverait une erreur.
+    final plafond = _dispo < 1 ? 1 : _dispo;
     setState(() {
-      _quantite = n.clamp(1, 1 << 30);
+      _quantite = n.clamp(1, plafond);
       _qteCtrl.text = _quantite.toString();
     });
   }
@@ -1824,10 +1840,7 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
     final p = widget.produit;
     final v = widget.variante;
     final devise = widget.controller.devise;
-    // Stock dispo : sur la variante si présente, sinon stock total live.
-    final dispo = v != null
-        ? v.stock
-        : (widget.controller.stockDispoUi(p.id) ?? p.quantiteStock);
+    final dispo = _dispo;
     final sousTotalBrut = p.prixVente * _quantite;
     final sousTotal = sousTotalBrut - _remise;
 
@@ -1982,13 +1995,39 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
-            _QtyStepper(
-              quantite: _quantite,
-              onMinus: () => _setQuantite(_quantite - 1),
-              onPlus: () {
-                if (_quantite >= dispo) return;
-                _setQuantite(_quantite + 1);
-              },
+            Row(
+              children: [
+                _QtyStepper(
+                  quantite: _quantite,
+                  onMinus: () => _setQuantite(_quantite - 1),
+                  onPlus: () {
+                    if (_quantite >= dispo) return;
+                    _setQuantite(_quantite + 1);
+                  },
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _qteCtrl,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                    ],
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: '1',
+                      // Le plafond est annoncé : si la saisie est ramenée
+                      // au stock, l'utilisateur comprend pourquoi.
+                      helperText: dispo > 0 ? 'Maximum $dispo' : null,
+                      helperStyle: const TextStyle(fontSize: 10.5),
+                    ),
+                    onChanged: (v) {
+                      final n = int.tryParse(v) ?? 1;
+                      _setQuantite(n);
+                    },
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 18),
             // Remise
