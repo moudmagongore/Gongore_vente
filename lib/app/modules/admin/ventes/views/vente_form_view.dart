@@ -889,7 +889,6 @@ class _LigneTile extends StatelessWidget {
   void _showRemiseDialog(BuildContext context, int index, double max) {
     final montantCtrl = TextEditingController();
     final pourcentCtrl = TextEditingController();
-    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
     final viewPadding = MediaQuery.of(context).viewPadding.bottom;
     Get.bottomSheet(
       SafeArea(
@@ -899,7 +898,7 @@ class _LigneTile extends StatelessWidget {
           color: Theme.of(context).cardTheme.color,
           padding: EdgeInsets.fromLTRB(
               16, 20, 16,
-              (viewInsets > 0 ? viewInsets : viewPadding) + 16),
+              viewPadding + 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2381,7 +2380,7 @@ class _PaiementSheet extends StatelessWidget {
           bottom: false,
           child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
-                16, 8, 16, (viewInsets > 0 ? viewInsets : viewPadding) + 16),
+                16, 8, 16, viewPadding + 16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2683,7 +2682,6 @@ class _RemiseGlobaleField extends StatelessWidget {
           : '',
     );
     final pourcentCtrl = TextEditingController();
-    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
     final viewPadding = MediaQuery.of(context).viewPadding.bottom;
 
     Get.bottomSheet(
@@ -2700,7 +2698,7 @@ class _RemiseGlobaleField extends StatelessWidget {
             16,
             12,
             16,
-            (viewInsets > 0 ? viewInsets : viewPadding) + 16,
+            viewPadding + 16,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,

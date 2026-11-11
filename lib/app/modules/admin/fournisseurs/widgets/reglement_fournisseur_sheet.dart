@@ -219,7 +219,7 @@ class _ReglementFournisseurSheetState
         key: _formKey,
         child: SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(
-              20, 20, 20, (viewInsets > 0 ? viewInsets : viewPadding) + 20),
+              20, 20, 20, viewPadding + 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,

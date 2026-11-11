@@ -98,9 +98,24 @@ class GongoreApp extends StatelessWidget {
               );
             }
 
-            return DefaultTextStyle.merge(
-              style: const TextStyle(fontFamily: AppTheme.fontFamily),
-              child: currentChild,
+            return GestureDetector(
+              // Ferme le clavier dès qu'on touche ailleurs qu'un champ.
+              //
+              // Posé ici, dans le `builder` de GetMaterialApp, il englobe
+              // toute l'application — écrans, bottom sheets et dialogues,
+              // qui sont des routes du même navigateur.
+              //
+              // `translucent` laisse passer les touchers : un enfant plus
+              // profond — bouton, champ, liste — gagne l'arène de gestes,
+              // et ce détecteur ne se déclenche que lorsque personne ne
+              // revendique le toucher. Les commandes de l'app continuent
+              // donc de fonctionner normalement.
+              behavior: HitTestBehavior.translucent,
+              onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+              child: DefaultTextStyle.merge(
+                style: const TextStyle(fontFamily: AppTheme.fontFamily),
+                child: currentChild,
+              ),
             );
           });
         },

@@ -632,6 +632,22 @@ La règle générale : un état partagé entre un widget conditionnel et son
 contrôleur doit être remis à plat par **le contrôleur**, sur l'événement qui
 fait disparaître le widget. `dispose()` est trop tard et pas toujours appelé.
 
+### Ne pas ajouter `viewInsets` au padding d'un bottom sheet
+
+`Get.bottomSheet` décale **déjà** la feuille au-dessus du clavier. Lui ajouter
+`MediaQuery.viewInsets.bottom` en padding la remonte une seconde fois :
+hauteur doublée, et débordement sous la barre d'état. Le symptôme est net —
+clavier ouvert, on ouvre une feuille, elle dépasse en haut de l'écran.
+
+On ne compense donc que `viewPadding.bottom`, c'est-à-dire la barre de gestes
+Android ou le home indicator iOS. Le plafond de hauteur, lui, se calcule bien
+sur la hauteur **visible** : `(size.height - viewInsets.bottom) *
+kBottomSheetMaxHeightRatio`.
+
+Variante du même piège : lire `MediaQuery` **avant** d'ouvrir la feuille, dans
+le contexte parent. La valeur est alors celle de l'instant — clavier déjà
+ouvert compris — et elle reste figée ensuite.
+
 ### Écrire dans un `TextEditingController` pendant le build
 
 Rencontré pour de vrai sur `paiements_caisse_field.dart` :

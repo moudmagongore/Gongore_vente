@@ -211,10 +211,12 @@ class _ReglementSheetState extends State<ReglementSheet> {
       child: Form(
         key: _formKey,
         child: SingleChildScrollView(
-          // viewInsets = clavier ; viewPadding = barre de gestes Android.
-          // On garde le max des deux pour ne pas masquer le contenu.
+          // Pas de `viewInsets` ici : `Get.bottomSheet` décale déjà le
+          // sheet au-dessus du clavier. L'ajouter le remonterait une
+          // seconde fois, jusqu'à déborder sous la barre d'état. On ne
+          // compense que la barre de gestes Android / le home indicator.
           padding: EdgeInsets.fromLTRB(
-              20, 20, 20, (viewInsets > 0 ? viewInsets : viewPadding) + 20),
+              20, 20, 20, viewPadding + 20),
             child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,

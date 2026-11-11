@@ -1539,7 +1539,7 @@ class _PaiementSheet extends StatelessWidget {
           bottom: false,
           child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
-                16, 8, 16, (viewInsets > 0 ? viewInsets : viewPadding) + 16),
+                16, 8, 16, viewPadding + 16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
