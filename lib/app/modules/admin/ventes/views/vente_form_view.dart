@@ -2000,13 +2000,19 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
             const SizedBox(height: 8),
             Row(
               children: [
-                _QtyStepper(
-                  quantite: _quantite,
-                  onMinus: () => _setQuantite(_quantite - 1),
-                  onPlus: () {
-                    if (_quantite >= dispo) return;
-                    _setQuantite(_quantite + 1);
-                  },
+                // Hauteur alignée sur celle d'un champ dense : sans elle,
+                // la pastille (34 px) et le champ (48) ne se lisent pas
+                // comme une seule ligne.
+                SizedBox(
+                  height: 48,
+                  child: _QtyStepper(
+                    quantite: _quantite,
+                    onMinus: () => _setQuantite(_quantite - 1),
+                    onPlus: () {
+                      if (_quantite >= dispo) return;
+                      _setQuantite(_quantite + 1);
+                    },
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -2016,13 +2022,9 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
                     ],
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       isDense: true,
                       hintText: '1',
-                      // Le plafond est annoncé : si la saisie est ramenée
-                      // au stock, l'utilisateur comprend pourquoi.
-                      helperText: dispo > 0 ? 'Maximum $dispo' : null,
-                      helperStyle: const TextStyle(fontSize: 10.5),
                     ),
                     onChanged: (v) {
                       final n = int.tryParse(v) ?? 1;
@@ -2032,6 +2034,20 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
                 ),
               ],
             ),
+            // Le plafond est annoncé SOUS la rangée, et non en `helperText`
+            // du champ : à l'intérieur, il ajoutait de la hauteur au seul
+            // champ, qui remontait alors au-dessus de la pastille puisque
+            // la rangée centre ses enfants.
+            if (dispo > 0) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Maximum $dispo en stock',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppColors.greyText(context, 600),
+                ),
+              ),
+            ],
             const SizedBox(height: 18),
             // Remise
             const Text(
