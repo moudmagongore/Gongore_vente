@@ -427,14 +427,35 @@ class ReportPdfService {
     return pdf.save();
   }
 
+  /// Même teinte, luminosité imposée. Donne un fond pâle fiable quelle que
+  /// soit la couleur de départ, là où un facteur multiplicatif donnerait
+  /// un résultat différent pour un bleu foncé et pour un orange clair.
+  static PdfColor fondPale(PdfColor couleur, double luminosite) {
+    final hsl = couleur.toHsl();
+    return PdfColorHsl(hsl.hue, hsl.saturation, luminosite);
+  }
+
+  /// Assombrit la couleur juste assez pour qu'elle se détache du fond pâle.
+  static PdfColor texteLisible(PdfColor couleur) {
+    final hsl = couleur.toHsl();
+    final l = hsl.lightness > 0.42 ? 0.42 : hsl.lightness;
+    return PdfColorHsl(hsl.hue, hsl.saturation, l);
+  }
+
   static pw.Widget _kpiBox(String label, String value, PdfColor color) {
     return pw.Container(
       width: 150,
       padding: const pw.EdgeInsets.all(10),
       decoration: pw.BoxDecoration(
-        color: color.shade(0.92),
+        // Teinte pâle obtenue en imposant la luminosité, et non par
+        // `shade()` : `shade(x)` multiplie la luminosité par `1.5 - x`,
+        // donc `shade(0.92)` ASSOMBRIT à 58 % au lieu d'éclaircir. Les
+        // encadrés sortaient en couleurs saturées, sur lesquelles le
+        // libellé gris et la valeur — de la teinte même du fond —
+        // devenaient illisibles.
+        color: fondPale(color, 0.94),
         borderRadius: pw.BorderRadius.circular(6),
-        border: pw.Border.all(color: color.shade(0.7), width: 0.5),
+        border: pw.Border.all(color: fondPale(color, 0.80), width: 0.5),
       ),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -453,7 +474,9 @@ class ReportPdfService {
             style: pw.TextStyle(
               fontSize: 13,
               fontWeight: pw.FontWeight.bold,
-              color: color,
+              // Luminosité plafonnée : un orange ou un jaune vif resterait
+              // pâle sur un fond pâle.
+              color: texteLisible(color),
             ),
           ),
         ],
