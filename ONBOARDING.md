@@ -673,6 +673,21 @@ La règle générale : un état partagé entre un widget conditionnel et son
 contrôleur doit être remis à plat par **le contrôleur**, sur l'événement qui
 fait disparaître le widget. `dispose()` est trop tard et pas toujours appelé.
 
+### L'aperçu PDF peut tuer l'application
+
+`PdfPreview` rasterise chaque page en mémoire. Une page A4 à 400 dpi fait
+3308 × 4676 pixels, soit environ **62 Mo** ; deux pages dépassent le tas
+Android et l'application meurt sur un `OutOfMemoryError` dans
+`PrintingJob.rasterPdf`. C'est arrivé sur le rapport de ventes le jour où il a
+atteint deux pages.
+
+`sharePdfBytes` est donc à **150 dpi par défaut**, valeur sûre sur tous les
+formats. Seuls les tickets 80 mm demandent 400 explicitement : ils sont assez
+petits pour l'absorber, et leurs petits caractères y gagnent.
+
+La règle à retenir : un nouveau document A4 hérite du défaut et ne peut pas
+planter. Ne remonte le dpi que sur un format dont tu as calculé le coût.
+
 ### Ne pas ajouter `viewInsets` au padding d'un bottom sheet
 
 `Get.bottomSheet` décale **déjà** la feuille au-dessus du clavier. Lui ajouter

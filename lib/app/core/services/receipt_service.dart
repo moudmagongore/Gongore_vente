@@ -286,6 +286,9 @@ class ReceiptService {
       clientTelephone: clientTelephone,
     );
     await sharePdfBytes(
+      // Ticket 80 mm : assez petit pour supporter une rasterisation
+      // fine, qui rend les petits caractères lisibles à l'écran.
+      dpi: 400,
       bytes: bytes,
       filename: 'Recu_${boutique.nom}_${vente.numeroAffichage}.pdf',
     );

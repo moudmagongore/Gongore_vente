@@ -234,6 +234,9 @@ class ReglementFournisseurReceiptService {
       soldeApres: soldeApres,
     );
     await sharePdfBytes(
+      // Ticket 80 mm : assez petit pour supporter une rasterisation
+      // fine, qui rend les petits caractères lisibles à l'écran.
+      dpi: 400,
       bytes: bytes,
       filename:
           'RecuFournisseur_${boutique.nom}_${fournisseur.nom}_${reglement.id}.pdf',
