@@ -332,7 +332,12 @@ class _PaiementsCaisseFieldState extends State<PaiementsCaisseField> {
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
           ),
-        if (_lignes.length > 1 || reste.abs() > 0.5)
+        // L'écart n'a de sens que si l'utilisateur gère la répartition
+        // lui-même. Avec une ligne unique en recopie automatique, le
+        // montant finit toujours par égaler celui de l'opération : la
+        // frappe crée un écart d'une frame, et l'afficher faisait
+        // apparaître puis disparaître la ligne à chaque caractère tapé.
+        if (_lignes.length > 1 || (!_montantAuto && reste.abs() > 0.5))
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
