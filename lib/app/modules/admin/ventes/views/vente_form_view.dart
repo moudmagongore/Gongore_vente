@@ -3420,12 +3420,15 @@ class _AvertissementCaisseVente extends StatelessWidget {
 }
 
 
-/// Pastille de quantité dont le nombre est **directement saisissable**.
+/// Quantité : le pas à pas et un champ de saisie **côte à côte**, comme
+/// dans le formulaire d'arrivage.
 ///
-/// Reprend l'allure de [_QtyStepper] utilisé dans le panier — même fond,
-/// même rayon, mêmes boutons — mais le nombre central est un champ. Un
-/// champ posé à côté de la pastille afficherait la quantité deux fois et
-/// mélangerait deux formes, une ronde et une rectangulaire.
+/// Les deux partagent une hauteur imposée ([_hauteur]). Sans elle, le pas à
+/// pas mesure 34 px — icône de 18 plus 8 de marge de chaque côté — contre
+/// 48 pour un `TextField` dense : ils n'avaient ni la même taille, ni le
+/// même centre, et le texte d'aide sous le champ faisait déborder la
+/// rangée. Le plafond de stock est donc affiché par l'appelant, sous la
+/// rangée, et non dans la décoration du champ.
 class _QtySaisie extends StatelessWidget {
   final TextEditingController controller;
   final VoidCallback onMinus;
@@ -3439,55 +3442,66 @@ class _QtySaisie extends StatelessWidget {
     required this.onSaisie,
   });
 
+  static const double _hauteur = 46;
+  static const double _rayon = 12;
+
   @override
   Widget build(BuildContext context) {
     final couleur = AppColors.primary(context);
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        decoration: BoxDecoration(
-          color: couleur.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(22),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _StepIconBtn(icon: Icons.remove_rounded, onTap: onMinus),
-            SizedBox(
-              width: 64,
-              child: TextField(
-                controller: controller,
-                textAlign: TextAlign.center,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 15,
-                  color: couleur,
-                ),
-                // Sans bordure ni fond : le champ doit se lire comme le
-                // nombre qu'il remplace, pas comme un formulaire posé
-                // dans la pastille.
-                decoration: const InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(vertical: 10),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  filled: false,
-                ),
-                // Tout sélectionner à la prise de focus : on remplace une
-                // quantité, on ne l'allonge presque jamais.
-                onTap: () => controller.selection = TextSelection(
-                  baseOffset: 0,
-                  extentOffset: controller.text.length,
-                ),
-                onChanged: (v) => onSaisie(int.tryParse(v) ?? 1),
-              ),
+    return SizedBox(
+      height: _hauteur,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: couleur.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(_rayon),
             ),
-            _StepIconBtn(icon: Icons.add_rounded, onTap: onPlus),
-          ],
-        ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _StepIconBtn(icon: Icons.remove_rounded, onTap: onMinus),
+                _StepIconBtn(icon: Icons.add_rounded, onTap: onPlus),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              // `expands` fait remplir la hauteur imposée au lieu de la
+              // subir : c'est ce qui aligne exactement le champ sur le pas
+              // à pas. Il exige `maxLines` et `minLines` nuls.
+              expands: true,
+              maxLines: null,
+              minLines: null,
+              textAlign: TextAlign.center,
+              textAlignVertical: TextAlignVertical.center,
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 15,
+                color: couleur,
+              ),
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(_rayon),
+                ),
+              ),
+              // Tout sélectionner à la prise de focus : on remplace une
+              // quantité, on ne l'allonge presque jamais.
+              onTap: () => controller.selection = TextSelection(
+                baseOffset: 0,
+                extentOffset: controller.text.length,
+              ),
+              onChanged: (v) => onSaisie(int.tryParse(v) ?? 1),
+            ),
+          ),
+        ],
       ),
     );
   }
