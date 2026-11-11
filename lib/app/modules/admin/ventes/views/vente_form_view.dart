@@ -1795,6 +1795,15 @@ class _AjoutLigneSheet extends StatefulWidget {
 class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
   late final TextEditingController _qteCtrl;
   late final TextEditingController _remiseCtrl;
+
+  /// Sert à sélectionner la quantité entière dès que le champ prend le
+  /// focus. Sans cela, le « 1 » pré-rempli reste en place et les frappes
+  /// s'ajoutent autour : passer à 50 devenait impossible.
+  ///
+  /// La sélection est posée sur le focus et non sur le tap seul, pour
+  /// couvrir aussi l'arrivée au champ par le clavier.
+  late final FocusNode _qteFocus;
+
   int _quantite = 1;
   double _remise = 0;
 
@@ -1803,10 +1812,21 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
     super.initState();
     _qteCtrl = TextEditingController(text: '1');
     _remiseCtrl = TextEditingController();
+    _qteFocus = FocusNode()..addListener(_selectionnerQuantite);
+  }
+
+  void _selectionnerQuantite() {
+    if (!_qteFocus.hasFocus) return;
+    _qteCtrl.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: _qteCtrl.text.length,
+    );
   }
 
   @override
   void dispose() {
+    _qteFocus.removeListener(_selectionnerQuantite);
+    _qteFocus.dispose();
     _qteCtrl.dispose();
     _remiseCtrl.dispose();
     super.dispose();
@@ -2018,6 +2038,7 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
                 Expanded(
                   child: TextField(
                     controller: _qteCtrl,
+                    focusNode: _qteFocus,
                     keyboardType: TextInputType.number,
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
@@ -2026,9 +2047,20 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
                       isDense: true,
                       hintText: '1',
                     ),
+                    // Re-sélectionne quand le champ a déjà le focus : le
+                    // listener ne se déclenche qu'au changement de focus.
+                    onTap: _selectionnerQuantite,
                     onChanged: (v) {
-                      final n = int.tryParse(v) ?? 1;
-                      _setQuantite(n);
+                      // Champ vidé : on n'y réinjecte PAS « 1 ». Le faire
+                      // replacerait le curseur derrière ce 1, et la frappe
+                      // suivante donnerait « 150 » au lieu de « 50 ». La
+                      // quantité vaut 1 en interne, le champ reste vide
+                      // avec son indice.
+                      if (v.isEmpty) {
+                        setState(() => _quantite = 1);
+                        return;
+                      }
+                      _setQuantite(int.tryParse(v) ?? 1);
                     },
                   ),
                 ),
