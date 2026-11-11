@@ -120,7 +120,17 @@ class _PaiementsCaisseFieldState extends State<PaiementsCaisseField> {
       if (!mounted || !_montantAuto || _lignes.length != 1) return;
       final texte = _texteMontantAuto();
       if (_lignes.first.ctrl.text == texte) return;
-      _lignes.first.ctrl.text = texte;
+      // `setState` est indispensable, et pas seulement par habitude : le
+      // champ se repeint tout seul puisqu'il écoute son contrôleur, mais
+      // « Reste à répartir » est calculé dans `build` à partir du texte
+      // des lignes. Sans reconstruction, cette ligne reste sur la valeur
+      // précédente — on voyait « Reste à répartir : 45 000 » alors que la
+      // caisse affichait déjà 50 000, l'écart étant exactement la frappe
+      // qui venait d'avoir lieu.
+      //
+      // Légal ici : on est dans un post-frame callback, donc hors de la
+      // phase de construction.
+      setState(() => _lignes.first.ctrl.text = texte);
       _notifier();
     });
   }
