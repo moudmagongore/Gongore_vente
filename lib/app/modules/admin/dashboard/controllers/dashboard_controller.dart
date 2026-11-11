@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 
+import '../../../../core/services/catalogue_cache_service.dart';
 import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/caisse_model.dart';
@@ -10,7 +11,6 @@ import '../../../../data/models/user_model.dart';
 import '../../../../data/models/vente_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/depense_repository.dart';
-import '../../../../data/repositories/produit_repository.dart';
 import '../../../../data/repositories/user_repository.dart';
 import '../../../../data/repositories/vente_repository.dart';
 
@@ -38,7 +38,6 @@ class DashboardController extends GetxController {
   final VenteRepository _venteRepo = VenteRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
   final UserRepository _userRepo = UserRepository();
-  final ProduitRepository _produitRepo = ProduitRepository();
   final DepenseRepository _depenseRepo = DepenseRepository();
 
   // ====== Données live ======
@@ -114,7 +113,7 @@ class DashboardController extends GetxController {
       boutiqueId: scope,
     ));
     users.bindStream(_userRepo.watchScoped(scope: scope));
-    produits.bindStream(_produitRepo.watchAll(boutiqueId: scope));
+    produits.bindStream(CatalogueCacheService.to.watchProduits(scope));
     _depensesMois.bindStream(_depenseRepo.watchAll(
       boutiqueId: scope,
       after: startOfMonth,

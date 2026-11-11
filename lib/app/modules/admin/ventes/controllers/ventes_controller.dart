@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/services/catalogue_cache_service.dart';
 import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/services/receipt_service.dart';
 import '../../../../core/services/user_controller.dart';
@@ -13,9 +14,7 @@ import '../../../../data/models/produit_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/models/vente_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
-import '../../../../data/repositories/categorie_repository.dart';
 import '../../../../data/repositories/client_repository.dart';
-import '../../../../data/repositories/produit_repository.dart';
 import '../../../../data/repositories/user_repository.dart';
 import '../../../../data/repositories/vente_repository.dart';
 
@@ -26,8 +25,6 @@ class VentesController extends GetxController {
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
   final UserRepository _userRepo = UserRepository();
   final ClientRepository _clientRepo = ClientRepository();
-  final ProduitRepository _produitRepo = ProduitRepository();
-  final CategorieRepository _catRepo = CategorieRepository();
 
   final RxList<VenteModel> _all = <VenteModel>[].obs;
   final RxList<BoutiqueModel> boutiques = <BoutiqueModel>[].obs;
@@ -82,8 +79,8 @@ class VentesController extends GetxController {
     caisses.bindStream(CaisseContexte.watchCaisses(scope));
     vendeurs.bindStream(_userRepo.watchScoped(scope: scope));
     clients.bindStream(_clientRepo.watchScoped(scope));
-    produits.bindStream(_produitRepo.watchAll(boutiqueId: scope));
-    categories.bindStream(_catRepo.watchAll(boutiqueId: scope));
+    produits.bindStream(CatalogueCacheService.to.watchProduits(scope));
+    categories.bindStream(CatalogueCacheService.to.watchCategories(scope));
 
     // Un produit hors de la catégorie choisie ne renverrait aucune vente,
     // sans que l'utilisateur comprenne pourquoi : on relâche le filtre

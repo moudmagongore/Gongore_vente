@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 
+import '../../../../core/services/catalogue_cache_service.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/boutique_model.dart';
 import '../../../../data/models/mouvement_stock_model.dart';
@@ -7,14 +8,12 @@ import '../../../../data/models/produit_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/mouvement_stock_repository.dart';
-import '../../../../data/repositories/produit_repository.dart';
 import '../../../../data/repositories/user_repository.dart';
 
 enum PeriodeMouvement { aujourdhui, semaine, mois, tout }
 
 class HistoriqueMouvementsController extends GetxController {
   final MouvementStockRepository _repo = MouvementStockRepository();
-  final ProduitRepository _produitRepo = ProduitRepository();
   final UserRepository _userRepo = UserRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
 
@@ -40,7 +39,7 @@ class HistoriqueMouvementsController extends GetxController {
   void onInit() {
     super.onInit();
     final scope = UserController.to.scopeBoutiqueId;
-    produits.bindStream(_produitRepo.watchAll(boutiqueId: scope));
+    produits.bindStream(CatalogueCacheService.to.watchProduits(scope));
     users.bindStream(_userRepo.watchScoped(scope: scope));
     boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
     // Pour non-super-admin : verrouille le filtre sur leur boutique active.

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/services/catalogue_cache_service.dart';
 import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../core/utils/caisse_calculator.dart';
@@ -12,9 +13,7 @@ import '../../../../data/models/client_model.dart';
 import '../../../../data/models/produit_model.dart';
 import '../../../../data/models/vente_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
-import '../../../../data/repositories/categorie_repository.dart';
 import '../../../../data/repositories/client_repository.dart';
-import '../../../../data/repositories/produit_repository.dart';
 import '../../../../data/repositories/vente_repository.dart';
 import '../../../../routes/app_routes.dart';
 
@@ -71,9 +70,7 @@ class LigneVente {
 /// - Totaux + remise globale + mode paiement + note
 /// - Validation avec transaction atomique côté repository
 class VenteFormController extends GetxController {
-  final ProduitRepository _produitRepo = ProduitRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
-  final CategorieRepository _catRepo = CategorieRepository();
   final ClientRepository _clientRepo = ClientRepository();
   final VenteRepository _venteRepo = VenteRepository();
 
@@ -186,7 +183,7 @@ class VenteFormController extends GetxController {
     boutiques.bindStream(
       _boutiqueRepo.watchScoped(scope: scope, actives: true),
     );
-    categories.bindStream(_catRepo.watchAll(boutiqueId: scope));
+    categories.bindStream(CatalogueCacheService.to.watchCategories(scope));
     clients.bindStream(_clientRepo.watchScoped(scope));
 
     // Listener AVANT toute affectation à currentBoutiqueId
@@ -195,7 +192,12 @@ class VenteFormController extends GetxController {
       _resetVente();
       isLoadingProduits.value = true;
       produits.bindStream(
-        _produitRepo.watchAll(boutiqueId: id, onlyActive: true),
+        // Le cache porte tout le catalogue : on filtre les actifs ici
+        // plutôt que par une requête distincte, qui ouvrirait un second
+        // écouteur sur la même collection.
+        CatalogueCacheService.to
+            .watchProduits(id)
+            .map((l) => l.where((p) => p.active).toList()),
       );
       debounce(produits, (_) => isLoadingProduits.value = false,
           time: const Duration(milliseconds: 200));

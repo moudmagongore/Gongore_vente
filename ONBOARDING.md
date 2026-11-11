@@ -133,6 +133,30 @@ boutique est supprimée/désactivée, ou si l'abonnement expire en cours de sess
 
 ---
 
+**`CatalogueCacheService`** mérite une mention à part. Neuf contrôleurs ont
+besoin du catalogue produits et sept des catégories ; chacun ouvrait son
+propre `snapshots()`. Or Firestore facture **un document lu par document
+renvoyé, à chaque ouverture d'écouteur** : visiter Ventes, Rapports, Stock
+puis Catégories relisait quatre fois tout le catalogue. Sur une boutique de
+800 produits, une navigation ordinaire coûtait des milliers de lectures.
+
+Le service tient **un seul écouteur par boutique**, partagé, maintenu pour la
+session — un écouteur ouvert ne coûte que les documents qui changent, et un
+catalogue bouge rarement. Il expose un `Stream` qui rejoue la valeur courante
+avant de suivre les changements, donc les contrôleurs gardent leur
+`bindStream`, leurs `Obx` et leur cycle de vie inchangés.
+
+Deux règles à respecter :
+
+- **ne jamais appeler `ProduitRepository.watchAll` ni
+  `CategorieRepository.watchAll` depuis un contrôleur** : passer par le
+  service, sinon l'écouteur mutualisé est contourné et la facture revient ;
+- les appelants qui ne veulent que les produits **actifs** filtrent côté
+  client (`.where((p) => p.active)`). Une requête `active == true` distincte
+  ouvrirait un second écouteur sur la même collection.
+
+Le cache est vidé à la déconnexion, `signOut()` comme `_forceSignOut()`.
+
 ## 4. Rôles et permissions
 
 Trois rôles, plus un cumul.

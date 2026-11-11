@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/services/catalogue_cache_service.dart';
 import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../core/utils/caisse_calculator.dart';
@@ -14,7 +15,6 @@ import '../../../../data/models/vente_model.dart' show ModePaiement;
 import '../../../../data/repositories/approvisionnement_repository.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/fournisseur_repository.dart';
-import '../../../../data/repositories/produit_repository.dart';
 import '../../../../routes/app_routes.dart';
 
 /// Une ligne d'appro en cours d'édition : produit + qté reçue + PA
@@ -62,7 +62,6 @@ class LigneAppro {
 class ApproFormController extends GetxController {
   final ApprovisionnementRepository _approRepo =
       ApprovisionnementRepository();
-  final ProduitRepository _produitRepo = ProduitRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
   final FournisseurRepository _fournRepo = FournisseurRepository();
 
@@ -166,7 +165,12 @@ class ApproFormController extends GetxController {
       _resetAppro();
       isLoadingProduits.value = true;
       produits.bindStream(
-        _produitRepo.watchAll(boutiqueId: id, onlyActive: true),
+        // Le cache porte tout le catalogue : on filtre les actifs ici
+        // plutôt que par une requête distincte, qui ouvrirait un second
+        // écouteur sur la même collection.
+        CatalogueCacheService.to
+            .watchProduits(id)
+            .map((l) => l.where((p) => p.active).toList()),
       );
       debounce(produits, (_) => isLoadingProduits.value = false,
           time: const Duration(milliseconds: 200));

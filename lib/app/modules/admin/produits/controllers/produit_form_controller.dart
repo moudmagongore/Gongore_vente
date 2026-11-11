@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/services/catalogue_cache_service.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/boutique_model.dart';
 import '../../../../data/models/categorie_model.dart';
 import '../../../../data/models/produit_model.dart';
 import '../../../../data/models/variante_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
-import '../../../../data/repositories/categorie_repository.dart';
 import '../../../../data/repositories/produit_repository.dart';
 
 /// Ligne de variante côté UI (binding avec contrôleurs de texte).
@@ -42,7 +42,6 @@ class VarianteEditable {
 
 class ProduitFormController extends GetxController {
   final ProduitRepository _repo = ProduitRepository();
-  final CategorieRepository _catRepo = CategorieRepository();
   final BoutiqueRepository _boutRepo = BoutiqueRepository();
 
   final formKey = GlobalKey<FormState>();
@@ -93,7 +92,7 @@ class ProduitFormController extends GetxController {
   void onInit() {
     super.onInit();
     final scope = UserController.to.scopeBoutiqueId;
-    categories.bindStream(_catRepo.watchAll(boutiqueId: scope));
+    categories.bindStream(CatalogueCacheService.to.watchCategories(scope));
     boutiques.bindStream(
       _boutRepo.watchScoped(scope: scope, actives: true),
     );

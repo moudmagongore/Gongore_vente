@@ -1,20 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/services/catalogue_cache_service.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/boutique_model.dart';
 import '../../../../data/models/categorie_model.dart';
 import '../../../../data/models/produit_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
-import '../../../../data/repositories/categorie_repository.dart';
-import '../../../../data/repositories/produit_repository.dart';
 
 enum StockFiltreEtat { tous, rupture, bas, normal }
 
 class StockController extends GetxController {
-  final ProduitRepository _produitRepo = ProduitRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
-  final CategorieRepository _catRepo = CategorieRepository();
 
   final RxList<ProduitModel> _all = <ProduitModel>[].obs;
   final RxList<BoutiqueModel> boutiques = <BoutiqueModel>[].obs;
@@ -36,11 +33,11 @@ class StockController extends GetxController {
   void onInit() {
     super.onInit();
     final scope = UserController.to.scopeBoutiqueId;
-    _all.bindStream(_produitRepo.watchAll(boutiqueId: scope));
+    _all.bindStream(CatalogueCacheService.to.watchProduits(scope));
     boutiques.bindStream(
       _boutiqueRepo.watchScoped(scope: scope, actives: true),
     );
-    categories.bindStream(_catRepo.watchAll(boutiqueId: scope));
+    categories.bindStream(CatalogueCacheService.to.watchCategories(scope));
     debounce(_all, (_) => isLoading.value = false,
         time: const Duration(milliseconds: 200));
   }
