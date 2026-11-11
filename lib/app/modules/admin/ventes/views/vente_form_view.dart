@@ -1831,7 +1831,10 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
     final plafond = _dispo < 1 ? 1 : _dispo;
     setState(() {
       _quantite = n.clamp(1, plafond);
-      _qteCtrl.text = _quantite.toString();
+      final texte = _quantite.toString();
+      // Réécrire le texte à l'identique replacerait le curseur à la fin à
+      // chaque frappe : on n'y touche que si la valeur a été ramenée.
+      if (_qteCtrl.text != texte) _qteCtrl.text = texte;
     });
   }
 
@@ -1995,40 +1998,25 @@ class _AjoutLigneSheetState extends State<_AjoutLigneSheet> {
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                _QtyStepper(
-                  quantite: _quantite,
-                  onMinus: () => _setQuantite(_quantite - 1),
-                  onPlus: () {
-                    if (_quantite >= dispo) return;
-                    _setQuantite(_quantite + 1);
-                  },
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _qteCtrl,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                    ],
-                    decoration: InputDecoration(
-                      isDense: true,
-                      hintText: '1',
-                      // Le plafond est annoncé : si la saisie est ramenée
-                      // au stock, l'utilisateur comprend pourquoi.
-                      helperText: dispo > 0 ? 'Maximum $dispo' : null,
-                      helperStyle: const TextStyle(fontSize: 10.5),
-                    ),
-                    onChanged: (v) {
-                      final n = int.tryParse(v) ?? 1;
-                      _setQuantite(n);
-                    },
-                  ),
-                ),
-              ],
+            _QtySaisie(
+              controller: _qteCtrl,
+              onMinus: () => _setQuantite(_quantite - 1),
+              onPlus: () {
+                if (_quantite >= dispo) return;
+                _setQuantite(_quantite + 1);
+              },
+              onSaisie: (n) => _setQuantite(n),
             ),
+            if (dispo > 0) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Maximum $dispo en stock',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppColors.greyText(context, 600),
+                ),
+              ),
+            ],
             const SizedBox(height: 18),
             // Remise
             const Text(
@@ -3426,6 +3414,80 @@ class _AvertissementCaisseVente extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+
+/// Pastille de quantité dont le nombre est **directement saisissable**.
+///
+/// Reprend l'allure de [_QtyStepper] utilisé dans le panier — même fond,
+/// même rayon, mêmes boutons — mais le nombre central est un champ. Un
+/// champ posé à côté de la pastille afficherait la quantité deux fois et
+/// mélangerait deux formes, une ronde et une rectangulaire.
+class _QtySaisie extends StatelessWidget {
+  final TextEditingController controller;
+  final VoidCallback onMinus;
+  final VoidCallback onPlus;
+  final ValueChanged<int> onSaisie;
+
+  const _QtySaisie({
+    required this.controller,
+    required this.onMinus,
+    required this.onPlus,
+    required this.onSaisie,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final couleur = AppColors.primary(context);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        decoration: BoxDecoration(
+          color: couleur.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(22),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _StepIconBtn(icon: Icons.remove_rounded, onTap: onMinus),
+            SizedBox(
+              width: 64,
+              child: TextField(
+                controller: controller,
+                textAlign: TextAlign.center,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 15,
+                  color: couleur,
+                ),
+                // Sans bordure ni fond : le champ doit se lire comme le
+                // nombre qu'il remplace, pas comme un formulaire posé
+                // dans la pastille.
+                decoration: const InputDecoration(
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(vertical: 10),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
+                ),
+                // Tout sélectionner à la prise de focus : on remplace une
+                // quantité, on ne l'allonge presque jamais.
+                onTap: () => controller.selection = TextSelection(
+                  baseOffset: 0,
+                  extentOffset: controller.text.length,
+                ),
+                onChanged: (v) => onSaisie(int.tryParse(v) ?? 1),
+              ),
+            ),
+            _StepIconBtn(icon: Icons.add_rounded, onTap: onPlus),
+          ],
+        ),
       ),
     );
   }
