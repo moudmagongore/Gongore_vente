@@ -19,12 +19,24 @@ class CaissesSoldesCard extends StatelessWidget {
 
   const CaissesSoldesCard({super.key, required this.caisses});
 
+  /// Un accueil n'est pas un écran de gestion : au-delà de trois caisses,
+  /// la carte renvoie vers la liste complète plutôt que de s'allonger.
+  static const int _maxAffichees = 3;
+
   @override
   Widget build(BuildContext context) {
     final actives = caisses.where((c) => c.active).toList();
     if (actives.isEmpty) return const SizedBox.shrink();
 
+    // Le total porte sur TOUTES les caisses, pas seulement sur celles
+    // affichées : « Trésorerie » doit rester le montant réel, sinon le
+    // chiffre mentirait dès qu'il y a plus de trois caisses.
     final total = actives.fold<double>(0, (acc, c) => acc + c.solde);
+    // Les caisses arrivent déjà triées sur `ordre`, le rang d'affichage
+    // choisi par l'admin : les trois premières sont celles qu'il a mises
+    // en avant.
+    final affichees = actives.take(_maxAffichees).toList();
+    final restantes = actives.length - affichees.length;
 
     return Card(
       child: Padding(
@@ -57,7 +69,7 @@ class CaissesSoldesCard extends StatelessWidget {
               ],
             ),
             const Divider(height: 16),
-            ...actives.map(
+            ...affichees.map(
               (c) => InkWell(
                 onTap: () =>
                     Get.toNamed(AppRoutes.caisseReleve, arguments: c),
@@ -97,6 +109,34 @@ class CaissesSoldesCard extends StatelessWidget {
                 ),
               ),
             ),
+            if (restantes > 0) ...[
+              const Divider(height: 12),
+              InkWell(
+                onTap: () => Get.toNamed(AppRoutes.adminCaisses),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        restantes == 1
+                            ? 'Voir la caisse restante'
+                            : 'Voir les $restantes autres caisses',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary(context),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(Icons.arrow_forward_rounded,
+                          size: 14, color: AppColors.primary(context)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
