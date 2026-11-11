@@ -133,6 +133,25 @@ boutique est supprimée/désactivée, ou si l'abonnement expire en cours de sess
 
 ---
 
+**`AnalyticsService`** enveloppe Google Analytics (Firebase). Deux principes
+tenus dans le code : **aucune donnée personnelle** — ni nom, ni téléphone, ni
+e-mail, ni identifiant client, seulement le rôle et l'identifiant technique de
+la boutique — et **jamais bloquant**, chaque appel étant protégé et silencieux.
+Une statistique manquante est sans conséquence, une vente perdue non.
+
+Les `screen_view` sont automatiques, via `FirebaseAnalyticsObserver` branché
+sur les `navigatorObservers` de `GetMaterialApp` : aucun écran n'a à s'en
+occuper. S'y ajoutent la connexion, la vente (`logPurchase`, événement
+standard qui alimente les rapports de revenu tout faits), l'arrivage et la
+dépense.
+
+⚠️ **Côté projet Firebase**, Google Analytics doit être activé et une
+propriété GA4 liée, sinon rien ne remonte quelles que soient les lignes de
+code. Le signe qui ne trompe pas : `IS_ANALYTICS_ENABLED` à `false` dans
+`ios/Runner/GoogleService-Info.plist` — c'est ainsi que le fichier est généré
+quand Analytics n'est pas activé. Après activation, **retélécharger les deux
+fichiers de configuration** (`google-services.json` et `GoogleService-Info.plist`).
+
 ## 4. Rôles et permissions
 
 Trois rôles, plus un cumul.

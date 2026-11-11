@@ -8,6 +8,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'app/core/constants/app_constants.dart';
+import 'app/core/services/analytics_service.dart';
 import 'app/core/services/auth_service.dart';
 import 'app/core/services/biometric_service.dart';
 import 'app/core/services/firestore_service.dart';
@@ -33,6 +34,8 @@ Future<void> main() async {
   Get.put(BiometricService(), permanent: true);
   Get.put(FirestoreService(), permanent: true);
   Get.put(UserController(), permanent: true);
+  // Après `Firebase.initializeApp` : le SDK Analytics s'appuie dessus.
+  Get.put(AnalyticsService(), permanent: true);
 
   runApp(const GongoreApp());
 }
@@ -57,6 +60,9 @@ class GongoreApp extends StatelessWidget {
         themeMode: themeController.mode.value,
         initialRoute: AppPages.initial,
         getPages: AppPages.routes,
+        // Enregistre un `screen_view` à chaque changement de route, sans
+        // une ligne dans les écrans.
+        navigatorObservers: [AnalyticsService.to.observer],
         defaultTransition: Transition.cupertino,
         routingCallback: (routing) {
           if (routing != null) {

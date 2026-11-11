@@ -10,6 +10,7 @@ import '../../data/models/user_model.dart';
 import '../../data/repositories/abonnement_params_repository.dart';
 import '../../routes/app_routes.dart';
 import '../utils/network_timeouts.dart';
+import 'analytics_service.dart';
 import 'auth_service.dart';
 import 'firestore_service.dart';
 import 'subscription_guard.dart';
@@ -344,6 +345,9 @@ class UserController extends GetxController {
     await AuthService.to.signOut();
     _user.value = null;
     currentBoutiqueId.value = null;
+    if (Get.isRegistered<AnalyticsService>()) {
+      await AnalyticsService.to.oublier();
+    }
     // Force le retour à la page login (sinon l'utilisateur reste sur la
     // route active jusqu'à la prochaine navigation).
     Get.offAllNamed(AppRoutes.login);
@@ -499,6 +503,11 @@ class UserController extends GetxController {
       }
 
       _user.value = loaded;
+      // Rattache les statistiques au profil : rôle et boutique, jamais de
+      // donnée personnelle (cf. `AnalyticsService`).
+      if (Get.isRegistered<AnalyticsService>()) {
+        AnalyticsService.to.identifier(loaded);
+      }
       // Initialise la boutique active sur la première boutique
       // accessible utilisable (calculée plus haut, on évite un 2e appel).
       // Si tout était bloqué, on aurait déjà return false plus haut.
@@ -533,5 +542,11 @@ class UserController extends GetxController {
     await AuthService.to.signOut();
     _user.value = null;
     currentBoutiqueId.value = null;
+    // Coupe le rattachement : la session suivante sur ce téléphone, qui
+    // peut être celle d'un autre utilisateur, ne doit pas être comptée
+    // sur le profil précédent.
+    if (Get.isRegistered<AnalyticsService>()) {
+      await AnalyticsService.to.oublier();
+    }
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/utils/caisse_contexte.dart';
+import '../../../../core/services/analytics_service.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../core/utils/caisse_calculator.dart';
 import '../../../../data/models/approvisionnement_model.dart';
@@ -472,6 +473,11 @@ class ApproFormController extends GetxController {
 
       final approId =
           await _approRepo.create(appro, userNom: user?.nom ?? '');
+
+      AnalyticsService.to.logArrivage(
+        total: appro.total,
+        nbLignes: appro.articles.length,
+      );
 
       _resetAppro();
       Get.back();

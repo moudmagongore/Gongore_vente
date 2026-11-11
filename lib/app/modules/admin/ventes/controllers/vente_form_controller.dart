@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/utils/caisse_contexte.dart';
+import '../../../../core/services/analytics_service.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../core/utils/caisse_calculator.dart';
 import '../../../../data/models/paiement_caisse.dart';
@@ -601,6 +602,13 @@ class VenteFormController extends GetxController {
       final venteId = await _venteRepo.create(
         vente,
         userNom: UserController.to.user?.nom ?? '',
+      );
+
+      AnalyticsService.to.logVente(
+        total: vente.total,
+        nbArticles: vente.articles.length,
+        aCredit: vente.montantPaye < vente.total,
+        devise: devise,
       );
 
       // Reset

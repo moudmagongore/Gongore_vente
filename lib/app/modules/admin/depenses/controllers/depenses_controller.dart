@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/utils/caisse_contexte.dart';
+import '../../../../core/services/analytics_service.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../data/models/boutique_model.dart';
@@ -243,6 +244,7 @@ class DepensesController extends GetxController {
         ),
         userNom: user.nom,
       );
+      AnalyticsService.to.logDepense(montant: montant);
       // Pas de snackbar ici : l'appelant doit d'abord fermer le sheet.
       // `Get.snackbar` pousse sa propre route, et un `Get.back()` déclenché
       // ensuite fermerait le snackbar au lieu du bottom sheet.

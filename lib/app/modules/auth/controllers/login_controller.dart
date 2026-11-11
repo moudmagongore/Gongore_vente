@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../core/services/analytics_service.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/biometric_service.dart';
 import '../../../core/services/sound_service.dart';
@@ -165,6 +166,14 @@ class LoginController extends GetxController {
       await AuthService.to.signInWithEmail(
         email: email,
         password: password,
+      );
+
+      // Après l'authentification, avant le chargement du profil : on
+      // mesure la connexion elle-même, pas son issue métier.
+      // Même critère que la résolution ci-dessus : un « @ » signe une
+      // saisie e-mail, tout le reste passe par l'index téléphone.
+      AnalyticsService.to.logConnexion(
+        methode: emailCtrl.text.contains('@') ? 'email' : 'telephone',
       );
 
       final ok = await UserController.to.refreshFromAuth();

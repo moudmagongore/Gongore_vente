@@ -54,7 +54,7 @@ class VendeurHomeView extends GetView<VendeurHomeController> {
             // l'admin ne lui en a donné aucune (RG-31).
             Obx(() => CaissesSoldesCard(
                 caisses: controller.caisses.toList())),
-            const SizedBox(height: 4),
+            const SizedBox(height: 16),
             const _SectionTitle('Actions rapides'),
             const SizedBox(height: 12),
             GridView.count(
