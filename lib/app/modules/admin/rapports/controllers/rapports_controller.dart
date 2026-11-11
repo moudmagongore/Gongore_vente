@@ -1,6 +1,5 @@
 import 'package:get/get.dart';
 
-import '../../../../core/services/catalogue_cache_service.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/mouvement_caisse_model.dart';
 import '../../../../data/models/approvisionnement_model.dart';
@@ -15,6 +14,7 @@ import '../../../../data/repositories/approvisionnement_repository.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/depense_repository.dart';
 import '../../../../data/repositories/fournisseur_repository.dart';
+import '../../../../data/repositories/produit_repository.dart';
 import '../../../../data/repositories/user_repository.dart';
 import '../../../../data/repositories/vente_repository.dart';
 
@@ -41,6 +41,7 @@ class RapportsController extends GetxController {
   final VenteRepository _venteRepo = VenteRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
   final UserRepository _userRepo = UserRepository();
+  final ProduitRepository _produitRepo = ProduitRepository();
   final ApprovisionnementRepository _approRepo =
       ApprovisionnementRepository();
   final FournisseurRepository _fournRepo = FournisseurRepository();
@@ -88,7 +89,7 @@ class RapportsController extends GetxController {
 
     boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
     users.bindStream(_userRepo.watchScoped(scope: scope));
-    produits.bindStream(CatalogueCacheService.to.watchProduits(scope));
+    produits.bindStream(_produitRepo.watchAll(boutiqueId: scope));
     fournisseurs.bindStream(_fournRepo.watchScoped(scope));
 
     // Pour admin de boutique : verrouiller le filtre sur sa boutique

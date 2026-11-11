@@ -10,7 +10,6 @@ import '../../data/models/user_model.dart';
 import '../../data/repositories/abonnement_params_repository.dart';
 import '../../routes/app_routes.dart';
 import '../utils/network_timeouts.dart';
-import 'catalogue_cache_service.dart';
 import 'auth_service.dart';
 import 'firestore_service.dart';
 import 'subscription_guard.dart';
@@ -345,12 +344,6 @@ class UserController extends GetxController {
     await AuthService.to.signOut();
     _user.value = null;
     currentBoutiqueId.value = null;
-    boutiqueActive.value = null;
-    // Même nettoyage que `signOut()` : une session interrompue ne doit pas
-    // laisser tourner les écouteurs du catalogue.
-    if (Get.isRegistered<CatalogueCacheService>()) {
-      CatalogueCacheService.to.vider();
-    }
     // Force le retour à la page login (sinon l'utilisateur reste sur la
     // route active jusqu'à la prochaine navigation).
     Get.offAllNamed(AppRoutes.login);
@@ -540,12 +533,5 @@ class UserController extends GetxController {
     await AuthService.to.signOut();
     _user.value = null;
     currentBoutiqueId.value = null;
-    boutiqueActive.value = null;
-    // Le catalogue en cache appartenait à l'utilisateur sortant : ses
-    // écouteurs n'ont plus lieu d'être ouverts, et ses données n'ont rien
-    // à faire en mémoire pour le suivant.
-    if (Get.isRegistered<CatalogueCacheService>()) {
-      CatalogueCacheService.to.vider();
-    }
   }
 }

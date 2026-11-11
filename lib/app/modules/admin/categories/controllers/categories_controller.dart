@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../../../core/services/catalogue_cache_service.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/boutique_model.dart';
 import '../../../../data/models/categorie_model.dart';
 import '../../../../data/models/produit_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/categorie_repository.dart';
+import '../../../../data/repositories/produit_repository.dart';
 
 /// Agrégat de stock d'une catégorie, recalculé à chaque snapshot produits.
 class CategorieStock {
@@ -39,6 +39,7 @@ class CategorieStock {
 class CategoriesController extends GetxController {
   final CategorieRepository _repo = CategorieRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
+  final ProduitRepository _produitRepo = ProduitRepository();
 
   final RxList<CategorieModel> _all = <CategorieModel>[].obs;
   final RxList<BoutiqueModel> boutiques = <BoutiqueModel>[].obs;
@@ -64,12 +65,12 @@ class CategoriesController extends GetxController {
     super.onInit();
     final scope = UserController.to.scopeBoutiqueId;
     // Super-admin voit toutes ; admin de boutique : filtre côté Firestore
-    _all.bindStream(CatalogueCacheService.to.watchCategories(scope));
+    _all.bindStream(_repo.watchAll(boutiqueId: scope));
     boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
     // Pas de filtre `active` côté Firestore : pour le super-admin le scope
     // est nul, et `where(active) + orderBy(nom)` sans boutiqueId n'a pas
     // d'index composite. Les inactifs sont écartés dans _recalculerStock.
-    _produits.bindStream(CatalogueCacheService.to.watchProduits(scope));
+    _produits.bindStream(_produitRepo.watchAll(boutiqueId: scope));
     ever(_produits, (_) => _recalculerStock());
     debounce(_all, (_) => isLoading.value = false,
         time: const Duration(milliseconds: 200));

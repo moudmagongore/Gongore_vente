@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../../../core/services/catalogue_cache_service.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/boutique_model.dart';
 import '../../../../data/models/categorie_model.dart';
 import '../../../../data/models/produit_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
+import '../../../../data/repositories/categorie_repository.dart';
 import '../../../../data/repositories/produit_repository.dart';
 
 class ProduitsController extends GetxController {
   final ProduitRepository _repo = ProduitRepository();
+  final CategorieRepository _catRepo = CategorieRepository();
   final BoutiqueRepository _boutRepo = BoutiqueRepository();
 
   final RxList<ProduitModel> _all = <ProduitModel>[].obs;
@@ -30,8 +31,8 @@ class ProduitsController extends GetxController {
   void onInit() {
     super.onInit();
     final scope = UserController.to.scopeBoutiqueId;
-    _all.bindStream(CatalogueCacheService.to.watchProduits(scope));
-    categories.bindStream(CatalogueCacheService.to.watchCategories(scope));
+    _all.bindStream(_repo.watchAll(boutiqueId: scope));
+    categories.bindStream(_catRepo.watchAll(boutiqueId: scope));
     boutiques.bindStream(
       _boutRepo.watchScoped(scope: scope, actives: true),
     );

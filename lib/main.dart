@@ -8,7 +8,6 @@ import 'package:get_storage/get_storage.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'app/core/constants/app_constants.dart';
-import 'app/core/services/catalogue_cache_service.dart';
 import 'app/core/services/auth_service.dart';
 import 'app/core/services/biometric_service.dart';
 import 'app/core/services/firestore_service.dart';
@@ -34,9 +33,6 @@ Future<void> main() async {
   Get.put(BiometricService(), permanent: true);
   Get.put(FirestoreService(), permanent: true);
   Get.put(UserController(), permanent: true);
-  // Cache partagé du catalogue : un seul écouteur Firestore par boutique
-  // pour les produits et les catégories, au lieu d'un par contrôleur.
-  Get.put(CatalogueCacheService(), permanent: true);
 
   runApp(const GongoreApp());
 }
