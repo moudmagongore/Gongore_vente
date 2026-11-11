@@ -536,6 +536,28 @@ dépense, `clientNomLibre` sur une vente, `numero` dans une imputation. C'est
 délibéré : l'historique et les reçus restent lisibles même si la référence est
 renommée ou supprimée.
 
+### Mise à jour forcée
+
+Doc singleton `parametres/app_update`, réglé par le super-admin dans
+Paramètres. Au démarrage, le splash compare la version installée à la version
+exigée **pour sa plateforme** et, si elle est trop ancienne, affiche un
+dialogue non fermable renvoyant vers le lien correspondant.
+
+Trois champs de version coexistent : `minVersion` s'applique aux deux
+plateformes, `minVersionAndroid` et `minVersionIos` ne valent que pour l'une
+d'elles et l'emportent quand ils sont renseignés. L'écran ne présente qu'une
+cible et une version, et répartit lui-même dans les trois champs.
+
+⚠️ **Le contrôle s'exécute dans l'app installée.** Les versions antérieures à
+2.0.0 ne connaissent que `minVersion` : cibler une seule plateforme ne les
+atteint pas. Pour forcer un parc ancien, il faut choisir « Les deux ». Ce
+n'est pas un défaut qu'on peut corriger côté serveur — le code de décision est
+embarqué dans chaque installation.
+
+Le lien Android n'est pas nécessairement un lien Play Store : l'app n'y étant
+pas publiée, il peut pointer vers un APK hébergé. Le dialogue ouvre l'URL
+telle quelle.
+
 ### Abonnements
 
 Chaque boutique a un `subscriptionEndsAt`. Au-delà, une **période de grâce**

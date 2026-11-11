@@ -35,6 +35,11 @@ class _ParametresViewState extends State<ParametresView> {
   final _updateMessageCtrl = TextEditingController();
   bool _savingUpdate = false;
 
+  /// Plateformes visées par le forçage. Stocké sous forme de trois champs
+  /// en base (commun / Android / iOS) ; ici on raisonne en cible unique,
+  /// qui est la façon dont la question se pose à l'usage.
+  CibleMaj _cibleMaj = CibleMaj.lesDeux;
+
   bool get _isSuperAdmin => UserController.to.isSuperAdmin;
 
   @override
@@ -61,7 +66,18 @@ class _ParametresViewState extends State<ParametresView> {
     if (_isSuperAdmin) {
       try {
         final upd = await _updateRepo.get();
-        _minVersionCtrl.text = upd.minVersion;
+        if (upd.minVersionAndroid.trim().isNotEmpty &&
+            upd.minVersionIos.trim().isEmpty) {
+          _cibleMaj = CibleMaj.android;
+          _minVersionCtrl.text = upd.minVersionAndroid;
+        } else if (upd.minVersionIos.trim().isNotEmpty &&
+            upd.minVersionAndroid.trim().isEmpty) {
+          _cibleMaj = CibleMaj.ios;
+          _minVersionCtrl.text = upd.minVersionIos;
+        } else {
+          _cibleMaj = CibleMaj.lesDeux;
+          _minVersionCtrl.text = upd.minVersion;
+        }
         _iosStoreCtrl.text = upd.iosStoreUrl;
         _androidStoreCtrl.text = upd.androidStoreUrl;
         _updateMessageCtrl.text = upd.message ?? '';
@@ -81,8 +97,15 @@ class _ParametresViewState extends State<ParametresView> {
     if (!(_updateFormKey.currentState?.validate() ?? false)) return;
     setState(() => _savingUpdate = true);
     try {
+      final version = _minVersionCtrl.text.trim();
       await _updateRepo.save(AppUpdateConfigModel(
-        minVersion: _minVersionCtrl.text.trim(),
+        // « Les deux » passe par `minVersion`, le seul champ que
+        // comprennent les versions de l'app déjà installées. Cibler une
+        // plateforme le laisse vide : le ciblage ne vaut donc que pour
+        // les appareils ayant déjà cette version-ci ou une plus récente.
+        minVersion: _cibleMaj == CibleMaj.lesDeux ? version : '',
+        minVersionAndroid: _cibleMaj == CibleMaj.android ? version : '',
+        minVersionIos: _cibleMaj == CibleMaj.ios ? version : '',
         iosStoreUrl: _iosStoreCtrl.text.trim(),
         androidStoreUrl: _androidStoreCtrl.text.trim(),
         message: _updateMessageCtrl.text.trim().isEmpty
@@ -247,6 +270,8 @@ class _ParametresViewState extends State<ParametresView> {
                     const SizedBox(height: 8),
                     _ForceUpdateCard(
                       formKey: _updateFormKey,
+                      cible: _cibleMaj,
+                      onCible: (c) => setState(() => _cibleMaj = c),
                       minVersionCtrl: _minVersionCtrl,
                       iosStoreCtrl: _iosStoreCtrl,
                       androidStoreCtrl: _androidStoreCtrl,
@@ -340,8 +365,21 @@ class _BiometricCard extends StatelessWidget {
 /// Section super-admin : configuration de la version minimale forcée et
 /// des URL des stores (App Store / Play Store). Le check tourne au splash
 /// avant tout login.
+/// Plateformes visées par la mise à jour forcée.
+enum CibleMaj {
+  lesDeux('Les deux', Icons.devices_rounded),
+  android('Android', Icons.android_rounded),
+  ios('iOS', Icons.phone_iphone_rounded);
+
+  const CibleMaj(this.label, this.icone);
+  final String label;
+  final IconData icone;
+}
+
 class _ForceUpdateCard extends StatelessWidget {
   final GlobalKey<FormState> formKey;
+  final CibleMaj cible;
+  final ValueChanged<CibleMaj> onCible;
   final TextEditingController minVersionCtrl;
   final TextEditingController iosStoreCtrl;
   final TextEditingController androidStoreCtrl;
@@ -351,6 +389,8 @@ class _ForceUpdateCard extends StatelessWidget {
 
   const _ForceUpdateCard({
     required this.formKey,
+    required this.cible,
+    required this.onCible,
     required this.minVersionCtrl,
     required this.iosStoreCtrl,
     required this.androidStoreCtrl,
@@ -374,12 +414,67 @@ class _ForceUpdateCard extends StatelessWidget {
                 'Quand un utilisateur ouvre l\'app, sa version est comparée '
                 'à la version minimale ci-dessous. Si elle est plus '
                 'ancienne, un dialog non-fermable l\'oblige à mettre à '
-                'jour via le store. Laisser vide pour désactiver le forçage.',
+                'jour via le lien correspondant à sa plateforme. Laisser '
+                'la version vide désactive le forçage.',
                 style: TextStyle(
                   fontSize: 12,
                   color: AppColors.greyText(context, 700),
                 ),
               ),
+              const SizedBox(height: 12),
+              Text(
+                'Appliquer à',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.greyText(context, 700),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                children: CibleMaj.values
+                    .map((c) => ChoiceChip(
+                          avatar: Icon(c.icone, size: 15),
+                          label: Text(c.label,
+                              style: const TextStyle(fontSize: 12)),
+                          selected: cible == c,
+                          showCheckmark: false,
+                          onSelected: (_) => onCible(c),
+                        ))
+                    .toList(),
+              ),
+              if (cible != CibleMaj.lesDeux) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.info_outline_rounded,
+                          size: 16, color: AppColors.warning),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Le ciblage par plateforme n\'est compris que par '
+                          'les versions 2.0.0 et suivantes. Les appareils '
+                          'restés sur une version antérieure ne seront pas '
+                          'forcés : pour les atteindre, choisissez « Les '
+                          'deux ».',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.greyText(context, 700),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               TextFormField(
                 controller: minVersionCtrl,
@@ -411,8 +506,11 @@ class _ForceUpdateCard extends StatelessWidget {
               TextFormField(
                 controller: androidStoreCtrl,
                 decoration: const InputDecoration(
-                  labelText: 'URL Play Store Android',
-                  hintText: 'https://play.google.com/store/apps/details?id=…',
+                  labelText: 'Lien de mise à jour Android',
+                  // L'app n'est pas publiée sur le Play Store : le lien
+                  // peut pointer vers un APK hébergé. Le dialog ouvre
+                  // simplement l'URL, quelle qu'elle soit.
+                  hintText: 'Play Store, ou lien de téléchargement APK',
                   prefixIcon: Icon(Icons.android),
                 ),
                 keyboardType: TextInputType.url,

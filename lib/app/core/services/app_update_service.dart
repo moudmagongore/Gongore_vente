@@ -2,7 +2,6 @@ import 'dart:io' show Platform;
 
 import 'package:package_info_plus/package_info_plus.dart';
 
-import '../../data/models/app_update_config_model.dart';
 import '../../data/repositories/app_update_repository.dart';
 import '../utils/network_timeouts.dart';
 
@@ -23,30 +22,29 @@ class AppUpdateService {
       final config = await AppUpdateRepository()
           .get()
           .timeout(kOptionalReadTimeout);
-      if (config.minVersion.trim().isEmpty) return null;
+      // La version exigée dépend de la plateforme : le super-admin peut
+      // ne forcer qu'Android, par exemple quand une version iOS est
+      // encore en relecture chez Apple.
+      final estAndroid = Platform.isAndroid;
+      final exigee = config.minVersionPour(android: estAndroid);
+      if (exigee.isEmpty) return null;
 
       final pkg = await PackageInfo.fromPlatform();
       final installed = pkg.version;
 
-      if (_compareSemver(installed, config.minVersion) >= 0) {
+      if (_compareSemver(installed, exigee) >= 0) {
         return null; // À jour ou plus récent
       }
 
       return AppUpdateRequired(
         installedVersion: installed,
-        minVersion: config.minVersion,
-        storeUrl: _storeUrlFor(config),
+        minVersion: exigee,
+        storeUrl: config.storeUrlPour(android: estAndroid),
         message: config.message,
       );
     } catch (_) {
       return null;
     }
-  }
-
-  static String _storeUrlFor(AppUpdateConfigModel config) {
-    if (Platform.isIOS) return config.iosStoreUrl.trim();
-    if (Platform.isAndroid) return config.androidStoreUrl.trim();
-    return '';
   }
 
   /// Compare deux versions semver `MAJOR.MINOR.PATCH`. Retourne :
