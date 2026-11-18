@@ -4,8 +4,8 @@ Document destiné à un développeur qui reprend le projet. Il couvre le métier
 l'architecture, les règles non devinables à la lecture du code, et les pièges
 déjà rencontrés.
 
-**État au 08/11/2026** — version `2.0.0+17`, ~56 000 lignes de Dart réparties
-sur 228 fichiers. Branche de travail : `dev`. Branche principale : `main`
+**État au 18/11/2026** — version `3.0.2+20`, ~57 000 lignes de Dart réparties
+sur 230 fichiers. Branche de travail : `dev`. Branche principale : `main`
 (mise à jour par fusion de `dev`, au moment des livraisons).
 
 ---
@@ -202,6 +202,28 @@ Un admin **multi-boutique** possède `boutiqueId` (principale) plus
 Les controllers lient leurs streams au démarrage avec `scopeBoutiqueId` ; un
 changement de boutique déclenche donc `Get.offAllNamed(adminHome)` pour que
 tout se ré-initialise.
+
+**Un admin l'est de toutes ses boutiques, principale ou supplémentaire.**
+Chercher « les admins de la boutique B » demande donc **deux** requêtes :
+`boutiqueId == B` *et* `additionalBoutiqueIds array-contains B`. N'en faire
+qu'une rend invisible l'admin dont B n'est pas la boutique principale. C'est
+arrivé : le gestionnaire de B ne pouvait plus se connecter (« l'administrateur
+de votre boutique a été désactivé »), alors que son admin était actif.
+
+- `UserController.adminsDeBoutique()` fournit les deux requêtes, utilisées par
+  le contrôle « admin actif » du gestionnaire (connexion et surveillance
+  continue). Ce contrôle **déconnecte** un gestionnaire dont la boutique n'a
+  plus d'admin actif : c'est voulu.
+- `UserRepository.watchByBoutique()` fusionne les deux, pour que ces admins
+  apparaissent dans les listes de la boutique (noms sur les ventes, rapports).
+  Le tri par nom est fait en mémoire : `orderBy` avec `array-contains`
+  exigerait un index composite.
+- Les règles de `users` autorisent la lecture de ces admins par les
+  utilisateurs de la boutique. Sans cela, la seconde requête est refusée.
+
+Seul le super-admin nomme un admin ou lui affecte des boutiques : un admin ne
+peut ni promouvoir un gestionnaire, ni toucher à un autre admin (formulaire
+utilisateur et règles).
 
 ### Garde-fous de route
 
@@ -511,6 +533,30 @@ variantes, et `seuilAlerte` s'applique alors *par variante*, pas sur le total.
 
 Maintenus atomiquement par les transactions de vente/appro/règlement.
 
+**Solde initial, puis verrouillé.** À la création d'un client ou d'un
+fournisseur, on saisit le solde de départ (ardoise existante, dette déjà
+due). Il reste modifiable tant que la fiche n'a **aucune opération** ; dès la
+première, le formulaire ne propose plus le champ et affiche le **solde
+actuel**, suivi en direct. À partir de là, seules les opérations le font
+bouger.
+
+- `ClientRepository.update()` / `FournisseurRepository.update()` **n'écrivent
+  jamais** `solde` ni `hasOperations`. Les écrire depuis la copie chargée à
+  l'ouverture du formulaire effacerait une opération passée entre-temps —
+  c'était le cas avant. Le solde initial passe par le paramètre
+  `soldeInitial`, refusé (`SoldeVerrouilleException`) si une opération
+  existe : vérifié par l'historique, puis par `hasOperations` dans une
+  transaction.
+- `hasOperations` peut manquer sur d'anciennes fiches clients : jusqu'au
+  18/11/2026, `ClientModel.copyWith` le perdait, et chaque modification d'un
+  client le remettait à `false`. `soldeVerrouille()` le répare au passage s'il
+  trouve un historique.
+- **Le verrou est applicatif.** Les règles ne peuvent pas le porter : une
+  vente ou un règlement modifie le solde avec le même compte gestionnaire
+  qu'une saisie manuelle. Le contournement réaliste est une **ancienne
+  version de l'app**, d'où la mise à jour forcée à chaque livraison qui
+  touche aux soldes.
+
 ### Imputation FIFO des règlements
 
 Un règlement (client ou fournisseur) est imputé **du plus ancien au plus
@@ -579,7 +625,7 @@ authentifié à ce stade.
 
 ### `firestore.rules`
 
-576 lignes, organisées par collection, avec des helpers (`isSuperAdmin()`,
+~740 lignes, organisées par collection, avec des helpers (`isSuperAdmin()`,
 `ownsBoutique()`, `createBoutiqueIdMatches()`…). Politique générale :
 
 - lecture : tout utilisateur actif de la boutique
@@ -587,9 +633,15 @@ authentifié à ce stade.
 - opérations (ventes, clients, règlements, appros) : **gestionnaire**
 - suppressions en bypass d'audit : **super-admin**
 
-L'en-tête du fichier indique une publication manuelle via la console. Attention
-donc : `firebase deploy --only firestore:rules` **écrase** ce qui est en ligne.
-Vérifier que la console et le fichier sont alignés avant de déployer.
+**Le dépôt fait foi.** Les règles se déploient depuis le fichier avec
+`firebase deploy --only firestore:rules` (malgré l'en-tête du fichier, qui
+parle encore de la console). Ce déploiement **écrase** tout ce qui est en
+ligne : ne jamais modifier les règles directement dans la console, sinon le
+déploiement suivant efface la modification. En cas de problème, la console
+garde l'historique des versions publiées.
+
+Une règle qui **ouvre** une lecture utilisée par une nouvelle requête doit être
+déployée **avant** la publication de l'app correspondante.
 
 ### Mouvements de caisse : relevé mono-caisse obligatoire
 
@@ -794,7 +846,7 @@ suivant le style du fichier.
 
 ```bash
 flutter analyze        # doit être à zéro problème
-flutter test           # 51 tests Dart
+flutter test           # 87 tests Dart
 node --test scripts/test/marges.test.js   # 18 tests, suite des scripts
 flutter build bundle --debug
 ```
@@ -875,13 +927,20 @@ gcloud firestore export gs://gongorevente.firebasestorage.app/backup-$(date +%F)
   cartes de l'écran suivent la boutique retenue. Un admin multi-boutique ne
   l'a pas — le sélecteur du drawer déplace déjà tout son périmètre de
   travail. Recetté
+- **Solde initial fournisseur**, comme pour le client, et **verrouillage du
+  solde** client et fournisseur dès la première opération (cf. § 6). Corrige
+  aussi `ClientModel.copyWith`, qui perdait `hasOperations`. Recetté
+- **Admin de boutique supplémentaire reconnu comme admin** de cette boutique :
+  le gestionnaire n'est plus bloqué à la connexion (cf. § 4). Règles
+  déployées le 18/11/2026. Recetté
 
 ### Dette connue
 
 - **Les transactions sont vérifiées, mais pas protégées.** Les suites
-  automatisées (51 tests Dart, 18 JS) couvrent les **calculs purs** :
+  automatisées (87 tests Dart, 18 JS) couvrent les **calculs purs** :
   `marge_calculator_test.dart`, `caisse_calculator_test.dart`,
-  `libelle_paiement_test.dart`, `scripts/test/marges.test.js`. Les
+  `libelle_paiement_test.dart`, `app_update_ciblage_test.dart`,
+  `report_pdf_contraste_test.dart`, `scripts/test/marges.test.js`. Les
   transactions elles-mêmes — stock, FIFO, soldes client, fournisseur et
   caisse — ont été validées **par recette manuelle à chaque lot** et
   fonctionnent. Mais rien ne les protège d'une régression : une modification
@@ -896,11 +955,15 @@ gcloud firestore export gs://gongorevente.firebasestorage.app/backup-$(date +%F)
   les branches après `if (v.aMargeFigee)`). Il reste utile tant qu'une boutique
   n'a pas été reprise — une boutique créée avant le lot et jamais passée par
   l'écran de purge. À retirer quand c'est vrai partout, pas avant.
-- **Règles et index Firestore du module Dépenses peut-être non déployés** — le
-  déploiement a échoué sur une erreur de `firebaserules.googleapis.com`. Les
-  fichiers sont à jour (`firestore.rules`, collections `depenses` et
-  `naturesDepense` ; `firestore.indexes.json`). À rejouer :
-  `firebase deploy --only firestore:rules,firestore:indexes`.
+- **Index Firestore du module Dépenses peut-être non déployés.** Les règles
+  l'ont été (déploiement complet du fichier le 18/11/2026), pas les index :
+  le déploiement initial avait échoué sur `firebaserules.googleapis.com`. À
+  vérifier dans la console, ou à rejouer :
+  `firebase deploy --only firestore:indexes`.
+- **Les règles Firestore ne sont pas testées automatiquement.** L'émulateur
+  exige Java 21 (`firebase-tools` récents) ; le poste n'a que Java 17. Les
+  changements de règles sont pour l'instant vérifiés à la main après
+  déploiement.
 - `flutter build ios --simulator` reste cassé (cf. § 2), en attente d'un
   `flutter upgrade`.
 
