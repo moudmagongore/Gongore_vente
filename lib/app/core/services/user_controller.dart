@@ -62,7 +62,13 @@ class UserController extends GetxController {
   // Subscription à la liste des admins de la boutique (uniquement pour les
   // gestionnaires) : si aucun admin actif n'existe pour leur boutique, on
   // les déconnecte aussi (ex. super-admin désactive l'admin de la boutique).
+  //
+  // Deux requêtes, car un admin l'est d'une boutique de deux façons : c'est
+  // sa boutique principale (`boutiqueId`) ou l'une de ses boutiques
+  // supplémentaires (`additionalBoutiqueIds`).
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _boutiqueAdminsSub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+      _boutiqueAdminsSupSub;
 
   UserModel? get user => _user.value;
   bool get isLoggedIn => _user.value != null;
@@ -169,6 +175,7 @@ class UserController extends GetxController {
     _userDocSub?.cancel();
     _boutiqueDocSub?.cancel();
     _boutiqueAdminsSub?.cancel();
+    _boutiqueAdminsSupSub?.cancel();
     super.onClose();
   }
 
@@ -180,6 +187,8 @@ class UserController extends GetxController {
     _boutiqueDocSub = null;
     await _boutiqueAdminsSub?.cancel();
     _boutiqueAdminsSub = null;
+    await _boutiqueAdminsSupSub?.cancel();
+    _boutiqueAdminsSupSub = null;
     _watchedBoutiqueId = null;
     _cachedGraceDays = null;
 
@@ -226,29 +235,73 @@ class UserController extends GetxController {
     final bid = currentUser.boutiqueId;
     if (bid == null || bid.isEmpty) return;
 
-    _boutiqueAdminsSub = FirestoreService.to.users
-        .where('boutiqueId', isEqualTo: bid)
-        .where('role', isEqualTo: UserRole.admin.name)
-        .snapshots()
-        .listen(
-      (snap) async {
+    // Dernier état serveur de chaque requête ; null tant qu'il n'est pas
+    // arrivé. On ne conclut qu'avec les deux, sinon un admin présent
+    // seulement dans l'autre requête serait ignoré.
+    List<QueryDocumentSnapshot<Map<String, dynamic>>>? principaux;
+    List<QueryDocumentSnapshot<Map<String, dynamic>>>? supplementaires;
+
+    Future<void> verifier() async {
+      if (principaux == null || supplementaires == null) return;
+      if (!aUnAdminActif([...principaux!, ...supplementaires!])) {
+        await _forceSignOut(
+          'L\'administrateur de votre boutique a été désactivé. '
+          'Contactez le support.',
+        );
+      }
+    }
+
+    void onError(Object e) {
+      errorMessage.value =
+          'Erreur de synchronisation des administrateurs : $e';
+    }
+
+    final requetes = adminsDeBoutique(bid);
+    _boutiqueAdminsSub = requetes.principaux.snapshots().listen(
+      (snap) {
         if (snap.metadata.isFromCache) return;
-        final hasActiveAdmin = snap.docs.any((d) {
-          final data = d.data();
-          return (data['active'] as bool? ?? true) == true;
-        });
-        if (!hasActiveAdmin) {
-          await _forceSignOut(
-            'L\'administrateur de votre boutique a été désactivé. '
-            'Contactez le support.',
-          );
-        }
+        principaux = snap.docs;
+        verifier();
       },
-      onError: (e) {
-        errorMessage.value =
-            'Erreur de synchronisation des administrateurs : $e';
-      },
+      onError: onError,
     );
+    _boutiqueAdminsSupSub = requetes.supplementaires.snapshots().listen(
+      (snap) {
+        if (snap.metadata.isFromCache) return;
+        supplementaires = snap.docs;
+        verifier();
+      },
+      onError: onError,
+    );
+  }
+
+  /// Les deux requêtes qui, ensemble, donnent les admins d'une boutique :
+  /// ceux dont c'est la boutique principale, et ceux qui l'ont en boutique
+  /// supplémentaire. La seconde ne filtre pas le rôle (seuls les admins
+  /// ont des boutiques supplémentaires) : [aUnAdminActif] le revérifie.
+  static ({
+    Query<Map<String, dynamic>> principaux,
+    Query<Map<String, dynamic>> supplementaires,
+  }) adminsDeBoutique(String boutiqueId) {
+    final users = FirestoreService.to.users;
+    return (
+      principaux: users
+          .where('boutiqueId', isEqualTo: boutiqueId)
+          .where('role', isEqualTo: UserRole.admin.name),
+      supplementaires:
+          users.where('additionalBoutiqueIds', arrayContains: boutiqueId),
+    );
+  }
+
+  /// Vrai si l'un des documents est un admin actif.
+  static bool aUnAdminActif(
+    Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    return docs.any((d) {
+      final data = d.data();
+      return data['role'] == UserRole.admin.name &&
+          (data['active'] as bool? ?? true) == true;
+    });
   }
 
   /// Souscrit au doc Firestore de la boutique du user (admin/vendeur).
@@ -478,20 +531,19 @@ class UserController extends GetxController {
         // connexion sur une simple lenteur réseau serait pire. La
         // vérification est refaite en continu par
         // [_bindBoutiqueAdminsStream].
-        QuerySnapshot<Map<String, dynamic>>? adminsSnap;
+        List<QuerySnapshot<Map<String, dynamic>>>? adminsSnaps;
         try {
-          adminsSnap = await FirestoreService.to.users
-              .where('boutiqueId', isEqualTo: loadedBoutiqueId)
-              .where('role', isEqualTo: UserRole.admin.name)
-              .get(const GetOptions(source: Source.server))
-              .timeout(kStartupReadTimeout);
+          final requetes = adminsDeBoutique(loadedBoutiqueId);
+          const serveur = GetOptions(source: Source.server);
+          adminsSnaps = await Future.wait([
+            requetes.principaux.get(serveur),
+            requetes.supplementaires.get(serveur),
+          ]).timeout(kStartupReadTimeout);
         } catch (_) {
-          adminsSnap = null; // contrôle non concluant
+          adminsSnaps = null; // contrôle non concluant
         }
-        final hasActiveAdmin = adminsSnap == null ||
-            adminsSnap.docs.any((d) {
-              return (d.data()['active'] as bool? ?? true) == true;
-            });
+        final hasActiveAdmin = adminsSnaps == null ||
+            aUnAdminActif(adminsSnaps.expand((snap) => snap.docs));
         if (!hasActiveAdmin) {
           errorMessage.value =
               'L\'administrateur de votre boutique a été désactivé. '

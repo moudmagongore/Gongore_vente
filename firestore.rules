@@ -110,9 +110,17 @@ service cloud.firestore {
       //   • tout user actif de la boutique : les users de sa boutique
       //     (nécessaire pour afficher noms vendeurs/admins dans listes
       //     ventes, règlements, etc.)
+      //   • les admins qui ont l'une de mes boutiques en boutique
+      //     SUPPLÉMENTAIRE : ils sont admins de cette boutique au même titre
+      //     que l'admin principal (contrôle « admin actif » du gestionnaire,
+      //     noms dans les listes)
       allow read: if isSuperAdmin()
                   || (isAuthed() && request.auth.uid == userId)
-                  || (isActive() && userHasBoutique(resource.data.boutiqueId));
+                  || (isActive() && userHasBoutique(resource.data.boutiqueId))
+                  || (isActive()
+                      && resource.data.get('additionalBoutiqueIds', [])
+                          .hasAny([userBoutiqueId()]
+                              .concat(userAdditionalBoutiqueIds())));
 
       // Création :
       //   • superAdmin : tous (admins ou vendeurs)

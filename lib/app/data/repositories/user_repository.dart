@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/services/firestore_service.dart';
@@ -15,15 +17,60 @@ class UserRepository {
         );
   }
 
+  /// Utilisateurs d'une boutique : ceux dont c'est la boutique principale,
+  /// plus les admins qui l'ont en boutique supplémentaire (sans quoi un
+  /// admin multi-boutique serait invisible dans les listes de ses autres
+  /// boutiques). Triés par nom.
   Stream<List<UserModel>> watchByBoutique(String boutiqueId) {
     if (boutiqueId.isEmpty) {
       return Stream.value(<UserModel>[]);
     }
-    return _col
+    final principaux = _col
         .where('boutiqueId', isEqualTo: boutiqueId)
         .orderBy('nom')
-        .snapshots().ignorePermissionDenied()
-        .map((snap) => snap.docs.map(UserModel.fromFirestore).toList());
+        .snapshots()
+        .ignorePermissionDenied();
+    // Pas d'orderBy ici : avec array-contains il exigerait un index
+    // composite. Le tri final est fait en mémoire.
+    final supplementaires = _col
+        .where('additionalBoutiqueIds', arrayContains: boutiqueId)
+        .snapshots()
+        .ignorePermissionDenied();
+
+    List<UserModel> p = const [];
+    List<UserModel> s = const [];
+    late final StreamController<List<UserModel>> ctrl;
+    final subs = <StreamSubscription<dynamic>>[];
+
+    void emettre() {
+      final parId = <String, UserModel>{
+        for (final u in p) u.id: u,
+        for (final u in s) u.id: u,
+      };
+      ctrl.add(parId.values.toList()
+        ..sort((a, b) => a.nom.toLowerCase().compareTo(b.nom.toLowerCase())));
+    }
+
+    ctrl = StreamController<List<UserModel>>(
+      onListen: () {
+        // La liste principale s'affiche dès son arrivée, sans attendre
+        // la seconde (qui peut être vide, ou refusée par d'anciennes rules).
+        subs.add(principaux.listen((snap) {
+          p = snap.docs.map(UserModel.fromFirestore).toList();
+          emettre();
+        }, onError: ctrl.addError));
+        subs.add(supplementaires.listen((snap) {
+          s = snap.docs.map(UserModel.fromFirestore).toList();
+          emettre();
+        }, onError: ctrl.addError));
+      },
+      onCancel: () async {
+        for (final sub in subs) {
+          await sub.cancel();
+        }
+      },
+    );
+    return ctrl.stream;
   }
 
   /// Stream scopé : super-admin voit tous, admin voit ses vendeurs, sinon vide.
