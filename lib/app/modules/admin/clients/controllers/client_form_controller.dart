@@ -23,6 +23,17 @@ class ClientFormController extends GetxController {
   final RxList<BoutiqueModel> boutiques = <BoutiqueModel>[].obs;
 
   final RxBool isSaving = false.obs;
+
+  /// Vrai dès qu'une opération existe : le solde initial n'est alors plus
+  /// modifiable (il évolue uniquement par les opérations).
+  final RxBool soldeVerrouille = false.obs;
+
+  /// Fiche suivie en direct (édition seulement) : sert à afficher le solde
+  /// actuel une fois verrouillé, à jour même si une opération arrive
+  /// pendant que le formulaire est ouvert.
+  final Rxn<ClientModel> live = Rxn<ClientModel>();
+
+  double get soldeActuel => live.value?.solde ?? editing.value?.solde ?? 0;
   final Rxn<ClientModel> editing = Rxn<ClientModel>();
 
   bool get isEdit => editing.value != null;
@@ -46,6 +57,12 @@ class ClientFormController extends GetxController {
       adresseCtrl.text = arg.adresse ?? '';
       noteCtrl.text = arg.note ?? '';
       soldeCtrl.text = arg.solde == 0 ? '' : arg.solde.toStringAsFixed(0);
+      soldeVerrouille.value = arg.hasOperations;
+      _verifierVerrou(arg);
+      live.bindStream(_repo.watchById(arg.id));
+      ever<ClientModel?>(live, (m) {
+        if (m != null && m.hasOperations) soldeVerrouille.value = true;
+      });
       boutiqueId.value = arg.boutiqueId;
     } else if (!canPickBoutique) {
       // Admin de boutique : pré-remplir sa boutique
@@ -74,6 +91,14 @@ class ClientFormController extends GetxController {
   String? validateBoutique(String? v) {
     if (v == null || v.isEmpty) return 'Boutique requise';
     return null;
+  }
+
+  Future<void> _verifierVerrou(ClientModel m) async {
+    try {
+      if (await _repo.soldeVerrouille(m)) soldeVerrouille.value = true;
+    } catch (_) {
+      // Hors ligne ou refus : le dépôt revérifie à l'enregistrement.
+    }
   }
 
   double _parseSolde() {
@@ -105,9 +130,13 @@ class ClientFormController extends GetxController {
           email: optional(emailCtrl),
           adresse: optional(adresseCtrl),
           note: optional(noteCtrl),
-          solde: solde,
         );
-        await _repo.update(updated);
+        final soldeModifie =
+            !soldeVerrouille.value && solde != editing.value!.solde;
+        await _repo.update(
+          updated,
+          soldeInitial: soldeModifie ? solde : null,
+        );
         Get.back();
         Get.snackbar(
           'Modifications enregistrées',
@@ -137,6 +166,11 @@ class ClientFormController extends GetxController {
           snackPosition: SnackPosition.TOP,
         );
       }
+    } on SoldeVerrouilleException catch (e) {
+      soldeVerrouille.value = true;
+      final s = editing.value!.solde;
+      soldeCtrl.text = s == 0 ? '' : s.toStringAsFixed(0);
+      _snackError(e.toString());
     } catch (e) {
       _snackError('Enregistrement impossible : $e');
     } finally {

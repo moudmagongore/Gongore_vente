@@ -92,6 +92,7 @@ class ClientModel {
       adresse: adresse ?? this.adresse,
       boutiqueId: boutiqueId,
       solde: solde ?? this.solde,
+      hasOperations: hasOperations,
       note: note ?? this.note,
       createdAt: createdAt,
       updatedAt: DateTime.now(),

@@ -17,11 +17,23 @@ class FournisseurFormController extends GetxController {
   final emailCtrl = TextEditingController();
   final adresseCtrl = TextEditingController();
   final noteCtrl = TextEditingController();
+  final soldeCtrl = TextEditingController();
 
   final RxnString boutiqueId = RxnString();
   final RxList<BoutiqueModel> boutiques = <BoutiqueModel>[].obs;
 
   final RxBool isSaving = false.obs;
+
+  /// Vrai dès qu'une opération existe : le solde initial n'est alors plus
+  /// modifiable (il évolue uniquement par les opérations).
+  final RxBool soldeVerrouille = false.obs;
+
+  /// Fiche suivie en direct (édition seulement) : sert à afficher le solde
+  /// actuel une fois verrouillé, à jour même si une opération arrive
+  /// pendant que le formulaire est ouvert.
+  final Rxn<FournisseurModel> live = Rxn<FournisseurModel>();
+
+  double get soldeActuel => live.value?.solde ?? editing.value?.solde ?? 0;
   final Rxn<FournisseurModel> editing = Rxn<FournisseurModel>();
 
   bool get isEdit => editing.value != null;
@@ -44,6 +56,13 @@ class FournisseurFormController extends GetxController {
       emailCtrl.text = arg.email ?? '';
       adresseCtrl.text = arg.adresse ?? '';
       noteCtrl.text = arg.note ?? '';
+      soldeCtrl.text = arg.solde == 0 ? '' : arg.solde.toStringAsFixed(0);
+      soldeVerrouille.value = arg.hasOperations;
+      _verifierVerrou(arg);
+      live.bindStream(_repo.watchById(arg.id));
+      ever<FournisseurModel?>(live, (m) {
+        if (m != null && m.hasOperations) soldeVerrouille.value = true;
+      });
       boutiqueId.value = arg.boutiqueId;
     } else if (!canPickBoutique) {
       boutiqueId.value = UserController.to.scopeBoutiqueId;
@@ -57,6 +76,7 @@ class FournisseurFormController extends GetxController {
     emailCtrl.dispose();
     adresseCtrl.dispose();
     noteCtrl.dispose();
+    soldeCtrl.dispose();
     super.onClose();
   }
 
@@ -72,6 +92,20 @@ class FournisseurFormController extends GetxController {
     return null;
   }
 
+  Future<void> _verifierVerrou(FournisseurModel m) async {
+    try {
+      if (await _repo.soldeVerrouille(m)) soldeVerrouille.value = true;
+    } catch (_) {
+      // Hors ligne ou refus : le dépôt revérifie à l'enregistrement.
+    }
+  }
+
+  double _parseSolde() {
+    final raw = soldeCtrl.text.replaceAll(',', '.').trim();
+    if (raw.isEmpty) return 0;
+    return double.tryParse(raw) ?? 0;
+  }
+
   Future<void> save() async {
     if (!(formKey.currentState?.validate() ?? false)) return;
     final bId = boutiqueId.value;
@@ -82,6 +116,7 @@ class FournisseurFormController extends GetxController {
 
     isSaving.value = true;
     try {
+      final solde = _parseSolde();
       String? optional(TextEditingController c) {
         final v = c.text.trim();
         return v.isEmpty ? null : v;
@@ -95,7 +130,12 @@ class FournisseurFormController extends GetxController {
           adresse: optional(adresseCtrl),
           note: optional(noteCtrl),
         );
-        await _repo.update(updated);
+        final soldeModifie =
+            !soldeVerrouille.value && solde != editing.value!.solde;
+        await _repo.update(
+          updated,
+          soldeInitial: soldeModifie ? solde : null,
+        );
         Get.back();
         Get.snackbar(
           'Modifications enregistrées',
@@ -111,6 +151,7 @@ class FournisseurFormController extends GetxController {
           adresse: optional(adresseCtrl),
           note: optional(noteCtrl),
           boutiqueId: bId!,
+          solde: solde,
         );
         await _repo.create(newFourn);
         Get.back();
@@ -120,6 +161,11 @@ class FournisseurFormController extends GetxController {
           snackPosition: SnackPosition.TOP,
         );
       }
+    } on SoldeVerrouilleException catch (e) {
+      soldeVerrouille.value = true;
+      final s = editing.value!.solde;
+      soldeCtrl.text = s == 0 ? '' : s.toStringAsFixed(0);
+      _snackError(e.toString());
     } catch (e) {
       _snackError('Enregistrement impossible : $e');
     } finally {

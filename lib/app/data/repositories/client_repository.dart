@@ -3,6 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/services/firestore_service.dart';
 import '../../core/utils/stream_helpers.dart';
 import '../models/client_model.dart';
+import 'solde_verrouille_exception.dart';
+
+export 'solde_verrouille_exception.dart';
 
 class ClientRepository {
   final FirestoreService _fs = FirestoreService.to;
@@ -77,8 +80,49 @@ class ClientRepository {
     return ref.id;
   }
 
-  Future<void> update(ClientModel client) {
-    return _col.doc(client.id).update(client.toMap());
+  /// `true` si le solde initial ne peut plus être modifié : le client a
+  /// déjà au moins un vente ou un règlement.
+  ///
+  /// On interroge aussi l'historique, car le drapeau `hasOperations` peut
+  /// manquer sur d'anciennes fiches. Dans ce cas on le répare au passage.
+  Future<bool> soldeVerrouille(ClientModel client) async {
+    if (client.hasOperations) return true;
+    final usage = await hasUsage(client.id, boutiqueId: client.boutiqueId);
+    if (usage) {
+      try {
+        await _col.doc(client.id).update({'hasOperations': true});
+      } catch (_) {
+        // Réparation au mieux : sans effet sur le verrouillage.
+      }
+    }
+    return usage;
+  }
+
+  /// Met à jour la fiche. `solde` et `hasOperations` ne sont jamais
+  /// écrits ici : ils sont tenus par les transactions des opérations, et
+  /// les écrire depuis une copie locale écraserait leurs changements.
+  ///
+  /// Si [soldeInitial] est fourni, il remplace le solde, mais seulement
+  /// tant qu'aucune opération n'existe ; sinon [SoldeVerrouilleException].
+  Future<void> update(ClientModel client, {double? soldeInitial}) async {
+    final data = client.toMap()
+      ..remove('solde')
+      ..remove('hasOperations');
+    if (soldeInitial == null) {
+      await _col.doc(client.id).update(data);
+      return;
+    }
+    if (await hasUsage(client.id, boutiqueId: client.boutiqueId)) {
+      throw const SoldeVerrouilleException();
+    }
+    final ref = _col.doc(client.id);
+    await _fs.db.runTransaction((tx) async {
+      final snap = await tx.get(ref);
+      if (snap.data()?['hasOperations'] == true) {
+        throw const SoldeVerrouilleException();
+      }
+      tx.update(ref, {...data, 'solde': soldeInitial});
+    });
   }
 
   Future<void> delete(String id) {
