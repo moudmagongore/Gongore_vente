@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 
+import '../../../../core/utils/live_bindings.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/boutique_model.dart';
 import '../../../../data/models/mouvement_stock_model.dart';
@@ -12,7 +13,7 @@ import '../../../../data/repositories/user_repository.dart';
 
 enum PeriodeMouvement { aujourdhui, semaine, mois, tout }
 
-class HistoriqueMouvementsController extends GetxController {
+class HistoriqueMouvementsController extends GetxController with LiveBindings {
   final MouvementStockRepository _repo = MouvementStockRepository();
   final ProduitRepository _produitRepo = ProduitRepository();
   final UserRepository _userRepo = UserRepository();
@@ -40,9 +41,9 @@ class HistoriqueMouvementsController extends GetxController {
   void onInit() {
     super.onInit();
     final scope = UserController.to.scopeBoutiqueId;
-    produits.bindStream(_produitRepo.watchAll(boutiqueId: scope));
-    users.bindStream(_userRepo.watchScoped(scope: scope));
-    boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
+    bindLive(produits, _produitRepo.watchAll(boutiqueId: scope));
+    bindLive(users, _userRepo.watchScoped(scope: scope));
+    bindLive(boutiques, _boutiqueRepo.watchScoped(scope: scope));
     // Pour non-super-admin : verrouille le filtre sur leur boutique active.
     if (!isSuperAdmin && scope != null && scope.isNotEmpty) {
       filterBoutiqueId.value = scope;
@@ -63,7 +64,7 @@ class HistoriqueMouvementsController extends GetxController {
       isLoading.value = false;
       return;
     }
-    _all.bindStream(_repo.watchByBoutique(
+    bindLive(_all, _repo.watchByBoutique(
       boutiqueId,
       after: _afterDate(periode.value),
       limit: 500,

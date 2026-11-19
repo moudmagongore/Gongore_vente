@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 
+import '../../../../core/utils/live_bindings.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/utils/caisse_contexte.dart';
@@ -21,7 +22,7 @@ import '../../../../data/repositories/vente_repository.dart';
 
 enum PeriodeFiltre { aujourdhui, semaine, mois, personnalise, tout }
 
-class VentesController extends GetxController {
+class VentesController extends GetxController with LiveBindings {
   final VenteRepository _venteRepo = VenteRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
   final UserRepository _userRepo = UserRepository();
@@ -78,12 +79,12 @@ class VentesController extends GetxController {
   void onInit() {
     super.onInit();
     final scope = UserController.to.scopeBoutiqueId;
-    boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
-    caisses.bindStream(CaisseContexte.watchCaisses(scope));
-    vendeurs.bindStream(_userRepo.watchScoped(scope: scope));
-    clients.bindStream(_clientRepo.watchScoped(scope));
-    produits.bindStream(_produitRepo.watchAll(boutiqueId: scope));
-    categories.bindStream(_catRepo.watchAll(boutiqueId: scope));
+    bindLive(boutiques, _boutiqueRepo.watchScoped(scope: scope));
+    bindLive(caisses, CaisseContexte.watchCaisses(scope));
+    bindLive(vendeurs, _userRepo.watchScoped(scope: scope));
+    bindLive(clients, _clientRepo.watchScoped(scope));
+    bindLive(produits, _produitRepo.watchAll(boutiqueId: scope));
+    bindLive(categories, _catRepo.watchAll(boutiqueId: scope));
 
     // Un produit hors de la catégorie choisie ne renverrait aucune vente,
     // sans que l'utilisateur comprenne pourquoi : on relâche le filtre
@@ -154,7 +155,7 @@ class VentesController extends GetxController {
         after = null;
         break;
     }
-    _all.bindStream(_venteRepo.watchAll(
+    bindLive(_all, _venteRepo.watchAll(
       boutiqueId: filterBoutiqueId.value,
       vendeurId: filterVendeurId.value,
       after: after,

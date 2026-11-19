@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/utils/live_bindings.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/boutique_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 
-class BoutiquesController extends GetxController {
+class BoutiquesController extends GetxController with LiveBindings {
   final BoutiqueRepository _repo = BoutiqueRepository();
 
   /// null = toutes, true = actives, false = inactives
@@ -25,7 +26,8 @@ class BoutiquesController extends GetxController {
 
   void _bind() {
     isLoading.value = true;
-    _all.bindStream(
+    bindLive(
+      _all,
       _repo.watchScoped(scope: UserController.to.scopeBoutiqueId),
     );
     debounce(_all, (_) => isLoading.value = false,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/utils/live_bindings.dart';
 import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/services/analytics_service.dart';
 import '../../../../core/services/user_controller.dart';
@@ -33,7 +34,7 @@ class DepenseParNature {
   });
 }
 
-class DepensesController extends GetxController {
+class DepensesController extends GetxController with LiveBindings {
   final DepenseRepository _repo = DepenseRepository();
   final NatureDepenseRepository _natureRepo = NatureDepenseRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
@@ -76,10 +77,10 @@ class DepensesController extends GetxController {
     final scope = UserController.to.scopeBoutiqueId;
     if (scope != null) filterBoutiqueId.value = scope;
 
-    natures.bindStream(_natureRepo.watchScoped(scope));
-    boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
-    users.bindStream(_userRepo.watchScoped(scope: scope));
-    caisses.bindStream(CaisseContexte.watchCaisses(scope));
+    bindLive(natures, _natureRepo.watchScoped(scope));
+    bindLive(boutiques, _boutiqueRepo.watchScoped(scope: scope));
+    bindLive(users, _userRepo.watchScoped(scope: scope));
+    bindLive(caisses, CaisseContexte.watchCaisses(scope));
 
     _bind();
     everAll([periode, filterBoutiqueId], (_) => _bind());
@@ -87,7 +88,7 @@ class DepensesController extends GetxController {
 
   void _bind() {
     isLoading.value = true;
-    _all.bindStream(_repo.watchAll(
+    bindLive(_all, _repo.watchAll(
       boutiqueId: filterBoutiqueId.value,
       after: _afterDate(periode.value),
     ));

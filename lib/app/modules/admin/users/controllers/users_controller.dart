@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/utils/live_bindings.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../core/services/user_creation_service.dart';
 import '../../../../data/models/boutique_model.dart';
@@ -8,7 +9,7 @@ import '../../../../data/models/user_model.dart';
 import '../../../../data/repositories/boutique_repository.dart';
 import '../../../../data/repositories/user_repository.dart';
 
-class UsersController extends GetxController {
+class UsersController extends GetxController with LiveBindings {
   final UserRepository _userRepo = UserRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
   final UserCreationService _creation = UserCreationService();
@@ -33,8 +34,8 @@ class UsersController extends GetxController {
   void _bind() {
     isLoading.value = true;
     final scope = UserController.to.scopeBoutiqueId;
-    _all.bindStream(_userRepo.watchScoped(scope: scope));
-    boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
+    bindLive(_all, _userRepo.watchScoped(scope: scope));
+    bindLive(boutiques, _boutiqueRepo.watchScoped(scope: scope));
     debounce(_all, (_) => isLoading.value = false,
         time: const Duration(milliseconds: 200));
   }

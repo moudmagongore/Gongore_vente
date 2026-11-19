@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 
+import '../../../../core/utils/live_bindings.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/mouvement_caisse_model.dart';
 import '../../../../data/models/approvisionnement_model.dart';
@@ -37,7 +38,7 @@ class SyntheseCaisse {
   double get variation => entrees - sorties;
 }
 
-class RapportsController extends GetxController {
+class RapportsController extends GetxController with LiveBindings {
   final VenteRepository _venteRepo = VenteRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
   final UserRepository _userRepo = UserRepository();
@@ -87,10 +88,10 @@ class RapportsController extends GetxController {
     super.onInit();
     final scope = UserController.to.scopeBoutiqueId;
 
-    boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
-    users.bindStream(_userRepo.watchScoped(scope: scope));
-    produits.bindStream(_produitRepo.watchAll(boutiqueId: scope));
-    fournisseurs.bindStream(_fournRepo.watchScoped(scope));
+    bindLive(boutiques, _boutiqueRepo.watchScoped(scope: scope));
+    bindLive(users, _userRepo.watchScoped(scope: scope));
+    bindLive(produits, _produitRepo.watchAll(boutiqueId: scope));
+    bindLive(fournisseurs, _fournRepo.watchScoped(scope));
 
     // Pour admin de boutique : verrouiller le filtre sur sa boutique
     if (scope != null) {
@@ -153,14 +154,14 @@ class RapportsController extends GetxController {
 
   void _bind() {
     isLoading.value = true;
-    ventes.bindStream(_venteRepo.watchAll(
+    bindLive(ventes, _venteRepo.watchAll(
       boutiqueId: boutiqueId.value,
       vendeurId: vendeurId.value,
       after: dateDebut.value,
       before: dateFin.value.add(const Duration(seconds: 1)),
       limit: 1000,
     ));
-    appros.bindStream(_approRepo.watchAll(
+    bindLive(appros, _approRepo.watchAll(
       boutiqueId: boutiqueId.value,
       // Pas de filtre par utilisateur sur les appros : la gestion d'achat
       // n'est pas individuelle au vendeur (un appro réceptionné par X
@@ -169,7 +170,7 @@ class RapportsController extends GetxController {
       before: dateFin.value.add(const Duration(seconds: 1)),
       limit: 1000,
     ));
-    depenses.bindStream(_depenseRepo.watchAll(
+    bindLive(depenses, _depenseRepo.watchAll(
       boutiqueId: boutiqueId.value,
       // Comme pour les appros : pas de filtre par utilisateur. Une dépense
       // engage la boutique entière, pas le gestionnaire qui l'a saisie.

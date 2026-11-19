@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/utils/live_bindings.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../core/utils/format_helpers.dart';
 import '../../../../data/models/caisse_model.dart';
@@ -16,7 +17,7 @@ enum PeriodeReleve { aujourdhui, semaine, mois, tout }
 /// mono-caisse** : la règle de lecture des mouvements contrôle l'accès du
 /// gestionnaire par un `get()` sur la caisse, et une requête multi-caisses
 /// ferait sauter le quota d'accès documentaires.
-class ReleveCaisseController extends GetxController {
+class ReleveCaisseController extends GetxController with LiveBindings {
   final CaisseRepository _repo = CaisseRepository();
 
   final Rxn<CaisseModel> caisse = Rxn<CaisseModel>();
@@ -39,7 +40,7 @@ class ReleveCaisseController extends GetxController {
       caisse.value = arg;
       // Le solde affiché doit suivre les mouvements qu'on enregistre depuis
       // cet écran : on reste branché sur le document.
-      caisse.bindStream(_repo.watchOne(arg.id));
+      bindLive(caisse, _repo.watchOne(arg.id));
     }
     _bind();
     ever(periode, (_) => _bind());
@@ -49,7 +50,7 @@ class ReleveCaisseController extends GetxController {
     final c = caisse.value;
     if (c == null) return;
     isLoading.value = true;
-    _all.bindStream(_repo.watchMouvements(
+    bindLive(_all, _repo.watchMouvements(
       boutiqueId: c.boutiqueId,
       caisseId: c.id,
       after: _debut(periode.value),

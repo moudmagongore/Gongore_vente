@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/utils/live_bindings.dart';
 import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/services/analytics_service.dart';
 import '../../../../core/services/user_controller.dart';
@@ -60,7 +61,7 @@ class LigneAppro {
 /// - Lignes : produit + qté reçue + PA unitaire (modale qty + PA)
 /// - Totaux + remise globale + mode paiement + montant payé + avance
 /// - Validation atomique avec recalcul CMUP côté repository
-class ApproFormController extends GetxController {
+class ApproFormController extends GetxController with LiveBindings {
   final ApprovisionnementRepository _approRepo =
       ApprovisionnementRepository();
   final ProduitRepository _produitRepo = ProduitRepository();
@@ -157,16 +158,18 @@ class ApproFormController extends GetxController {
     super.onInit();
     final scope = UserController.to.scopeBoutiqueId;
 
-    boutiques.bindStream(
+    bindLive(
+      boutiques,
       _boutiqueRepo.watchScoped(scope: scope, actives: true),
     );
-    fournisseurs.bindStream(_fournRepo.watchScoped(scope));
+    bindLive(fournisseurs, _fournRepo.watchScoped(scope));
 
     ever(currentBoutiqueId, (String? id) {
       if (id == null || id.isEmpty) return;
       _resetAppro();
       isLoadingProduits.value = true;
-      produits.bindStream(
+      bindLive(
+        produits,
         _produitRepo.watchAll(boutiqueId: id, onlyActive: true),
       );
       debounce(produits, (_) => isLoadingProduits.value = false,
@@ -174,7 +177,7 @@ class ApproFormController extends GetxController {
 
       // Les caisses suivent la boutique active : un admin multi-boutique
       // ne doit pas voir celles de la boutique précédente.
-      caisses.bindStream(CaisseContexte.watchCaisses(id));
+      bindLive(caisses, CaisseContexte.watchCaisses(id));
       // Drapeau de la boutique : seul moyen pour un gestionnaire de savoir
       // qu'elle a des caisses auxquelles il n'a pas accès (RG-19).
       _boutiqueRepo.getById(id).then((b) {

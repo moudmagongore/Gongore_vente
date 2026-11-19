@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 
+import '../../../../core/utils/live_bindings.dart';
 import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/services/reglement_receipt_service.dart';
 import '../../../../core/services/user_controller.dart';
@@ -16,7 +17,7 @@ import '../../../../data/repositories/user_repository.dart';
 
 enum PeriodeReglement { aujourdhui, semaine, mois, tout }
 
-class ReglementsController extends GetxController {
+class ReglementsController extends GetxController with LiveBindings {
   final ReglementRepository _repo = ReglementRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
   final ClientRepository _clientRepo = ClientRepository();
@@ -66,10 +67,10 @@ class ReglementsController extends GetxController {
       });
     }
 
-    boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
-    clients.bindStream(_clientRepo.watchScoped(scope));
-    users.bindStream(_userRepo.watchScoped(scope: scope));
-    caisses.bindStream(CaisseContexte.watchCaisses(scope));
+    bindLive(boutiques, _boutiqueRepo.watchScoped(scope: scope));
+    bindLive(clients, _clientRepo.watchScoped(scope));
+    bindLive(users, _userRepo.watchScoped(scope: scope));
+    bindLive(caisses, CaisseContexte.watchCaisses(scope));
 
     _bind();
     everAll([periode, filterBoutiqueId], (_) => _bind());
@@ -92,7 +93,8 @@ class ReglementsController extends GetxController {
       isLoading.value = false;
       return;
     }
-    _all.bindStream(
+    bindLive(
+      _all,
       _repo.watchByBoutique(scope, after: _afterDate(periode.value)),
     );
     debounce(_all, (_) => isLoading.value = false,

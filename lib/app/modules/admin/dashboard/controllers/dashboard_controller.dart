@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 
+import '../../../../core/utils/live_bindings.dart';
 import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/services/user_controller.dart';
 import '../../../../data/models/caisse_model.dart';
@@ -34,7 +35,7 @@ class DayPoint {
   DayPoint(this.date, this.total);
 }
 
-class DashboardController extends GetxController {
+class DashboardController extends GetxController with LiveBindings {
   final VenteRepository _venteRepo = VenteRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
   final UserRepository _userRepo = UserRepository();
@@ -86,7 +87,8 @@ class DashboardController extends GetxController {
 
     // La liste des boutiques n'est PAS filtrée : c'est elle qui alimente le
     // sélecteur, elle doit donc rester complète.
-    boutiques.bindStream(
+    bindLive(
+      boutiques,
       _boutiqueRepo.watchScoped(scope: UserController.to.scopeBoutiqueId),
     );
 
@@ -107,15 +109,15 @@ class DashboardController extends GetxController {
 
     isLoading.value = true;
 
-    caisses.bindStream(CaisseContexte.watchCaisses(scope));
-    _ventesMois.bindStream(_venteRepo.watchAll(
+    bindLive(caisses, CaisseContexte.watchCaisses(scope));
+    bindLive(_ventesMois, _venteRepo.watchAll(
       after: startOfMonth,
       limit: 500,
       boutiqueId: scope,
     ));
-    users.bindStream(_userRepo.watchScoped(scope: scope));
-    produits.bindStream(_produitRepo.watchAll(boutiqueId: scope));
-    _depensesMois.bindStream(_depenseRepo.watchAll(
+    bindLive(users, _userRepo.watchScoped(scope: scope));
+    bindLive(produits, _produitRepo.watchAll(boutiqueId: scope));
+    bindLive(_depensesMois, _depenseRepo.watchAll(
       boutiqueId: scope,
       after: startOfMonth,
     ));

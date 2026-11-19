@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/utils/live_bindings.dart';
 import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/services/appro_receipt_service.dart';
 import '../../../../core/services/user_controller.dart';
@@ -17,7 +18,7 @@ import '../../../../data/repositories/user_repository.dart';
 
 enum PeriodeAppro { aujourdhui, semaine, mois, personnalise, tout }
 
-class ApprosController extends GetxController {
+class ApprosController extends GetxController with LiveBindings {
   final ApprovisionnementRepository _repo = ApprovisionnementRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
   final UserRepository _userRepo = UserRepository();
@@ -58,10 +59,10 @@ class ApprosController extends GetxController {
   void onInit() {
     super.onInit();
     final scope = UserController.to.scopeBoutiqueId;
-    boutiques.bindStream(_boutiqueRepo.watchScoped(scope: scope));
-    users.bindStream(_userRepo.watchScoped(scope: scope));
-    caisses.bindStream(CaisseContexte.watchCaisses(scope));
-    fournisseurs.bindStream(_fournRepo.watchScoped(scope));
+    bindLive(boutiques, _boutiqueRepo.watchScoped(scope: scope));
+    bindLive(users, _userRepo.watchScoped(scope: scope));
+    bindLive(caisses, CaisseContexte.watchCaisses(scope));
+    bindLive(fournisseurs, _fournRepo.watchScoped(scope));
 
     if (scope != null) {
       filterBoutiqueId.value = scope;
@@ -97,7 +98,7 @@ class ApprosController extends GetxController {
         after = null;
         break;
     }
-    _all.bindStream(_repo.watchAll(
+    bindLive(_all, _repo.watchAll(
       boutiqueId: filterBoutiqueId.value,
       userId: filterUserId.value,
       after: after,

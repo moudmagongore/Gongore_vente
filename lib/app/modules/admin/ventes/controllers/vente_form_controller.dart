@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/utils/live_bindings.dart';
 import '../../../../core/utils/caisse_contexte.dart';
 import '../../../../core/services/analytics_service.dart';
 import '../../../../core/services/user_controller.dart';
@@ -71,7 +72,7 @@ class LigneVente {
 /// - Ajout d'articles via une modale (qty + remise, prix figé)
 /// - Totaux + remise globale + mode paiement + note
 /// - Validation avec transaction atomique côté repository
-class VenteFormController extends GetxController {
+class VenteFormController extends GetxController with LiveBindings {
   final ProduitRepository _produitRepo = ProduitRepository();
   final BoutiqueRepository _boutiqueRepo = BoutiqueRepository();
   final CategorieRepository _catRepo = CategorieRepository();
@@ -184,18 +185,20 @@ class VenteFormController extends GetxController {
     super.onInit();
     final scope = UserController.to.scopeBoutiqueId;
 
-    boutiques.bindStream(
+    bindLive(
+      boutiques,
       _boutiqueRepo.watchScoped(scope: scope, actives: true),
     );
-    categories.bindStream(_catRepo.watchAll(boutiqueId: scope));
-    clients.bindStream(_clientRepo.watchScoped(scope));
+    bindLive(categories, _catRepo.watchAll(boutiqueId: scope));
+    bindLive(clients, _clientRepo.watchScoped(scope));
 
     // Listener AVANT toute affectation à currentBoutiqueId
     ever(currentBoutiqueId, (String? id) {
       if (id == null || id.isEmpty) return;
       _resetVente();
       isLoadingProduits.value = true;
-      produits.bindStream(
+      bindLive(
+        produits,
         _produitRepo.watchAll(boutiqueId: id, onlyActive: true),
       );
       debounce(produits, (_) => isLoadingProduits.value = false,
@@ -203,7 +206,7 @@ class VenteFormController extends GetxController {
 
       // Les caisses suivent la boutique active : un admin multi-boutique
       // ne doit pas encaisser sur la caisse d'une autre boutique.
-      caisses.bindStream(CaisseContexte.watchCaisses(id));
+      bindLive(caisses, CaisseContexte.watchCaisses(id));
       // Seul moyen, pour un gestionnaire, de savoir que la boutique a des
       // caisses auxquelles il n'a pas accès (RG-19).
       _boutiqueRepo.getById(id).then((b) {
